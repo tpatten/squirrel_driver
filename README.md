@@ -1,5 +1,7 @@
 squirrel_driver
 
+Technical Maintainer: ipa-nhg (Nadia H. Garcia, Fraunhofer IPA)
+
 You need to install the Robotino API2 debian package. See
 http://wiki.openrobotino.org/index.php?title=API2
 
