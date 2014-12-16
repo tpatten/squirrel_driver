@@ -15,7 +15,7 @@ deb http://doc.openrobotino.org/download/packages/amd64 ./
 
 Then
 ```
-sudp apt-get update
+sudo apt-get update
 sudo apt-get install robotino-examples
 sudo apt-get install robotino-examples
 ```
