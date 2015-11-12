@@ -6,13 +6,21 @@ using namespace std;
 
 int main(int argc,char** argv){
 
+    //if(argc!=2){
+    //    cout << "Error starting sensing node. The node requires as input the port from where the microcontroller is connected" << endl;
+    //    return -1;
+    //}
+
     string name="sensing";  //can be read from argv
 
     ros::init(argc, argv, name);
 
     cout << "Creating " << name << " node " << endl;
 
-    SensingNode sensing(name);
+    //TODO implement portname parameter passing
+    //cout << "Args: " << argv << endl;
+
+    SensingNode sensing(name,"/dev/ttyACM0"); //string(argv[1]) ); //TODO to test
 
     cout << "Executing " << name << " node " << endl;
 

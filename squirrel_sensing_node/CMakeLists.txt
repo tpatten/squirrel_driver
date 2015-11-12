@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+roslib
 )
 
 
@@ -29,7 +30,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES squirrel_sensing_node
-#  CATKIN_DEPENDS roscpp rospy std_msgs
+  CATKIN_DEPENDS roscpp rospy std_msgs roslib
 #  DEPENDS system_lib
 )
 
@@ -59,16 +60,19 @@ include_directories(
 # add_dependencies(squirrel_sensing_node_node squirrel_sensing_node_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(squirrel_sensing_node_node
+# target_link_libraries(squirrel_sensing_node
+#   roscpp
 #   ${catkin_LIBRARIES}
 # )
 
 
-
 add_executable(sensing src/main.cpp
-		       src/node.cpp)
+		       src/node.cpp
+		       src/sensing_drivers.cpp)
 
-target_link_libraries(sensing ${catkin_LIBRARIES})
+target_link_libraries(sensing 
+			FT17_driver
+			${catkin_LIBRARIES})
 
 
 
