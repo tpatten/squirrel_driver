@@ -26,6 +26,6 @@ target_link_libraries(sensing
 			FT17_driver
 			${catkin_LIBRARIES})
 
-install(DIRECTORY docu
+install(DIRECTORY doc
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
