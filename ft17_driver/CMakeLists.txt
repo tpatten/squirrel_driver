@@ -3,6 +3,18 @@ project(ft17_driver)
 
 find_package(catkin REQUIRED)
 
+find_program(CMAKE_DPKG dpkg /bin /usr/bin /usr/local/bin) 
+if(CMAKE_DPKG)
+  exec_program(dpkg ARGS --print-architecture OUTPUT_VARIABLE CMAKE_DPKG_ARCH)
+  if(CMAKE_DPKG_ARCH MATCHES "amd64")
+    message(STATUS "++++++++++++++++++++++++++ DETECTED 64 bit +++++++++++++++++++++++++++++++++++")
+    set(MYARCH "x86_64")
+  else()
+    message(STATUS "++++++++++++++++++++++++++ DETECTED 32 bit +++++++++++++++++++++++++++++++++++")
+    set(MYARCH "i686")
+  endif()
+endif()
+
 catkin_package(
     INCLUDE_DIRS common/include
     LIBRARIES FT17
@@ -10,11 +22,11 @@ catkin_package(
 
 include_directories(common/include)
 
-message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/libFT17_driver.so to ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/libFT17_driver.so")
+message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/${MYARCH}/libFT17_driver.so to ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/libFT17_driver.so")
 
 add_custom_target(
     build_ft17 ALL
-    COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/libFT17_driver.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}
+    COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/${MYARCH}/libFT17_driver.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
 add_library(FT17 SHARED)
@@ -28,7 +40,7 @@ install(TARGETS FT17
     RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
 )
 
-install(PROGRAMS common/lib/libFT17_driver.so
+install(PROGRAMS common/lib/${MYARCH}/libFT17_driver.so
   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
