@@ -8,6 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
   roslib
 )
 
+set( CMAKE_VERBOSE_MAKEFILE on )
+
 catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS roscpp rospy std_msgs roslib
