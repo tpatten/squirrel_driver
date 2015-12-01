@@ -17,7 +17,7 @@ endif()
 
 catkin_package(
     INCLUDE_DIRS common/include
-    LIBRARIES FT17
+    LIBRARIES FT17_driver
 )
 
 include_directories(common/include)
@@ -25,16 +25,16 @@ include_directories(common/include)
 message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/${MYARCH}/libFT17_driver.so to ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/libFT17_driver.so")
 
 add_custom_target(
-    build_ft17 ALL
+    build_ft17_driver ALL
     COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/${MYARCH}/libFT17_driver.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
 )
 
-add_library(FT17 SHARED)
-set_target_properties(FT17 PROPERTIES LINKER_LANGUAGE CXX)
+add_library(FT17_driver SHARED)
+set_target_properties(FT17_driver PROPERTIES LINKER_LANGUAGE CXX)
 
-add_dependencies(FT17 build_ft17)
+add_dependencies(FT17_driver build_ft17_driver)
 
-install(TARGETS FT17
+install(TARGETS FT17_driver
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
