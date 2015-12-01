@@ -26,7 +26,7 @@ message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/${MYARCH}/libFT17_drive
 
 add_custom_target(
     build_ft17_driver ALL
-    COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/${MYARCH}/libFT17_driver.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
+    COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/${MYARCH}/libFT17_driver.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
 add_library(FT17_driver SHARED)
