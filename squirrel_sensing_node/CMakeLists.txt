@@ -2,17 +2,24 @@ cmake_minimum_required(VERSION 2.8.3)
 project(squirrel_sensing_node)
 
 find_package(catkin REQUIRED COMPONENTS
+  ft17_driver
   roscpp
+  roslib
   rospy
   std_msgs
-  roslib
 )
 
 set( CMAKE_VERBOSE_MAKEFILE on )
 
 catkin_package(
-  INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp rospy std_msgs roslib
+  INCLUDE_DIRS
+    include
+  CATKIN_DEPENDS
+    ft17_driver
+    roscpp
+    roslib
+    rospy
+    std_msgs
 )
 
 
