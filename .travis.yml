@@ -27,7 +27,7 @@ script:
   - ln -s $TRAVIS_BUILD_DIR $CATKIN_WS_SRC
   - cd $CATKIN_WS
   - catkin init
-  - cd ft17_driver
+  - cd $CATKIN_WS_SRC/ft17_driver
   - ./install.sh
   # Enable install space
   #- catkin config --install
