@@ -27,6 +27,7 @@ script:
   - ln -s $TRAVIS_BUILD_DIR $CATKIN_WS_SRC
   - cd $CATKIN_WS
   - catkin init
+  - catkin make
   # Enable install space
   #- catkin config --install
   # Build [and Install] packages
