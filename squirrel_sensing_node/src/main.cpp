@@ -20,7 +20,7 @@ int main(int argc,char** argv){
     //TODO implement portname parameter passing
     //cout << "Args: " << argv << endl;
 
-    SensingNode sensing(name,"/dev/ttyACM0"); //string(argv[1]) ); //TODO to test
+    SensingNode sensing(name,"/dev/ttyArduinoSensors"); //string(argv[1]) ); //TODO to test
 
     cout << "Executing " << name << " node " << endl;
 
