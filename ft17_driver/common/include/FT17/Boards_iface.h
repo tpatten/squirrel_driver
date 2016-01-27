@@ -141,23 +141,23 @@ public:
 
 
         /**
-         * @brief configure each DSP board calling Dsp_Board::configure() with possible different bc_rates and policies for different boards
+         * @brief configure each DSP board in the streaming mode calling Dsp_Board::configure() with possible different bc_rates and policies for different boards
          *
          * @param  bc_rate broadcast rate vector
          * @param  policy requested policy vector
          * @return void
          */
-        bool configure_boards ( std::vector<uint8_t> bc_rate, std::vector<uint16_t> policy );
+        bool configure_streaming ( std::vector<uint8_t> bc_rate, std::vector<uint16_t> policy );
 
          /**
-         * @brief configure the DSP board calling Dsp_Board::configure() setting the same bc_rate and policy for all the boards.
+         * @brief configure the DSP board in the streaming mode calling Dsp_Board::configure() setting the same bc_rate and policy for all the boards.
          *
          * @param  bc_rate broadcast rate
          * @param  policy requested policy
          * @return void
          */
-        void configure_boards ( uint8_t bc_rate, uint16_t policy );
-
+        void configure_streaming ( uint8_t bc_rate, uint16_t policy );
+        
         /**
         * start/stop broadcast of all scanned board
         * for each board set bc_rate via TCP packet
@@ -166,6 +166,28 @@ public:
         *
         */
         void start_stop_bc_boards ( uint8_t start_stop );
+        
+        /**
+         * @brief configure each DSP board in the polling mode calling Dsp_Board::configure() with possible different policies for different boards
+         *
+         * @param  policy requested policy vector
+         * @return void
+         */
+        bool configure_polling ( std::vector<uint16_t> policy );
+        
+        /**
+         * @brief configure the DSP board in the polling mode calling Dsp_Board::configure() setting the policy for all the boards.
+         *
+         * @param  policy requested policy
+         * @return void
+         */
+        void configure_polling ( uint16_t policy );
+
+        /**
+        * @brief get a single packet from dsp boards in POLLING mode
+        *
+        */
+        void get_single_data ( ts_single_data_t * );
 
         /**
         *

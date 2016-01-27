@@ -75,6 +75,23 @@ typedef struct {
         bc_data_t   raw_bc_data;
 } ts_bc_data_t;
 
+/**
+ * timestamped DSP single data
+ */
+typedef struct {
+        uint64_t    ts_rx;
+        bc_data_t   raw_bc_data;
+} ts_single_data_t;
+
+/**
+ * @brief List of the possible TCP/UDP commands/replies to/from the firmware
+ *
+ */
+typedef enum {
+    STREAMING,
+    POLLING
+} operational_mode;
+
 #if __XENO__
 static const std::string pipe_prefix ( "/proc/xenomai/registry/rtipc/xddp/" );
 #else
