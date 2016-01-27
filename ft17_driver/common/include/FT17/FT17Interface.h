@@ -67,6 +67,12 @@ private:
          *
          */
         uint16_t policy;
+        
+        /**
+         * @brief the operational mode: can be streaming or polling
+         * 
+         */
+        operational_mode mode;
 
         /**
          * @brief bool flags: true if the boards are configured
@@ -91,6 +97,12 @@ private:
          *
          */
         std::vector<ts_bc_data_t> ts_bc_data;
+        
+        /**
+         * @brief timestamped single data
+         *
+         */
+        std::vector<ts_single_data_t> ts_single_data;
 
         /**
          * @brief ft map
@@ -114,14 +126,14 @@ public:
         bool init();
 
         /**
-         * @brief configure the DSP setting the broadcast rate and the policy
+         * @brief configure the DSP in the streaming mode setting the broadcast rate and the policy
          *
          * @param rate requested broadcast rate
          * @param policy requested policy
          * @return void
          */
-        void configure ( uint8_t rate, uint16_t policy );
-
+        void configure_streaming ( uint8_t rate, uint16_t policy );
+        
         /**
          * @brief get the broadcast data
          *
@@ -129,6 +141,22 @@ public:
          * @return void
          */
         void get_broadcast_data ( ft_data& data );
+        
+        /**
+         * @brief configure the DSP in the polling mode setting the policy
+         *
+         * @param policy requested policy
+         * @return void
+         */
+        void configure_polling ( uint16_t policy );
+        
+        /**
+         * @brief get the single data in POLLING mode
+         *
+         * @param data data that will be filled
+         * @return void
+         */
+        void get_single_data ( ft_data& data );
 
         /**
          * @brief start the broadcast of data
@@ -164,5 +192,12 @@ public:
          * @return the requested policy
          */
         uint16_t get_policy();
+        
+        /**
+         * @brief getter method for the operational mode
+         *
+         * @return the actual operational mode enum
+         */
+        operational_mode get_operational_mode();
 
 };

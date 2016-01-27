@@ -305,21 +305,31 @@ Wrist::Wrist()
 {
     ft17=new FT17Interface ( "eth0" );
     ft17->init();
-    ft17->configure ( 1, 127 );
-    ft17->start_broadcast();
+    //ft17->configure ( 1, 127 );
+	// FT17 configured in POLLING mode
+    ft17->configure_polling ( (uint16_t)127 );
+    //ft17->start_broadcast();
 }
 
 Wrist::~Wrist()
 {
-    ft17->stop_broadcast();
+    //ft17->stop_broadcast();	//it seems is not needed anymore
     delete ft17;
 }
 
 std::vector<double>* Wrist::readData(){
+
+	if(ft17==NULL){
+		return new vector<double>(WristDataNum,0);
+	}
+
     // get the FT17 data
-    ft17->get_broadcast_data ( ft_bc_data );
+    //ft17->get_broadcast_data ( ft_bc_data );
+	ft17->get_single_data ( ft_bc_data );	//the data structures should be the same but the values require to be checked
 
     vector<double>* res=new vector<double>(WristDataNum,0);
+
+
 
     // fill the FT_filt msg
     //frame_id = std::to_string ( ft_bc_data.board_id ) ; //frame ID, if needed
