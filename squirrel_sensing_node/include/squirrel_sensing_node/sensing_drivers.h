@@ -28,10 +28,30 @@ public:
 
 class Tactile : public Driver{
 
-    static const double A_TACT;
-    static const double B_TACT;
-    static const double C_TACT;
-    static const double D_TACT;
+    // calibration coefficients
+    static const double A11_TACT;
+    static const double A12_TACT;
+    static const double A13_TACT;
+
+    static const double A21_TACT;
+    static const double A22_TACT;
+    static const double A23_TACT;
+
+    static const double A31_TACT;
+    static const double A32_TACT;
+    static const double A33_TACT;
+
+    //--- maximums
+    static const double MAX1_V1;
+    static const double MAX1_V2;
+    static const double MAX1_V3;
+
+    static const double MAX2_V1;
+
+    static const double MAX3_V2;
+    static const double MAX3_V3;
+    //---
+    static const double MAX_PROX; //proximity
 
     static const double A_PROX;
     static const double B_PROX;
@@ -55,7 +75,7 @@ class Tactile : public Driver{
     std::vector<std::vector<double> > mean; //first 10 values used for calculating the bias
 
     double bias(const int idx,const double val);
-    double convertTact(const double num);
+    void convertTact(std::vector<double>& num,int idx);
     double convertProx(const double num);
     bool isStationaryTact(const double val,const int idx);
     bool isStationaryProx(const double val,const int idx);
