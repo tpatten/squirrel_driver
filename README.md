@@ -20,7 +20,7 @@ Execute:
   rosrun squirrel_sensing_node sensing
   Two topics are published:
     /wrist  - that publishes [Fx, Fy, Fz, Mx, My, Mz]
-    /fingertips - that publishes [Fz1, Mx1, My1, Fz2, Mx2, My2, Fz3, Mx3, My3, Dd1, Dp1, Dd2, Dp2, Dd3, Dp3], Dd stands for distal proximity sensor, and Dp stands for pad proximity sensor.
+    /fingertips - that publishes [Fz1, Mx1, My1, Fz2, Mx2, My2, Fz3, Mx3, My3, Dp1, Dd1, Dp2, Dd2, Dp3, Dd3], Dp stands for pad proximity sensor, and Dd stands for distal proximity sensor.
     
     More information about sensors safety use and calibration can be found in squirrel_driver/squirrel_sensing_node/doc.
     
