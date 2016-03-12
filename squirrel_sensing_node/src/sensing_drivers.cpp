@@ -321,6 +321,8 @@ std::vector<double>* Wrist::readData(){
 
     vector<double>* res=new vector<double>(WristDataNum,0);
 
+
+
     // fill the FT_filt msg
     //frame_id = std::to_string ( ft_bc_data.board_id ) ; //frame ID, if needed
 
