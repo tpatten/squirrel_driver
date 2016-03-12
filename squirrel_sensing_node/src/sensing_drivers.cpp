@@ -15,6 +15,8 @@
 
 #include "../include/squirrel_sensing_node/sensing_drivers.h"
 
+//#define TEST    //undefine to remove testing code
+
 using namespace std;
 
 //makes the connection with m_portname
@@ -69,25 +71,45 @@ void Driver::flush(){
 
 //------------------------------TACTILE and PROXIMITY
 
-const int Tactile::NUM_VALS=15;
-const int Tactile::NUM_TACT=12; //number of tactile values
-const int Tactile::NUM_PROX=3;
+const int Tactile::NUM_TACT=9; //number of tactile values
+const int Tactile::NUM_PROX=6;
+const int Tactile::NUM_VALS=Tactile::NUM_TACT+Tactile::NUM_PROX;  //should be 15
 
 const int Tactile::NUM_HISTORY_VALS=10;
 const int Tactile::NUM_BIAS_VALS=100;
-const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.02;    //volts
-const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.2;    //volts
+const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.00;    //volts
+const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.05;    //volts
 
 //calibration coefficients tactile sensor
-const double Tactile::A_TACT=0.617;
-const double Tactile::B_TACT=-3.386;
-const double Tactile::C_TACT=6.185;
-const double Tactile::D_TACT=0.7531;
+const double Tactile::A11_TACT=0.8067;
+const double Tactile::A12_TACT=1.853;
+const double Tactile::A13_TACT=2.48;
+
+const double Tactile::A21_TACT=0.1026;
+const double Tactile::A22_TACT=0;
+const double Tactile::A23_TACT=0;
+
+const double Tactile::A31_TACT=0;
+const double Tactile::A32_TACT=0.03548;
+const double Tactile::A33_TACT=0.01892;
+
+//maximums of calibration curves in volts for tactile
+const double Tactile::MAX1_V1=4;
+const double Tactile::MAX1_V2=3.8;
+const double Tactile::MAX1_V3=3.2;
+
+const double Tactile::MAX2_V1=0.4;
+
+const double Tactile::MAX3_V2=0.45;
+const double Tactile::MAX3_V3=1.68;
 
 //calibration coefficients proximity sensor
 const double Tactile::A_PROX=20.74;
 const double Tactile::B_PROX=-0.1808; //exponent
 const double Tactile::C_PROX=-17.28;
+
+//calibration maximum for proximity
+const double Tactile::MAX_PROX=4;
 
 
 
@@ -117,7 +139,7 @@ Tactile::Tactile(const std::string& portname){
     if(config.good()){
         string line;
         int sensId=0;
-        while(getline(config,line) && sensId<=NUM_TACT){
+        while(getline(config,line) && sensId<=NUM_VALS){    //one divider per sensor reading
             if(line.at(0)!='#'){ //if line is not a comment
                 istringstream iss(line);
                 double val;
@@ -168,6 +190,7 @@ bool Tactile::isStationaryTact(const double val,const int idx){
 }
 
 //returns true if data is stationary, input is the value and the sensor id
+//WARNING as it is now, only the first value in a set of 3 is checked for stationarity
 bool Tactile::isStationaryProx(const double val,const int idx){
 
     history_prox.at(idx)->push(val);
@@ -209,7 +232,19 @@ std::vector<double>* Tactile::readData(){
     std::vector<double>* res=new vector<double>(NUM_VALS,-1.0); //if a -1 is given it means there was a problem with reading that value
 
     char buff[255];
+#ifndef TEST
     int rd=read(m_fileDesc,buff,255);
+#else
+    buff[0]='\n';
+    cout << "Input volts: " ;
+    for(int i=0;i<NUM_VALS;i++)
+    {
+        res->at(i)=0.1;       //artificial testing volt value
+        cout << res->at(i) << " ";
+    }
+    cout << endl;
+    //testing
+#endif
 
     bool done=false;
     int readingNum=0;
@@ -243,46 +278,79 @@ std::vector<double>* Tactile::readData(){
 
 
     for(int i=0;i<NUM_TACT;i++){//biasing to calibration
-        res->at(i)= (res->at(i)*(divider[i]-1))/3.764; //calibartion curve maximum is (4.764-1)
+        res->at(i)= (res->at(i)*(divider[i])); //calibartion curve maximum is (5-1)
     }
 
-    for(int i=0;i<NUM_TACT;i++){//first 12 values are tactile
+    cout << "Tactile vals: ";
+    for(int i=0;i<NUM_TACT;i+=3){//first 9 values are tactile
 
         if(!isStationaryTact(res->at(i),i)){      //if values changed
-            res->at(i)=convertTact(res->at(i));
+            convertTact(*res,i);     //we pass 3 values at time (that is why the for increments i+3)
         }else{
             res->at(i)=0;
         }//if not stationary
+
+        cout << res->at(i) << " " << res->at(i+1) << " " << res->at(i+2) << " ";
     }
+    cout << endl ;
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
-        res->at(i)= (res->at(i)); //calibartion curve maximum is not accounted
+        res->at(i)= (res->at(i)*((divider[i])/MAX_PROX)); //calibartion curve maximum is accounted
     }
 
-    for(int i=NUM_TACT;i<NUM_VALS;i++){//last 3 values are proximity
+    cout << "Proximity vals: ";
+    for(int i=NUM_TACT;i<NUM_VALS;i++){//last 6 values are proximity
 
         if(!isStationaryProx(res->at(i),i-NUM_TACT)){      //if values changed
             res->at(i)=convertProx(res->at(i));
         }else{
             res->at(i)=-1;
         }
-
-
+        cout << res->at(i) << " ";
     }
+    cout << endl << endl;
+
+
+    cin.ignore();
 
     return res;
 }
 
 //convert volts into newtons
-double Tactile::convertTact(const double num){
+void Tactile::convertTact(vector<double>& num,int idx){
 
-    if(num==-1) {   //if value not valid
-        return -1;
+    if(num.size() < idx+2)
+    {
+        cout << "[Tactile::convertTact] not enough sensor readings to parse in range [" << idx << " " << idx+3 << "] which is larger than maximum number of elements " << num.size() << endl;
+        cout << "[Tactile::convertTact] WARNING - Values have NOT been processed!" << endl;
+        return; //just to avoid crashes, we could assert it as well
     }
 
-    double val=num; //-1;   //subtract 1 volt
+    for(int i=0;i<2;i++)
+    {
+        if(num[idx+i]==-1) {   //if value not valid
+            num[idx+i]=-1;
+        }
+    }
 
-    return (A_TACT*pow(val,3))+(B_TACT*pow(val,2))+(C_TACT*val)+D_TACT;
+    double v1=num.at(idx);
+    double v2=num.at(idx+1);
+    double v3=num.at(idx+2);
+
+
+    if(num[idx]!=-1)    //these checks are done to be sure that illigal values are not used for computing the formulas
+    {
+        num[idx]=((A11_TACT/MAX1_V1)*v1)+((A12_TACT/MAX1_V2)*v2)+((A13_TACT/MAX1_V3)*v3);
+    }
+    if(num[idx+1]!=-1)
+    {
+        num[idx+1]=((A21_TACT/MAX2_V1)*v1);
+    }
+    if(num[idx+2]!=-1)
+    {
+        num[idx+2]=((A32_TACT/MAX3_V2)*v2)+((A33_TACT/MAX3_V3)*v3);
+    }
+
 }
 
 //convert volts into distance
@@ -305,19 +373,25 @@ Wrist::Wrist()
 {
     ft17=new FT17Interface ( "eth0" );
     ft17->init();
-    ft17->configure ( 1, 127 );
-    ft17->start_broadcast();
+	// FT17 configured in POLLING mode
+    ft17->configure_polling ( (uint16_t)127 );
 }
 
 Wrist::~Wrist()
 {
-    ft17->stop_broadcast();
+    //ft17->stop_broadcast();	//it seems is not needed anymore
     delete ft17;
 }
 
 std::vector<double>* Wrist::readData(){
+
+	if(ft17==NULL){
+		return new vector<double>(WristDataNum,0);
+	}
+
     // get the FT17 data
-    ft17->get_broadcast_data ( ft_bc_data );
+    //ft17->get_broadcast_data ( ft_bc_data );
+	ft17->get_single_data ( ft_bc_data );	//the data structures should be the same but the values require to be checked
 
     vector<double>* res=new vector<double>(WristDataNum,0);
 

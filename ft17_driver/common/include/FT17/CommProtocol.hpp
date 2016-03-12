@@ -120,6 +120,10 @@ enum Commands {
 
         CHECK_PROTOCOL,
         GET_ACTIVE_BOARDS,
+        
+        SET_SINGLE_UDP_PACKET_POLICY,
+        GET_SINGLE_UDP_PACKET,
+        UDP_CALIBRATE_OFFSETS,
 
 
         /////////////////
@@ -231,6 +235,10 @@ const CmdInfo cmdsInfo[NUM_OF_COMMANDS] = {
 
         { UDP_COMMAND, 0x01 }, // CHECK_PROTOCOL
         { UDP_COMMAND, 0x02 }, // GET_ACTIVE_BOARDS
+        
+        { UDP_COMMAND, 0x03 }, // SET_SINGLE_UDP_PACKET_POLICY
+        { UDP_COMMAND, 0x04 }, // GET_SINGLE_UDP_PACKET
+        { UDP_COMMAND, 0x05 }, // UDP_CALIBRATE_OFFSETS
 
 
         /////////////////

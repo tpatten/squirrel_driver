@@ -25,6 +25,7 @@
 #include <boost/circular_buffer.hpp>
 
 #include <FT17/definitions.h>
+#include <iostream>
 
 //------------------------------------------------
 
@@ -54,7 +55,7 @@ class Dsp_Board
                 > accum_t;
 
 public:
-        Dsp_Board ( uint8_t  * );
+        Dsp_Board ( uint8_t  *, int );
         virtual ~Dsp_Board();
 
         /**
@@ -84,10 +85,14 @@ public:
         int getItem ( int reqCmd, void *src, int nSrcBytes,
                       int resCmd, void *dst, int nDstBytes );
 
-        virtual void configure ( uint8_t bc_rate, uint16_t policy ) = 0;
+        virtual void configure_streaming ( uint8_t bc_rate, uint16_t policy ) = 0;
+        virtual void configure_polling ( uint16_t policy ) = 0;
 
         virtual void on_bc_data ( uint8_t * );
         virtual void get_bc_data ( ts_bc_data_t & );
+        
+        virtual void get_single_data ( ts_single_data_t & );
+        
         virtual void print_me ( void );
         virtual void check_bc_data_rx ( void );
 
@@ -119,6 +124,10 @@ protected:
         uint8_t     bc_rate;
         //
         ts_bc_data_t    ts_bc_data;
+        //
+        int udp_sock;
+        //
+        operational_mode mode;
 
 private:
 
@@ -163,12 +172,13 @@ private:
 class FtBoard : public Dsp_Board
 {
 public:
-        FtBoard ( uint8_t *_ ) : Dsp_Board ( _ ) { }
+        FtBoard ( uint8_t *_, int udp_sock ) : Dsp_Board ( _, udp_sock ) { }
         
         bool calibrate_offsets();
 
 protected:
-        virtual void configure ( uint8_t bc_rate, uint16_t policy );
+        virtual void configure_streaming ( uint8_t bc_rate, uint16_t policy );
+        virtual void configure_polling ( uint16_t policy );
         virtual void print_me ( void );
         virtual uint32_t get_bc_data_size() {
                 return sizeof ( ft_bc_data_t ); //TBD do it checkingthe policy
