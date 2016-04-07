@@ -281,7 +281,7 @@ std::vector<double>* Tactile::readData(){
         res->at(i)= (res->at(i)*(divider[i])); //calibartion curve maximum is (5-1)
     }
 
-    cout << "Tactile vals: ";
+    //cout << "Tactile vals: ";
     for(int i=0;i<NUM_TACT;i+=3){//first 9 values are tactile
 
         if(!isStationaryTact(res->at(i),i)){      //if values changed
@@ -290,15 +290,15 @@ std::vector<double>* Tactile::readData(){
             res->at(i)=0;
         }//if not stationary
 
-        cout << res->at(i) << " " << res->at(i+1) << " " << res->at(i+2) << " ";
+        //cout << res->at(i) << " " << res->at(i+1) << " " << res->at(i+2) << " ";
     }
-    cout << endl ;
+   // cout << endl ;
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
         res->at(i)= (res->at(i)*((divider[i])/MAX_PROX)); //calibartion curve maximum is accounted
     }
 
-    cout << "Proximity vals: ";
+    //cout << "Proximity vals: ";
     for(int i=NUM_TACT;i<NUM_VALS;i++){//last 6 values are proximity
 
         if(!isStationaryProx(res->at(i),i-NUM_TACT)){      //if values changed
@@ -306,12 +306,12 @@ std::vector<double>* Tactile::readData(){
         }else{
             res->at(i)=-1;
         }
-        cout << res->at(i) << " ";
+       // cout << res->at(i) << " ";
     }
-    cout << endl << endl;
+    //cout << endl << endl;
 
 
-    cin.ignore();
+   // cin.ignore();
 
     return res;
 }
