@@ -11,6 +11,7 @@ class Driver{   //abstract class: everything in common across sensors is here
 protected:
     std::string m_portname; //name of the arduino port
     int m_fileDesc;         //file descriptor for termios
+    std::vector<double> m_sensor_values;
 
     //config matrix (filename?)
 
@@ -18,7 +19,7 @@ protected:
 
 
 public:
-    virtual std::vector<double>* readData()=0;  //this function reads the data from the sensors and returns a vector (double[][])
+    virtual std::vector<double>& readData()=0;  //this function reads the data from the sensors and returns a vector (double[][])
     virtual void flush();
 
 };
@@ -83,7 +84,7 @@ class Tactile : public Driver{
 public:
     Tactile(const std::string& portname);
     ~Tactile();
-    virtual std::vector<double>* readData();
+    virtual std::vector<double>& readData();
 
 };
 
@@ -99,6 +100,7 @@ class Wrist : public Driver{
 
     ft_data ft_bc_data;
     FT17Interface* ft17;
+    std::vector<double> m_sensor_values;
 public:
     enum WristData
     {
@@ -115,7 +117,7 @@ public:
     Wrist();
     ~Wrist();
 
-    virtual std::vector<double>* readData();
+    virtual std::vector<double>& readData();
 
 };
 
