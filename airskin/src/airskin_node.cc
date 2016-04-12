@@ -44,15 +44,6 @@ public:
     numFilled = 0;
     mean = 0.;
   }
-  void set(int val)
-  {
-    mean = 0.;
-    for(size_t i = 0; i < history.size(); i++)
-    {
-      history[i] = val;
-      mean += (float)history[i]/(float)history.size();
-    }
-  }
   bool fill(int val)
   {
     if(numFilled < history.size())
@@ -106,23 +97,26 @@ public:
   AirSkinNode()
   : nh("~")
   {
-    // HACK: hardcoded path
-    device_file_name = "/dev/ttyACM0";
+    if(!nh.getParam("device", device_file_name))
+    {
+      ROS_INFO("no parameter 'device' given, using default");
+      device_file_name = "/dev/ttyACM0";
+    }
     ROS_INFO("opening I2C device: '%s'", device_file_name.c_str());
     i2c_master = new I2C_Master_Devantech_ISS(device_file_name);
     ROS_INFO("Devantech USB-ISS adapter, rev. %d, serial number: %s\n",
         ((I2C_Master_Devantech_ISS*)i2c_master)->GetFirmwareVersion(),
         ((I2C_Master_Devantech_ISS*)i2c_master)->GetSerialNumber().c_str());
     // HACK: hardcoded addresses
-    //addrs.push_back(2*0x6);
+    addrs.push_back(2*0x6);
     addrs.push_back(2*0x8);
-    //addrs.push_back(2*0x4);
-    //addrs.push_back(2*0x5);
+    addrs.push_back(2*0x4);
+    addrs.push_back(2*0x5);
     for(size_t i = 0; i < addrs.size(); i++)
     {
       sensors.push_back(new AirSkin_Sense(i2c_master, addrs[i]));
       means.push_back(RunningMean(HISTORY_SIZE));
-      ROS_INFO("using AirSkin sensor with I2C address (8 Bit) %02X \n", addrs[i]);
+      ROS_INFO("using AirSkin sensor with I2C address (8 Bit) %02X", addrs[i]);
     }
     for(size_t i = 0; i < addrs.size(); i++)
     {
@@ -132,7 +126,7 @@ public:
       while(!filled && cnt < maxCnt)
       {
         int p = sensors[i]->ReadRawPressure();
-        ROS_INFO("filling: %d", p);
+        ROS_DEBUG("filling: %d", p);
         if(isValidPressure(p))
           filled = means[i].fill(p);
         // reading too fast apparently causes communication error
@@ -154,6 +148,7 @@ public:
   void init()
   {
     bump_pub = nh.advertise<std_msgs::Bool>("arm_bumper", 1);
+    ROS_INFO("arm skin is ready");
   }
 
   void run()
@@ -171,25 +166,32 @@ public:
         bool activated = false;
         int p = sensors[i]->ReadRawPressure();
         if(isValidPressure(p))
+        {
           pressures[i] = p;
+          if(p > means[i].getMean() + ACTIVATION_THR)
+            activated = true;
+          else
+            means[i].updateMean(p);
+          if(activated)
+            anyActivated = true;
+        }
         // else, remain unchanged
-        if(p > means[i].getMean() + ACTIVATION_THR)
-          activated = true;
-        else
-          means[i].updateMean(p);
-        if(activated)
-          anyActivated = true;
         if(cycle_cnt % 10 == 0)
           if(!activated)
             info << "  " << pressures[i] << "  ";
           else
             info << " >" << pressures[i] << "< ";
       }
+      if(anyActivated)
+        ROS_INFO("arm skin pressed");
       std_msgs::Bool msg;
       msg.data = anyActivated;
       bump_pub.publish(msg);
+      info << "  means: ";
+      for(size_t i = 0; i < sensors.size(); i++)
+        info << means[i].getMean() << "  ";
       if(cycle_cnt % 10 == 0)
-        ROS_INFO("pressures: %s", info.str().c_str());
+        ROS_DEBUG("pressures: %s", info.str().c_str());
       ros::spinOnce();
       cycle_cnt++;
       r.sleep();
