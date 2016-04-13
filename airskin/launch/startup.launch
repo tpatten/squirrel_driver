@@ -1,0 +1,8 @@
+<launch>
+  <arg name="device" default="/dev/ttyACM0" />
+  <node pkg="airskin" type="airskin" name="airskin" output="screen">
+    <param name="device" value="$(arg device)" />
+  </node>
+
+  <node pkg="airskin" type="bumper_sound.py" name="bumper_sound" output="screen" />
+</launch>
