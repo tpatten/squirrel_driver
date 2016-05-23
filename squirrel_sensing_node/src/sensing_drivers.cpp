@@ -109,7 +109,7 @@ const double Tactile::B_PROX=-0.1808; //exponent
 const double Tactile::C_PROX=-17.28;
 
 //calibration maximum for proximity
-const double Tactile::MAX_PROX=4;
+const double Tactile::MAX_PROX=2.5;
 
 
 
