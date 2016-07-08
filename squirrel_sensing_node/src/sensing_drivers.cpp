@@ -227,9 +227,9 @@ double Tactile::bias(const int idx,const double val)
 }
 
 
-std::vector<double>* Tactile::readData(){
+std::vector<double>& Tactile::readData(){
 
-    std::vector<double>* res=new vector<double>(NUM_VALS,-1.0); //if a -1 is given it means there was a problem with reading that value
+    m_sensor_values.resize(NUM_VALS,-1.0); //if a -1 is given it means there was a problem with reading that value
 
     char buff[255];
 #ifndef TEST
@@ -239,8 +239,8 @@ std::vector<double>* Tactile::readData(){
     cout << "Input volts: " ;
     for(int i=0;i<NUM_VALS;i++)
     {
-        res->at(i)=0.1;       //artificial testing volt value
-        cout << res->at(i) << " ";
+        m_sensor_values.at(i)=0.1;       //artificial testing volt value
+        cout << m_sensor_values.at(i) << " ";
     }
     cout << endl;
     //testing
@@ -260,7 +260,7 @@ std::vector<double>* Tactile::readData(){
                 done = true;                
             }else{
 
-                res->at(readingNum)=val-bias(readingNum,val);  //biasing to zero
+                m_sensor_values.at(readingNum)=val-bias(readingNum,val);  //biasing to zero
             }//if read enough values
 
             st_buf="";
@@ -278,42 +278,42 @@ std::vector<double>* Tactile::readData(){
 
 
     for(int i=0;i<NUM_TACT;i++){//biasing to calibration
-        res->at(i)= (res->at(i)*(divider[i])); //calibartion curve maximum is (5-1)
+        m_sensor_values.at(i)= (m_sensor_values.at(i)*(divider[i])); //calibartion curve maximum is (5-1)
     }
 
     //cout << "Tactile vals: ";
     for(int i=0;i<NUM_TACT;i+=3){//first 9 values are tactile
 
-        if(!isStationaryTact(res->at(i),i)){      //if values changed
-            convertTact(*res,i);     //we pass 3 values at time (that is why the for increments i+3)
+        if(!isStationaryTact(m_sensor_values.at(i),i)){      //if values changed
+            convertTact(m_sensor_values,i);     //we pass 3 values at time (that is why the for increments i+3)
         }else{
-            res->at(i)=0;
+            m_sensor_values.at(i)=0;
         }//if not stationary
 
-        //cout << res->at(i) << " " << res->at(i+1) << " " << res->at(i+2) << " ";
+        //cout << m_sensor_values.at(i) << " " << m_sensor_values.at(i+1) << " " << m_sensor_values.at(i+2) << " ";
     }
    // cout << endl ;
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
-        res->at(i)= (res->at(i)*((divider[i])/MAX_PROX)); //calibartion curve maximum is accounted
+        m_sensor_values.at(i)= (m_sensor_values.at(i)*((divider[i])/MAX_PROX)); //calibartion curve maximum is accounted
     }
 
     //cout << "Proximity vals: ";
     for(int i=NUM_TACT;i<NUM_VALS;i++){//last 6 values are proximity
 
-        if(!isStationaryProx(res->at(i),i-NUM_TACT)){      //if values changed
-            res->at(i)=convertProx(res->at(i));
+        if(!isStationaryProx(m_sensor_values.at(i),i-NUM_TACT)){      //if values changed
+            m_sensor_values.at(i)=convertProx(m_sensor_values.at(i));
         }else{
-            res->at(i)=-1;
+            m_sensor_values.at(i)=-1;
         }
-       // cout << res->at(i) << " ";
+       // cout << m_sensor_values.at(i) << " ";
     }
     //cout << endl << endl;
 
 
    // cin.ignore();
 
-    return res;
+    return m_sensor_values;
 }
 
 //convert volts into newtons
@@ -383,31 +383,29 @@ Wrist::~Wrist()
     delete ft17;
 }
 
-std::vector<double>* Wrist::readData(){
+std::vector<double>& Wrist::readData(){
+
+  m_sensor_values.resize(WristDataNum,0);
 
 	if(ft17==NULL){
-		return new vector<double>(WristDataNum,0);
+		return m_sensor_values;
 	}
 
     // get the FT17 data
     //ft17->get_broadcast_data ( ft_bc_data );
 	ft17->get_single_data ( ft_bc_data );	//the data structures should be the same but the values require to be checked
 
-    vector<double>* res=new vector<double>(WristDataNum,0);
-
-
-
     // fill the FT_filt msg
     //frame_id = std::to_string ( ft_bc_data.board_id ) ; //frame ID, if needed
 
-    res->at(Wrist::ForceX) = ft_bc_data.FT_filt[Wrist::ForceX];
-    res->at(Wrist::ForceY) = ft_bc_data.FT_filt[Wrist::ForceY];
-    res->at(Wrist::ForceZ) = ft_bc_data.FT_filt[Wrist::ForceZ];
-    res->at(Wrist::TorqueX) = ft_bc_data.FT_filt[Wrist::TorqueX];
-    res->at(Wrist::TorqueY) = ft_bc_data.FT_filt[Wrist::TorqueY];
-    res->at(Wrist::TorqueZ) = ft_bc_data.FT_filt[Wrist::TorqueZ];
-    res->at(Wrist::Timestamp) =  ft_bc_data.tStamp ;
+    m_sensor_values.at(Wrist::ForceX) = ft_bc_data.FT_filt[Wrist::ForceX];
+    m_sensor_values.at(Wrist::ForceY) = ft_bc_data.FT_filt[Wrist::ForceY];
+    m_sensor_values.at(Wrist::ForceZ) = ft_bc_data.FT_filt[Wrist::ForceZ];
+    m_sensor_values.at(Wrist::TorqueX) = ft_bc_data.FT_filt[Wrist::TorqueX];
+    m_sensor_values.at(Wrist::TorqueY) = ft_bc_data.FT_filt[Wrist::TorqueY];
+    m_sensor_values.at(Wrist::TorqueZ) = ft_bc_data.FT_filt[Wrist::TorqueZ];
+    m_sensor_values.at(Wrist::Timestamp) =  ft_bc_data.tStamp ;
 
-    return res;
+    return m_sensor_values;
 }
 
