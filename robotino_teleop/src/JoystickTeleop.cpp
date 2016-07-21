@@ -36,7 +36,7 @@ void JoystickTeleop::joyCallback( const sensor_msgs::JoyConstPtr& msg)
 {
 	if( msg->axes.size() < 3)
 	{
-		ROS_ERROR( "Too few joystick axes: %d (expected more than 3)", msg->axes.size() );
+		ROS_ERROR( "Too few joystick axes: %lu (expected more than 3)", msg->axes.size() );
 		return;
 	}
 
