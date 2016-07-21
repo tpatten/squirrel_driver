@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(uibk_arm_controller)
+project(uibk_robot_driver)
 
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
@@ -12,13 +12,11 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   control_toolbox
-  sensor_msgs
 )
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES uibk_arm_controller
-  CATKIN_DEPENDS geometry_msgs roscpp std_msgs control_toolbox sensor_msgs robotino_driver
+  CATKIN_DEPENDS geometry_msgs roscpp std_msgs control_toolbox
   DEPENDS dynamixel_lib rt
 )
 
@@ -38,34 +36,42 @@ add_library(dynamixel_lib
            src/dynamixel_sdk/Protocol2PacketHandler.cpp 
            src/dynamixel_sdk/PortHandlerLinux.cpp)
 
-add_library(uibk_arm_controller
+add_library(uibk_robot_driver
     src/base_controller.cpp
     src/arm_controller.cpp
+    src/motor.cpp
+    src/robot_controller.cpp
 )
 
 add_executable(uibk_arm_demo src/uibk_arm_demo.cpp)
-add_executable(uibk_arm_node src/arm_node.cpp)
+add_executable(robot_controller_node src/robot_controller_node.cpp)
+add_executable(qusaiTest src/QusaiTest.cpp)
+add_dependencies(uibk_robot_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} dynamixel_lib)
+add_dependencies(uibk_arm_demo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
+add_dependencies(robot_controller_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
 
-add_dependencies(uibk_arm_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} dynamixel_lib)
-add_dependencies(uibk_arm_demo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_arm_controller dynamixel_lib)
-add_dependencies(uibk_arm_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_arm_controller dynamixel_lib)
+add_dependencies(qusaiTest ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
 
-target_link_libraries(uibk_arm_controller
+target_link_libraries(uibk_robot_driver
   ${catkin_LIBRARIES}
   dynamixel_lib
   rt
+)
+
+target_link_libraries(qusaiTest
+  ${catkin_LIBRARIES}
+  uibk_robot_driver
+
 )
 
 target_link_libraries(uibk_arm_demo
   ${catkin_LIBRARIES}
-  uibk_arm_controller
-  dynamixel_lib
-  rt
+  uibk_robot_driver
 )
 
-target_link_libraries(uibk_arm_node
+target_link_libraries(robot_controller_node
   ${catkin_LIBRARIES}
-  uibk_arm_controller
-  dynamixel_lib
-  rt
+  uibk_robot_driver
 )
+FILE(GLOB_RECURSE LibFiles "*.h*")
+add_custom_target(headers SOURCES ${LibFiles})
