@@ -19,11 +19,11 @@
 #include <std_msgs/Float64.h>
 #include <std_srvs/Empty.h>
 #include <dynamixel_msgs/JointState.h>
-#include <squirrel_object_perception_msgs/LookAtImagePosition.h>
-#include <squirrel_object_perception_msgs/LookAtPosition.h>
-#include <squirrel_object_perception_msgs/FixatePosition.h>
-#include <squirrel_object_perception_msgs/FixatePanTilt.h>
-#include <squirrel_object_perception_msgs/ClearFixation.h>
+#include <robotino_msgs/LookAtImagePosition.h>
+#include <robotino_msgs/LookAtPosition.h>
+#include <robotino_msgs/FixatePosition.h>
+#include <robotino_msgs/FixatePanTilt.h>
+#include <robotino_msgs/ClearFixation.h>
 
 class ViewControllerNode
 {
@@ -34,16 +34,16 @@ public:
 
 private:
   void movePanTilt(float pan, float tilt);
-  bool lookAtImagePosition(squirrel_object_perception_msgs::LookAtImagePosition::Request &req,
-                           squirrel_object_perception_msgs::LookAtImagePosition::Response &res);
-  bool lookAtPosition(squirrel_object_perception_msgs::LookAtPosition::Request &req,
-                      squirrel_object_perception_msgs::LookAtPosition::Response &res);
-  bool fixatePosition(squirrel_object_perception_msgs::FixatePosition::Request &req,
-                      squirrel_object_perception_msgs::FixatePosition::Response &res);
-  bool fixatePanTilt(squirrel_object_perception_msgs::FixatePanTilt::Request &req,
-                     squirrel_object_perception_msgs::FixatePanTilt::Response &res);
-  bool clearFixation(squirrel_object_perception_msgs::ClearFixation::Request &req,
-                      squirrel_object_perception_msgs::ClearFixation::Response &res);
+  bool lookAtImagePosition(robotino_msgs::LookAtImagePosition::Request &req,
+                           robotino_msgs::LookAtImagePosition::Response &res);
+  bool lookAtPosition(robotino_msgs::LookAtPosition::Request &req,
+                      robotino_msgs::LookAtPosition::Response &res);
+  bool fixatePosition(robotino_msgs::FixatePosition::Request &req,
+                      robotino_msgs::FixatePosition::Response &res);
+  bool fixatePanTilt(robotino_msgs::FixatePanTilt::Request &req,
+                     robotino_msgs::FixatePanTilt::Response &res);
+  bool clearFixation(robotino_msgs::ClearFixation::Request &req,
+                      robotino_msgs::ClearFixation::Response &res);
   bool resetPosition( std_srvs::Empty::Request&, std_srvs::Empty::Response& );
   void panStateCallback(const dynamixel_msgs::JointState::ConstPtr& panStateMsg);
   void tiltStateCallback(const dynamixel_msgs::JointState::ConstPtr& tiltStateMsg);
