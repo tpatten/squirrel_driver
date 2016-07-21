@@ -12,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
   robotino_msgs
   tf
   roscpp
-  squirrel_object_perception_msgs
 )
 
 list(APPEND CMAKE_MODULE_PATH "/usr/local/robotino/api2/cmake")
@@ -94,7 +93,7 @@ find_package(RobotinoAPI2 REQUIRED)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES robotino_node
-  CATKIN_DEPENDS nav_msgs robotino_msgs squirrel_object_perception_msgs
+  CATKIN_DEPENDS nav_msgs robotino_msgs
 #  DEPENDS system_lib
 )
 
