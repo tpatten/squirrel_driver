@@ -25,7 +25,7 @@
   <run_depend>roscpp</run_depend>
   <run_depend>std_msgs</run_depend>
   <run_depend>control_toolbox</run_depend>
-
+  <run_depend>robotino_driver</run_depend>
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- Other tools can request additional information be placed here -->

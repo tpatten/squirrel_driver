@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   control_toolbox
+  robotino_driver
 )
 
 catkin_package(
