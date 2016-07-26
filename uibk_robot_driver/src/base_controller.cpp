@@ -9,27 +9,26 @@ using namespace std;
 void BaseController::initialize(ros::NodeHandle& node){
 
     private_nh.param("baseControl/proportional_theta", p_theta_, 0.8);
-    private_nh.param("baseControl/derivative_theta", d_theta_, 0.3);
-    private_nh.param("baseControl/integral_theta", i_theta_, 0.002);
+    private_nh.param("baseControl/derivative_theta", d_theta_, 0.25);
+    private_nh.param("baseControl/integral_theta", i_theta_, 0.004);
     private_nh.param("baseControl/integral_theta_max", i_theta_max_, 0.8);
     private_nh.param("baseControl/integral_theta_min", i_theta_min_, -0.8);
 
-    private_nh.param("baseControl/proportional_x", p_x_, 1.3);
+    private_nh.param("baseControl/proportional_x", p_x_, 1.23);
     private_nh.param("baseControl/derivative_x", d_x_, 0.3);
-    private_nh.param("baseControl/integral_x", i_x_, 0.002);
+    private_nh.param("baseControl/integral_x", i_x_, 0.004);
     private_nh.param("baseControl/integral_x_max", i_x_max_, 0.8);
     private_nh.param("baseControl/integral_x_min", i_x_min_, -0.8);
 
-    private_nh.param("baseControl/proportional_y", p_y_, 1.3);
+    private_nh.param("baseControl/proportional_y", p_y_, 1.23);
     private_nh.param("baseControl/derivative_y", d_y_, 0.3);
-    private_nh.param("baseControl/integral_y", i_y_, 0.002);
+    private_nh.param("baseControl/integral_y", i_y_, 0.004);
     private_nh.param("baseControl/integral_y_max", i_y_max_, 0.8);
     private_nh.param("baseControl/integral_y_min", i_y_min_, -0.8);
 
     private_nh.param("baseControl/vel_ang_max", vel_ang_max_, 0.5);
     private_nh.param("baseControl/vel_x_max", vel_x_max_, 0.5);
     private_nh.param("baseControl/vel_y_max", vel_y_max_, 0.5);
-    private_nh.param("baseControl/controller_frequency", controller_frequency_, 20.0);
 
     pid_theta_.initPid(p_theta_, i_theta_, d_theta_, i_theta_max_, i_theta_min_);
     pid_x_.initPid(p_x_, i_x_, d_x_, i_x_max_, i_x_min_);
@@ -47,7 +46,7 @@ void BaseController::initialize(ros::NodeHandle& node){
     ptp_base_thread_ = new boost::thread(boost::bind(&BaseController::ptpBaseThread, this));
 }
 
-BaseController::BaseController(ros::NodeHandle& node): start_move_base_(false),start_ptp_base_(false), private_nh("~") {
+BaseController::BaseController(ros::NodeHandle& node,double controller_freq): start_move_base_(false),start_ptp_base_(false), private_nh("~"),controller_frequency_(controller_freq) {
     this->initialize(node);
 }
 
@@ -79,12 +78,23 @@ void BaseController::ptp(double desired_theta, double desired_x, double desired_
 
 }
 
-bool BaseController::targetReached(float currentVal, float targetVal){
-    float acceptencePercentage =0.05;
-
-    if (currentVal < (1+ acceptencePercentage) * targetVal && currentVal > (1 - acceptencePercentage) * targetVal)
+bool BaseController::targetReached(float currentVal, float targetVal , float startingVal){
+    float acceptencePercentage =0.03;
+    float distance = fabs(targetVal-startingVal);
+    if (distance < 0.01)
         return true;
+    if (currentVal < targetVal + acceptencePercentage *distance && currentVal >  targetVal - acceptencePercentage *distance){
+         return true;
+    }
+
     return false;
+}
+
+
+void BaseController::moveBase(double desired_theta, double desired_x, double desired_y) {
+    start_ptp_base_=false;
+    move(desired_theta, desired_x, desired_y);
+
 }
 
 void BaseController::move(double desired_theta, double desired_x, double desired_y) {
@@ -100,9 +110,12 @@ void BaseController::move(double desired_theta, double desired_x, double desired
 void BaseController::ptpBaseThread(){
     while(1){
         if (start_ptp_base_){
-            auto current_pose = getCurrentPose();
-            while (!(targetReached(current_pose.at(0),desired_theta_ptp) && targetReached(current_pose.at(1),desired_x_ptp) && targetReached(current_pose.at(2),desired_y_ptp))){
+            auto startingPose = getCurrentState();
+            auto current_pose = startingPose;
+
+            while (start_ptp_base_ && !(targetReached(current_pose.at(0),desired_theta_ptp,startingPose.at(0)) && targetReached(current_pose.at(1),desired_x_ptp,startingPose.at(1)) && targetReached(current_pose.at(2),desired_y_ptp,startingPose.at(1)))){
                 move( desired_theta_ptp,desired_x_ptp, desired_y_ptp);
+                current_pose = getCurrentState();
             }
             start_ptp_base_=false;
         }
@@ -112,14 +125,14 @@ void BaseController::ptpBaseThread(){
 void BaseController::moveBaseThread(){
 
     ros::Rate moveBaseRate(controller_frequency_);
-    ros::spinOnce();
 
     while (ros::ok){
 
         if(start_move_base_) {
 
             current_base_vel_ = getNullTwist();
-            double current_theta = tf::getYaw(odometry.pose.pose.orientation);
+            auto currentPose = getCurrentState();
+            double current_theta = currentPose.at(0);
 
             if(std::isnan(desired_theta_) == 0){
                 double orient_error = rotationDifference(desired_theta_, current_theta);
@@ -129,8 +142,8 @@ void BaseController::moveBaseThread(){
             }
 
 
-            double err_x_odom = std::isnan(desired_x_) == 0  ? desired_x_ - odometry.pose.pose.position.x : 0;
-            double err_y_odom = std::isnan(desired_y_) == 0  ? desired_y_ - odometry.pose.pose.position.y :0;
+            double err_x_odom = std::isnan(desired_x_) == 0  ? desired_x_ - currentPose.at(1) : 0;
+            double err_y_odom = std::isnan(desired_y_) == 0  ? desired_y_ - currentPose.at(2) :0;
 
 
             double err_x_r = cos(current_theta) * err_x_odom + sin(current_theta) * err_y_odom;
@@ -139,13 +152,11 @@ void BaseController::moveBaseThread(){
             if(fabs(current_base_vel_.linear.x) > vel_x_max_) current_base_vel_.linear.x= (current_base_vel_.linear.x > 0 ? vel_x_max_ : - vel_x_max_);
             current_base_vel_.linear.y = pid_y_.computeCommand(err_y_r, ros::Duration(time_step_));
             if(fabs(current_base_vel_.linear.y) > vel_y_max_) current_base_vel_.linear.y = (current_base_vel_.linear.y > 0 ? vel_y_max_ : - vel_y_max_);
-
             pubMove.publish(current_base_vel_);
             start_move_base_ = false;
         }
 
         moveBaseRate.sleep();
-        ros::spinOnce();
     }
 
 }
@@ -173,22 +184,22 @@ double BaseController::rotationDifference(double angle, double theta_robot) {
     return err_th;
 }
 
-vector<double>  BaseController::getCurrentPose() {
+//vector<double>  BaseController::getCurrentPose() {
 
-    robot_pose_mutex_.lock();
-    geometry_msgs::Pose odomPose = odometry.pose.pose;
-    robot_pose_mutex_.unlock();
+//    robot_pose_mutex_.lock();
+//    geometry_msgs::Pose odomPose = odometry.pose.pose;
+//    robot_pose_mutex_.unlock();
 
-    tf::Quaternion quat(odomPose.orientation.x,odomPose.orientation.y,odomPose.orientation.z,odomPose.orientation.w);
-    quat.normalize();
-    vector<double> current_pose;
-    current_pose.push_back(odomPose.position.x);
-    current_pose.push_back(odomPose.position.y);
-    current_pose.push_back(tf::getYaw(quat));
+//    tf::Quaternion quat(odomPose.orientation.x,odomPose.orientation.y,odomPose.orientation.z,odomPose.orientation.w);
+//    quat.normalize();
+//    vector<double> current_pose;
+//    current_pose.push_back(odomPose.position.x);
+//    current_pose.push_back(odomPose.position.y);
+//    current_pose.push_back(tf::getYaw(quat));
 
-    return current_pose;
+//    return current_pose;
 
-}
+//}
 
 
 std::vector<double> BaseController::getCurrentState() {

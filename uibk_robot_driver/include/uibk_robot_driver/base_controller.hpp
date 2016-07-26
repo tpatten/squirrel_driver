@@ -51,21 +51,19 @@ private:
 
     geometry_msgs::Twist getNullTwist();
     double rotationDifference(double angle, double theta_robot);
-
+    void move(double desired_theta, double desired_x, double desired_y);
     void initialize(ros::NodeHandle& node);
-    bool targetReached(float currentVal, float targetVal);
+    bool targetReached(float currentVal, float targetVal, float startingVal);
 
 public:
 
-    BaseController(ros::NodeHandle& node);
+    BaseController(ros::NodeHandle& node,double controller_freq);
     ~BaseController();
 
-
-    void move(double desired_theta, double desired_x, double desired_y);
     void ptp(double desired_theta, double desired_x, double desired_y);
-
+    void moveBase(double desired_theta, double desired_x, double desired_y);
     std::vector<double> getCurrentState();//
-    std::vector<double> getCurrentPose();
+//    std::vector<double> getCurrentPose();
 
 };
 

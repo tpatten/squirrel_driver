@@ -20,7 +20,7 @@ std::string portName; double protocolVersion; int baudRate;
 public:
 
   //RobotController(ros::NodeHandle& node, std::shared_ptr<BaseController> base,  std::shared_ptr<Arm> arm);
-  RobotController(ros::NodeHandle& node);
+  RobotController(ros::NodeHandle& node,double controller_freq);
   void initBase();
   void initArm( std::vector<int> ids,std::vector< std::pair<double, double> > jointLimits );
   void moveAll(vector<double> targetStates);

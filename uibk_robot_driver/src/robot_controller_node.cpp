@@ -48,8 +48,8 @@ int main(int argc, char** args) {
 
     ros::init(argc, args, "robot_controller_node");
     ros::NodeHandle node; sleep(1);
-
-    shared_ptr<RobotController> robotinoController= shared_ptr<RobotController>(new RobotController(node));
+    double freq=20.0;
+    shared_ptr<RobotController> robotinoController= shared_ptr<RobotController>(new RobotController(node,freq));
     struct sigaction sigIntHandler;
 
     sigIntHandler.sa_handler = stopHandler;
@@ -66,9 +66,7 @@ int main(int argc, char** args) {
                                                  std::make_pair<double, double>(-150000 / Motor::TICKS_FOR_180_DEG * M_PI, 150000 / Motor::TICKS_FOR_180_DEG * M_PI),
                                                  std::make_pair<double, double>(-100000 / Motor::TICKS_FOR_180_DEG * M_PI, 100000 / Motor::TICKS_FOR_180_DEG * M_PI),
                                                  std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG * M_PI, 140000 / Motor::TICKS_FOR_180_DEG * M_PI)});
-    //commandState = robotinoArm->getCurrentState();
     moveCommandState = robotinoController->getCurrentStates();
-    //cout << "hereeer5" << endl;
     auto cycleTime = robotinoController->getArmCycleTime();
     auto maxStepPerCycle = robotinoController->getArmMaxStepPerCycle();
 
@@ -91,7 +89,7 @@ int main(int argc, char** args) {
     auto prevPos = robotinoController->getCurrentStates();
     vector<double> prevVel; for(int i = 0; i < robotinoController->getDegOfFreedom(); ++i) prevVel.push_back(0.0);
     ros::Rate r(robotinoController->getArmFrequency());
-    double stepTime = 1.0 / robotinoController->getArmFrequency();
+    double stepTime = 1.0 / freq;
 
     while(runController) {
 
@@ -106,10 +104,9 @@ int main(int argc, char** args) {
         cycleTimePublisher.publish(cycleMsg);
         maxStepPerCyclePublisher.publish(maxStepPerCycleMsg);
         if(currentMode == 10) {
-         //cout << "commanding  " << moveCommandState.at(0) << moveCommandState.at(1) << moveCommandState.at(2) << endl;
+
             moveCommandMutex.lock();
             if(newMoveCommandStateSet) {
-              //cout << "here move  " << endl;
                 robotinoController->moveAll(moveCommandState);
 
                 newMoveCommandStateSet = false;
@@ -118,7 +115,7 @@ int main(int argc, char** args) {
 
             ptpCommandMutex.lock();
             if(newPtpCommandStateSet) {
-                //cout << "here ptp " << endl;
+
                 robotinoController->ptpAll(ptpCommandState);
 
                 newPtpCommandStateSet = false;

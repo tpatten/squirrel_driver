@@ -31,21 +31,25 @@ class Arm {
         std::vector<double> currentJointState;
 
         std::mutex jointStateMutex;
+        std::mutex moveMutex;
 
         std::shared_ptr<std::thread> runnerThread;
-
+        std::shared_ptr<std::thread> moveThread;
+        double move_rate;
+        bool allowMoveArm;
+        std::vector<double> targetPosMove;
         void armLoop();
-
+        void moveArmThread();
         bool checkDistance(std::vector<double> &current, std::vector<double> &target, double& exceededDist, double& maxDist);
         void move(std::vector<double> nextJointPos);
     public:
 
-        Arm(std::vector<int> ids, std::string portName, std::vector< std::pair<double, double> > jointLimits, double protocolVersion, int baudRate);
+        Arm(std::vector<int> ids, std::string portName, std::vector< std::pair<double, double> > jointLimits, double protocolVersion, int baudRate, double move_freq);
 
         std::vector<double> getCurrentState();
 
         std::shared_ptr<std::thread> runArm();
-
+ //       std::shared_ptr<std::thread> moveCommandThread;
         void moveHome();
         void shutdown();
         void initialize();

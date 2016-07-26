@@ -1,5 +1,6 @@
 #include <uibk_robot_driver/arm_controller.hpp>
 #include <math.h>
+#include <time.h>
 
 using namespace ROBOTIS;                                    // Uses functions defined in ROBOTIS namespace
 
@@ -32,8 +33,8 @@ using namespace ROBOTIS;                                    // Uses functions de
 		
     }
 
-    Arm::Arm(std::vector<int> ids, std::string portName, std::vector<std::pair<double, double> > jointLimits, double protocolVersion, int baudRate) {
-		
+    Arm::Arm(std::vector<int> ids, std::string portName, std::vector<std::pair<double, double> > jointLimits, double protocolVersion, int baudRate, double move_freq) {
+        move_rate=move_freq;
         firstJointStateRetrieved = false;
         for(unsigned int i = 0; i < ids.size(); ++i) {
             auto id = ids.at(i);
@@ -41,10 +42,9 @@ using namespace ROBOTIS;                                    // Uses functions de
             motors.push_back(std::make_shared<Motor>(portName, id, protocolVersion, limit.first, limit.second, baudRate));
         }
 
-//        base = std::make_shared<BaseController>(node, 20, 0.6);
-		
         keepThreadRunning = false;
-		
+
+        allowMoveArm=false;
     }
 
     std::vector<double> Arm::getCurrentState() {
@@ -63,7 +63,8 @@ using namespace ROBOTIS;                                    // Uses functions de
             motor->releaseBrakes();
             motor->spinOnce();
         }
-		
+        moveThread=std::make_shared<std::thread>(&Arm::moveArmThread, this);
+
     }
 
     void Arm::move(std::vector<double> nextJointPos) {
@@ -84,34 +85,60 @@ using namespace ROBOTIS;                                    // Uses functions de
         }
 
     }
-
     void Arm::moveArm(std::vector<double> targetPos) {
+        moveMutex.lock();
+          targetPosMove=targetPos;
+          allowMoveArm=true;
+        moveMutex.unlock();
+    }
 
-        auto jointState = getCurrentState();
-        auto runnerState = jointState;
-        int sleepTime = (int) (1.0 / getFrequency() * 1e3);
-        auto stepSize = getStepSize() * 20;
+    void Arm::moveArmThread() {
+        ros::Rate myRate(move_rate);
+        while(1){
+            moveMutex.lock();
+            std::vector<double> targetpos= targetPosMove;
+            moveMutex.unlock();
+            if(allowMoveArm){
+                auto jointState = getCurrentState();
+                auto runnerState = jointState;
+                int sleepTime = (int) (1.0 / (getFrequency()*4) * 1e3);
+                auto stepSize = getStepSize() * 3;
 
-        auto targetReached = false;
-        if(!targetReached) {
+                auto targetReached = false;
 
-            targetReached = true;
-            for(unsigned int i = 0; i < runnerState.size(); ++i) {
-                if(std::isnan(targetPos.at(i))!= 0)
-                    targetPos.at(i)=runnerState.at(i);
-                auto sig = ((runnerState.at(i) - targetPos.at(i)) > 0) ? -1 : 1;
-                if(fabs(runnerState.at(i) - targetPos.at(i)) > (stepSize * 2)) {
-                    runnerState.at(i) += sig * stepSize;
-                    targetReached = false;
+                std::clock_t start = std::clock();
+
+                while(!targetReached) {
+
+                        targetReached = true;
+                        for(unsigned int i = 0; i < runnerState.size(); ++i) {
+
+                            if(std::isnan(targetpos.at(i))!= 0)
+                                targetpos.at(i)=runnerState.at(i);
+                            auto sig = ((runnerState.at(i) - targetpos.at(i)) > 0) ? -1 : 1;
+                            if(fabs(runnerState.at(i) - targetpos.at(i)) > (stepSize * 2)) {
+                                runnerState.at(i) += sig * stepSize;
+                                targetReached = false;
+                            }
+
+                        }
+
+                        move(runnerState);
+
+                        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+
+                    if((1.0*std::clock()-start)/CLOCKS_PER_SEC > 1.0/ move_rate)
+                        break;
+
                 }
+
+                moveMutex.lock();
+                allowMoveArm=false;
+                moveMutex.unlock();
+
             }
 
-            move(runnerState);
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
-
         }
-
     }
 
     bool Arm::checkDistance(std::vector<double>& current, std::vector<double>& target, double& exceededDist, double& maxDist) {

@@ -2,9 +2,9 @@
 using namespace std;
 
 
-RobotController::RobotController(ros::NodeHandle& node)
+RobotController::RobotController(ros::NodeHandle& node, double control_freq)
 {
-
+    controller_freq=control_freq;
     myNode =node;
     armExists=false;
     baseExists=false;
@@ -12,7 +12,7 @@ RobotController::RobotController(ros::NodeHandle& node)
 
 void RobotController::initBase(){
 
-   myBase = std::shared_ptr<BaseController> (new BaseController (myNode));
+   myBase = std::shared_ptr<BaseController> (new BaseController (myNode,controller_freq));
    baseExists=true;
 
 }
@@ -22,8 +22,7 @@ void RobotController::initArm(std::vector<int> ids, std::vector< std::pair<doubl
    myNode.param("portName",portName,std::string("/dev/ttyArm"));
    myNode.param("protocolVersion",protocolVersion,2.0);
    myNode.param("baudRate",baudRate,3000000);
-
-   myArm = std::shared_ptr<Arm> (new Arm(ids,portName,jointLimits,protocolVersion,baudRate));
+   myArm = std::shared_ptr<Arm> (new Arm(ids,portName,jointLimits,protocolVersion,baudRate,controller_freq));
    myArm->initialize();
    myArm->runArm();
    armExists=true;
@@ -60,7 +59,7 @@ vector<double> RobotController::getCurrentStates()
 
 void RobotController::moveAll(vector<double> targetStates){
   if (baseExists)
-    myBase->move(targetStates.at(0),targetStates.at(1),targetStates.at(2)) ;
+    myBase->moveBase(targetStates.at(0),targetStates.at(1),targetStates.at(2)) ;
   if (armExists){
       vector<double> temp = vector<double> (targetStates.begin()+3,targetStates.end());
       myArm->moveArm(temp);
