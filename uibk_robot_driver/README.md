@@ -112,6 +112,8 @@ rosrun uibk_robot_driver uibk_arm_demo
 ## 3. Software architecture <a id="3--software-architecture"/> 
 
 robot_controller_node: ![robot_controller_node](https://github.com/squirrel-project/squirrel_driver/blob/indigo_dev/uibk_robot_driver/robot_controller_node.png "Architecture")
+![robot_controller_node](https://github.com/qusaisuwan/squirrel_driver/blob/indigo_dev/uibk_robot_driver/robot_controller_node.png "Architecture")
+
 
 <a href="#top">top</a>
 
