@@ -48,6 +48,8 @@ int main(int argc, char** args) {
 
     ros::init(argc, args, "robot_controller_node");
     ros::NodeHandle node; sleep(1);
+    ros::AsyncSpinner spinner(4); spinner.start();
+    
     double freq=20.0;
     shared_ptr<RobotController> robotinoController= shared_ptr<RobotController>(new RobotController(node,freq));
     struct sigaction sigIntHandler;
@@ -75,8 +77,8 @@ int main(int argc, char** args) {
 
     auto statePublisher = node.advertise<sensor_msgs::JointState>("/real/robotino/joint_control/get_state", 1);
     auto modePublisher = node.advertise<std_msgs::Float32MultiArray>("/real/robotino/settings/get_command_state", 1);
-    auto cycleTimePublisher = node.advertise<std_msgs::Float64>("/real/robotino_arm/settings/get_clock_cycle", 1);
-    auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("/real/robotino_arm/joint_control/get_max_dist_per_cycle", 1);
+    auto cycleTimePublisher = node.advertise<std_msgs::Float64>("/real/robotino/settings/get_clock_cycle", 1);
+    auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("/real/robotino/joint_control/get_max_dist_per_cycle", 1);
 
     auto moveCommandSub= node.subscribe("/real/robotino/joint_control/move", 2, moveCommandStateHandler);
     auto ptpCommandSub= node.subscribe("/real/robotino/joint_control/ptp", 2, ptpCommandStateHandler);
@@ -129,7 +131,6 @@ int main(int argc, char** args) {
         prevVel = jointStateMsg.velocity;
 
         r.sleep();
-        ros::spinOnce();
 
     }
 

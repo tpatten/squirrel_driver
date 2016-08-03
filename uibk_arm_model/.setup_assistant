@@ -1,6 +1,6 @@
 moveit_setup_assistant_config:
   URDF:
-    package: uibk_arm_controller
+    package: uibk_robot_driver
     relative_path: model/robotinoarm.urdf
   SRDF:
     relative_path: config/robotinoarm.srdf

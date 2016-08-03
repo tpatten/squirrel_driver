@@ -129,11 +129,11 @@ void BaseController::moveBaseThread(){
     while (ros::ok){
 
         if(start_move_base_) {
-
+			
             current_base_vel_ = getNullTwist();
             auto currentPose = getCurrentState();
             double current_theta = currentPose.at(0);
-
+			cout << currentPose.at(0) << "  " << currentPose.at(1) << "  " << currentPose.at(2) << endl;
             if(std::isnan(desired_theta_) == 0){
                 double orient_error = rotationDifference(desired_theta_, current_theta);
                 current_base_vel_.angular.z = pid_theta_.computeCommand(orient_error, ros::Duration(time_step_));
