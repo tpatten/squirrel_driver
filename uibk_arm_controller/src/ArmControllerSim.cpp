@@ -56,7 +56,6 @@
 #include <tf/transform_listener.h>
 #include <chrono>
 #include <thread>
-//#include <uibk_arm_controller/base_controller.hpp>
 #include <uibk_arm_controller/arm_controller.hpp>
 
 using namespace std;
@@ -73,7 +72,7 @@ public:
 void ArmController::PosCommandSub_cb(const std_msgs::Float64MultiArray msg){
 
 
-	std::shared_ptr<RobotinoBaseControl> base = std::make_shared<RobotinoBaseControl>(nh_, 20, 0.6);
+  std::shared_ptr<RobotinoBaseControl> base = std::make_shared<RobotinoBaseControl>(nh_, 20, 0.6);
 
 
   double target = base->getCurrentState();
@@ -83,7 +82,7 @@ void ArmController::PosCommandSub_cb(const std_msgs::Float64MultiArray msg){
 
   base->move(target+msg.data[0]);
 
-  ArmPosCommandPub_ = nh_.advertise<std_msgs::Float64MultiArray>("arm_controller/group_position_controller/cmd", 1);
+  ArmPosCommandPub_ = nh_.advertise<std_msgs::Float64MultiArray>("joint_group_position_controller/command", 1);
   std_msgs::Float64MultiArray joint_pos;
   joint_pos.data.resize(msg.data.size()-1);
 
@@ -98,8 +97,8 @@ int main(int argc, char** argv){
   ros::init(argc, argv, "ArmController");
   ArmController arm_controller = ArmController();
   ros::Subscriber PosCommandSub_ = arm_controller.nh_.subscribe("robotino_arm/joint_control/move", 1, &ArmController::PosCommandSub_cb, &arm_controller);
-  ros::Publisher cmdVelPub_ = arm_controller.nh_.advertise<geometry_msgs::Twist>("cmd_rotatory", 1, &arm_controller);
-  ros::Publisher ArmPosCommandPub_ = arm_controller.nh_.advertise<std_msgs::Float64MultiArray>("arm_controller/group_position_controller/cmd", 1, &arm_controller);
+  //ros::Publisher cmdVelPub_ = arm_controller.nh_.advertise<geometry_msgs::Twist>("cmd_rotatory", 1, &arm_controller);
+  ros::Publisher ArmPosCommandPub_ = arm_controller.nh_.advertise<std_msgs::Float64MultiArray>("joint_group_position_controller/command", 1, &arm_controller);
 
   ros::spin();
   return 0;
