@@ -16,6 +16,8 @@
 #include <math.h>
 #include <ros/ros.h>
 #include <uibk_robot_driver/motor.hpp>
+#include <boost/thread.hpp>
+
 // Control table address
 #define DONTCARE nan("1")
 using namespace motor_controller;
@@ -26,20 +28,22 @@ class Arm {
         bool keepThreadRunning;
         bool firstJointStateRetrieved;
 
-
         std::vector<std::shared_ptr<Motor> > motors;
         std::vector<double> currentJointState;
 
-        std::mutex jointStateMutex;
-        std::mutex moveMutex;
+        boost::mutex jointStateMutex;
+        boost::mutex moveMutex;
 
         std::shared_ptr<std::thread> runnerThread;
         std::shared_ptr<std::thread> moveThread;
+        std::shared_ptr<std::thread> moveThreadController;
         double move_rate;
-        bool allowMoveArm;
+        bool moveArmOk;
+        bool allowMovement;
         std::vector<double> targetPosMove;
         void armLoop();
         void moveArmThread();
+        void moveArmThreadController();
         bool checkDistance(std::vector<double> &current, std::vector<double> &target, double& exceededDist, double& maxDist);
         void move(std::vector<double> nextJointPos);
     public:

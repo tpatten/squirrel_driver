@@ -12,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   control_toolbox
-  robotino_driver
 )
 
 catkin_package(
@@ -46,12 +45,9 @@ add_library(uibk_robot_driver
 
 add_executable(uibk_arm_demo src/uibk_arm_demo.cpp)
 add_executable(robot_controller_node src/robot_controller_node.cpp)
-add_executable(qusaiTest src/QusaiTest.cpp)
 add_dependencies(uibk_robot_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} dynamixel_lib)
 add_dependencies(uibk_arm_demo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
 add_dependencies(robot_controller_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
-
-add_dependencies(qusaiTest ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
 
 target_link_libraries(uibk_robot_driver
   ${catkin_LIBRARIES}
@@ -59,11 +55,7 @@ target_link_libraries(uibk_robot_driver
   rt
 )
 
-target_link_libraries(qusaiTest
-  ${catkin_LIBRARIES}
-  uibk_robot_driver
 
-)
 
 target_link_libraries(uibk_arm_demo
   ${catkin_LIBRARIES}

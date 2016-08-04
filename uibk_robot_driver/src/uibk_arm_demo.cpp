@@ -95,7 +95,7 @@ int main(int argc, char** args) {
 }
 
 void doWork(){
-    ros::Rate myRate(20);
+    ros::Rate myRate(80);
     while(ros::ok()){
        if (sendCommands){
             pubMove.publish(command);

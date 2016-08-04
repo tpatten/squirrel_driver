@@ -3,7 +3,7 @@
 #include <time.h>
 
 using namespace ROBOTIS;                                    // Uses functions defined in ROBOTIS namespace
-
+using namespace std;
 
     void Arm::armLoop() {
 		
@@ -43,8 +43,8 @@ using namespace ROBOTIS;                                    // Uses functions de
         }
 
         keepThreadRunning = false;
-
-        allowMoveArm=false;
+        moveArmOk=false;
+        allowMovement=false;
     }
 
     std::vector<double> Arm::getCurrentState() {
@@ -64,6 +64,7 @@ using namespace ROBOTIS;                                    // Uses functions de
             motor->spinOnce();
         }
         moveThread=std::make_shared<std::thread>(&Arm::moveArmThread, this);
+        moveThreadController=std::make_shared<std::thread>(&Arm::moveArmThreadController, this);
 
     }
 
@@ -87,58 +88,61 @@ using namespace ROBOTIS;                                    // Uses functions de
     }
     void Arm::moveArm(std::vector<double> targetPos) {
         moveMutex.lock();
-          targetPosMove=targetPos;
-          allowMoveArm=true;
+        targetPosMove=targetPos;
+        moveArmOk=true;
         moveMutex.unlock();
-    }
 
-    void Arm::moveArmThread() {
+    }
+    void Arm::moveArmThreadController() {
+
+        const int numberOfMoveOrdersAllowedBeforeNextCommand= 1;
         ros::Rate myRate(move_rate);
+        int cnt=0;
         while(1){
             moveMutex.lock();
-            std::vector<double> targetpos= targetPosMove;
-            moveMutex.unlock();
-            if(allowMoveArm){
-                auto jointState = getCurrentState();
-                auto runnerState = jointState;
-                int sleepTime = (int) (1.0 / (getFrequency()*4) * 1e3);
-                auto stepSize = getStepSize() * 3;
-
-                auto targetReached = false;
-
-                std::clock_t start = std::clock();
-
-                while(!targetReached) {
-
-                        targetReached = true;
-                        for(unsigned int i = 0; i < runnerState.size(); ++i) {
-
-                            if(std::isnan(targetpos.at(i))!= 0)
-                                targetpos.at(i)=runnerState.at(i);
-                            auto sig = ((runnerState.at(i) - targetpos.at(i)) > 0) ? -1 : 1;
-                            if(fabs(runnerState.at(i) - targetpos.at(i)) > (stepSize * 2)) {
-                                runnerState.at(i) += sig * stepSize;
-                                targetReached = false;
-                            }
-
-                        }
-
-                        move(runnerState);
-
-                        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
-
-                    if((1.0*std::clock()-start)/CLOCKS_PER_SEC > 1.0/ move_rate)
-                        break;
-
-                }
-
-                moveMutex.lock();
-                allowMoveArm=false;
-                moveMutex.unlock();
+            if (cnt >numberOfMoveOrdersAllowedBeforeNextCommand)
+                allowMovement=false;
+            if (moveArmOk){
+                moveArmOk=false;
+                allowMovement=true;
+                cnt=0;
 
             }
+            moveMutex.unlock();
+            cnt++;
+            myRate.sleep();
+        }
 
         }
+
+        void Arm::moveArmThread() {
+            ros::Rate myRate(move_rate);
+
+            while(1){
+
+                auto jointState = getCurrentState();
+                auto runnerState = jointState;
+                auto stepSize = getStepSize() * 3;
+                auto targetReached = false;
+                while(!targetReached && allowMovement) {
+
+                    targetReached = true;
+                    for(unsigned int i = 0; i < runnerState.size(); ++i) {
+                        if(std::isnan(targetPosMove.at(i))!= 0)
+                            targetPosMove.at(i)=runnerState.at(i);
+                        auto sig = ((runnerState.at(i) - targetPosMove.at(i)) > 0) ? -1 : 1;
+                        if(fabs(runnerState.at(i) - targetPosMove.at(i)) > (stepSize * 2)) {
+                            runnerState.at(i) += sig * stepSize;
+                            targetReached = false;
+                        }
+                    }
+
+                    move(runnerState);
+
+                    myRate.sleep();
+
+                }
+            }
     }
 
     bool Arm::checkDistance(std::vector<double>& current, std::vector<double>& target, double& exceededDist, double& maxDist) {
@@ -210,7 +214,7 @@ using namespace ROBOTIS;                                    // Uses functions de
             move(runnerState);
 				
             std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
-			
+
         }
 			
 

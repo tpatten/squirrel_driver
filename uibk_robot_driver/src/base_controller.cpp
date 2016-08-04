@@ -129,11 +129,11 @@ void BaseController::moveBaseThread(){
     while (ros::ok){
 
         if(start_move_base_) {
-			
+
+
             current_base_vel_ = getNullTwist();
             auto currentPose = getCurrentState();
             double current_theta = currentPose.at(0);
-			cout << currentPose.at(0) << "  " << currentPose.at(1) << "  " << currentPose.at(2) << endl;
             if(std::isnan(desired_theta_) == 0){
                 double orient_error = rotationDifference(desired_theta_, current_theta);
                 current_base_vel_.angular.z = pid_theta_.computeCommand(orient_error, ros::Duration(time_step_));
@@ -157,6 +157,7 @@ void BaseController::moveBaseThread(){
         }
 
         moveBaseRate.sleep();
+
     }
 
 }
@@ -183,24 +184,6 @@ double BaseController::rotationDifference(double angle, double theta_robot) {
 
     return err_th;
 }
-
-//vector<double>  BaseController::getCurrentPose() {
-
-//    robot_pose_mutex_.lock();
-//    geometry_msgs::Pose odomPose = odometry.pose.pose;
-//    robot_pose_mutex_.unlock();
-
-//    tf::Quaternion quat(odomPose.orientation.x,odomPose.orientation.y,odomPose.orientation.z,odomPose.orientation.w);
-//    quat.normalize();
-//    vector<double> current_pose;
-//    current_pose.push_back(odomPose.position.x);
-//    current_pose.push_back(odomPose.position.y);
-//    current_pose.push_back(tf::getYaw(quat));
-
-//    return current_pose;
-
-//}
-
 
 std::vector<double> BaseController::getCurrentState() {
     std::vector<double> states;

@@ -50,7 +50,7 @@ int main(int argc, char** args) {
     ros::NodeHandle node; sleep(1);
     ros::AsyncSpinner spinner(4); spinner.start();
     
-    double freq=20.0;
+    double freq=80.0;
     shared_ptr<RobotController> robotinoController= shared_ptr<RobotController>(new RobotController(node,freq));
     struct sigaction sigIntHandler;
 
@@ -110,7 +110,6 @@ int main(int argc, char** args) {
             moveCommandMutex.lock();
             if(newMoveCommandStateSet) {
                 robotinoController->moveAll(moveCommandState);
-
                 newMoveCommandStateSet = false;
             }
             moveCommandMutex.unlock();
