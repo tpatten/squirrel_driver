@@ -140,7 +140,7 @@ Tactile::Tactile(const std::string& portname){
         string line;
         int sensId=0;
         while(getline(config,line) && sensId<=NUM_VALS){    //one divider per sensor reading
-            if(line.at(0)!='#'){ //if line is not a comment
+            if(line.length()!=0 && line.at(0)!='#'){ //if line is not a comment or blank
                 istringstream iss(line);
                 double val;
                 iss >> val;
@@ -234,16 +234,17 @@ std::vector<double>* Tactile::readData(){
     char buff[255];
 #ifndef TEST
     int rd=read(m_fileDesc,buff,255);
+
 #else
     buff[0]='\n';
     cout << "Input volts: " ;
-    for(int i=0;i<NUM_VALS;i++)
-    {
-        res->at(i)=0.1;       //artificial testing volt value
+   for(int i=0;i<NUM_VALS;i++)
+  {
+       res->at(i)=0.1;       //artificial testing volt value
         cout << res->at(i) << " ";
-    }
+  }
     cout << endl;
-    //testing
+   //testing
 #endif
 
     bool done=false;
