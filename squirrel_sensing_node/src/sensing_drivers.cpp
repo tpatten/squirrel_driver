@@ -77,8 +77,8 @@ const int Tactile::NUM_VALS=Tactile::NUM_TACT+Tactile::NUM_PROX;  //should be 15
 
 const int Tactile::NUM_HISTORY_VALS=10;
 const int Tactile::NUM_BIAS_VALS=100;
-const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.00;    //volts
-const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.0;    //volts
+const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.0;    //volts
+const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.03;    //volts
 
 //calibration coefficients tactile sensor
 const double Tactile::A11_TACT=0.8067;
@@ -309,7 +309,7 @@ std::vector<double>* Tactile::readData(){
         if(!isStationaryProx(res->at(i),i-NUM_TACT)){      //if values changed
             res->at(i)=convertProx(res->at(i));
         }else{
-            res->at(i)=-1;
+            res->at(i)=-100; //This is when there is no signal detected
         }
 
        // cout << res->at(i) << " ";
@@ -368,7 +368,7 @@ double Tactile::convertProx(const double num){
 
     double val=num;//-1;   //subtract 1 volt
 
-    return (A_PROX*pow(val,B_PROX))+C_PROX;
+    return (-((A_PROX*pow(val,B_PROX))+C_PROX));
 
 
 }
