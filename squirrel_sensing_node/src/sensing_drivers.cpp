@@ -78,7 +78,7 @@ const int Tactile::NUM_VALS=Tactile::NUM_TACT+Tactile::NUM_PROX;  //should be 15
 const int Tactile::NUM_HISTORY_VALS=10;
 const int Tactile::NUM_BIAS_VALS=100;
 const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.00;    //volts
-const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.05;    //volts
+const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.0;    //volts
 
 //calibration coefficients tactile sensor
 const double Tactile::A11_TACT=0.8067;
@@ -109,7 +109,7 @@ const double Tactile::B_PROX=-0.1808; //exponent
 const double Tactile::C_PROX=-17.28;
 
 //calibration maximum for proximity
-const double Tactile::MAX_PROX=4;
+const double Tactile::MAX_PROX=2.5;
 
 
 
@@ -281,24 +281,24 @@ std::vector<double>* Tactile::readData(){
         res->at(i)= (res->at(i)*(divider[i])); //calibartion curve maximum is (5-1)
     }
 
-    cout << "Tactile vals: ";
-    for(int i=0;i<NUM_TACT;i+=3){//first 9 values are tactile
+   // cout << "Tactile vals: ";
+ for(int i=0;i<NUM_TACT;i+=3){//first 9 values are tactile
 
         if(!isStationaryTact(res->at(i),i)){      //if values changed
-            convertTact(*res,i);     //we pass 3 values at time (that is why the for increments i+3)
+          convertTact(*res,i);     //we pass 3 values at time (that is why the for increments i+3)
         }else{
-            res->at(i)=0;
+        res->at(i)=0;
         }//if not stationary
 
-        cout << res->at(i) << " " << res->at(i+1) << " " << res->at(i+2) << " ";
+       // cout << res->at(i) << " " << res->at(i+1) << " " << res->at(i+2) << " ";
     }
-    cout << endl ;
+    //cout << endl ;
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
         res->at(i)= (res->at(i)*((divider[i])/MAX_PROX)); //calibartion curve maximum is accounted
     }
 
-    cout << "Proximity vals: ";
+   // cout << "Proximity vals: ";
     for(int i=NUM_TACT;i<NUM_VALS;i++){//last 6 values are proximity
 
         if(!isStationaryProx(res->at(i),i-NUM_TACT)){      //if values changed
@@ -306,12 +306,12 @@ std::vector<double>* Tactile::readData(){
         }else{
             res->at(i)=-1;
         }
-        cout << res->at(i) << " ";
+        //cout << res->at(i) << " ";
     }
-    cout << endl << endl;
+   // cout << endl << endl;
 
 
-    cin.ignore();
+    //cin.ignore();
 
     return res;
 }

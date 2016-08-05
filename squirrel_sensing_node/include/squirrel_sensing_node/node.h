@@ -7,7 +7,7 @@
 #include "sensing_drivers.h"
 
 //comment below line to disable wrist sensor (in case it is not plugged in)
-#define _FT17_AVAIL
+//#define _FT17_AVAIL
 
 
 class SensingNode{
