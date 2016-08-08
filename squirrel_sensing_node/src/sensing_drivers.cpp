@@ -85,9 +85,9 @@ const double Tactile::A11_TACT=26.25;
 const double Tactile::A12_TACT=21.96;
 const double Tactile::A13_TACT=2.608;
 
-const double Tactile::A21_TACT=0;
-const double Tactile::A22_TACT=-2.152;
-const double Tactile::A23_TACT=-1.381;
+const double Tactile::A21_TACT=-2.152;
+const double Tactile::A22_TACT=-1.381;
+const double Tactile::A23_TACT=0;
 
 const double Tactile::A31_TACT=27.52;
 const double Tactile::A32_TACT=0;
@@ -98,12 +98,12 @@ const double Tactile::MAX1_V1=0.35;
 const double Tactile::MAX1_V2=0.42;
 const double Tactile::MAX1_V3=3.56;
 
-const double Tactile::MAX2_V1=-0.19;
-const double Tactile::MAX2_V2=-0.25;
+const double Tactile::MAX2_V1=-0.0027;
+const double Tactile::MAX2_V2=-0.0035;
 const double Tactile::MAX2_V3=0;
 
-const double Tactile::MAX3_V1=-0.12;
-const double Tactile::MAX3_V3=-0.13;
+const double Tactile::MAX3_V1=-0.0017;
+const double Tactile::MAX3_V3=-0.0018;
 
 //calibration coefficients proximity sensor
 const double Tactile::A_PROX=20.74;
@@ -356,7 +356,7 @@ void Tactile::convertTact(vector<double>& num,int idx){
     }
     if(num[idx+2]!=-1)
     {
-        num[idx+2]=((A31_TACT/MAX3_V1)*v1)+((A33_TACT/MAX3_V3)*v3);;
+        num[idx+2]=((A31_TACT/MAX3_V1)*v1)+((A33_TACT/MAX3_V3)*v3);
     }
 
 }
