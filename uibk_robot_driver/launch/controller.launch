@@ -30,9 +30,6 @@
     <param name="hostname" value="$(arg hostname)" />
   </node>
   
-  <include file="$(find uibk_arm_model)/launch/demo.launch">
-  </include>
-  
   <node name="robot_controller_node" pkg="uibk_robot_driver" type="robot_controller_node" output="screen">
   </node>
   
