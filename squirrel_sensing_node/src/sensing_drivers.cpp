@@ -81,27 +81,29 @@ const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.0;    //volts
 const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.03;    //volts
 
 //calibration coefficients tactile sensor
-const double Tactile::A11_TACT=0.8067;
-const double Tactile::A12_TACT=1.853;
-const double Tactile::A13_TACT=2.48;
+const double Tactile::A11_TACT=26.25;
+const double Tactile::A12_TACT=21.96;
+const double Tactile::A13_TACT=2.608;
 
-const double Tactile::A21_TACT=0.1026;
-const double Tactile::A22_TACT=0;
-const double Tactile::A23_TACT=0;
+const double Tactile::A21_TACT=0;
+const double Tactile::A22_TACT=-2.152;
+const double Tactile::A23_TACT=-1.381;
 
-const double Tactile::A31_TACT=0;
-const double Tactile::A32_TACT=0.03548;
-const double Tactile::A33_TACT=0.01892;
+const double Tactile::A31_TACT=27.52;
+const double Tactile::A32_TACT=0;
+const double Tactile::A33_TACT=-12.65;
 
 //maximums of calibration curves in volts for tactile
-const double Tactile::MAX1_V1=4;
-const double Tactile::MAX1_V2=3.8;
-const double Tactile::MAX1_V3=3.2;
+const double Tactile::MAX1_V1=0.35;
+const double Tactile::MAX1_V2=0.42;
+const double Tactile::MAX1_V3=3.56;
 
-const double Tactile::MAX2_V1=0.4;
+const double Tactile::MAX2_V1=-0.19;
+const double Tactile::MAX2_V2=-0.25;
+const double Tactile::MAX2_V3=0;
 
-const double Tactile::MAX3_V2=0.45;
-const double Tactile::MAX3_V3=1.68;
+const double Tactile::MAX3_V1=-0.12;
+const double Tactile::MAX3_V3=-0.13;
 
 //calibration coefficients proximity sensor
 const double Tactile::A_PROX=20.74;
@@ -350,11 +352,11 @@ void Tactile::convertTact(vector<double>& num,int idx){
     }
     if(num[idx+1]!=-1)
     {
-        num[idx+1]=((A21_TACT/MAX2_V1)*v1);
+        num[idx+1]=((A21_TACT/MAX2_V1)*v1)+((A22_TACT/MAX2_V2)*v2)+((A23_TACT/MAX2_V3)*v3);
     }
     if(num[idx+2]!=-1)
     {
-        num[idx+2]=((A32_TACT/MAX3_V2)*v2)+((A33_TACT/MAX3_V3)*v3);
+        num[idx+2]=((A31_TACT/MAX3_V1)*v1)+((A33_TACT/MAX3_V3)*v3);;
     }
 
 }
