@@ -28,13 +28,13 @@
 		<collision>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 			<geometry>
-			  <mesh filename="package://uibk_arm_controller/model/meshes/motor1_collision.stl"/>
+			  <mesh filename="package://uibk_robot_driver/model/meshes/motor1_collision.stl"/>
 			</geometry>
 		</collision>
 		
 		<visual>
 			<geometry>
-				<mesh filename="package://uibk_arm_controller/model/meshes/motor1.stl"/>
+				<mesh filename="package://uibk_robot_driver/model/meshes/motor1.stl"/>
 			</geometry>
 			<material name="white" />
 			<origin rpy="0 0 0" xyz="0 0 0"/>
@@ -47,13 +47,13 @@
 		<collision>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 			<geometry>
-			  <mesh filename="package://uibk_arm_controller/model/meshes/link1_collision.stl"/>
+			  <mesh filename="package://uibk_robot_driver/model/meshes/link1_collision.stl"/>
 			</geometry>
 		</collision>
 		
 		<visual>
 			<geometry>
-				<mesh filename="package://uibk_arm_controller/model/meshes/link1.stl"/>
+				<mesh filename="package://uibk_robot_driver/model/meshes/link1.stl"/>
 			</geometry>
 			<material name="white" />
 			<origin rpy="0 0 0" xyz="0 0 0"/>
@@ -66,13 +66,13 @@
 		<collision>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 			<geometry>
-			  <mesh filename="package://uibk_arm_controller/model/meshes/link2_collision.stl"/>
+			  <mesh filename="package://uibk_robot_driver/model/meshes/link2_collision.stl"/>
 			</geometry>
 		</collision>
 		
 		<visual>
 			<geometry>
-				<mesh filename="package://uibk_arm_controller/model/meshes/link2.stl"/>
+				<mesh filename="package://uibk_robot_driver/model/meshes/link2.stl"/>
 			</geometry>
 			<material name="white" />
 			<origin rpy="0 0 0" xyz="0 0 0"/>
@@ -85,13 +85,13 @@
 		<collision>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 			<geometry>
-			  <mesh filename="package://uibk_arm_controller/model/meshes/link3_collision.stl"/>
+			  <mesh filename="package://uibk_robot_driver/model/meshes/link3_collision.stl"/>
 			</geometry>
 		</collision>
 		
 		<visual>
 			<geometry>
-				<mesh filename="package://uibk_arm_controller/model/meshes/link3.stl"/>
+				<mesh filename="package://uibk_robot_driver/model/meshes/link3.stl"/>
 			</geometry>
 			<material name="white" />
 			<origin rpy="0 0 0" xyz="0 0 0"/>
@@ -104,13 +104,13 @@
 		<collision>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 			<geometry>
-			  <mesh filename="package://uibk_arm_controller/model/meshes/link4_collision.stl"/>
+			  <mesh filename="package://uibk_robot_driver/model/meshes/link4_collision.stl"/>
 			</geometry>
 		</collision>
 		
 		<visual>
 			<geometry>
-				<mesh filename="package://uibk_arm_controller/model/meshes/link4.stl"/>
+				<mesh filename="package://uibk_robot_driver/model/meshes/link4.stl"/>
 			</geometry>
 			<material name="white" />
 			<origin rpy="0 0 0" xyz="0 0 0"/>
