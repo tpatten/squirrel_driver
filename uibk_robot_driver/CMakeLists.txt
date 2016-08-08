@@ -26,36 +26,37 @@ include_directories(
 )
 
 add_library(dynamixel_lib
-		   src/dynamixel_sdk/GroupBulkRead.cpp
-           src/dynamixel_sdk/GroupBulkWrite.cpp
-           src/dynamixel_sdk/GroupSyncRead.cpp 
-           src/dynamixel_sdk/GroupSyncWrite.cpp
-           src/dynamixel_sdk/PacketHandler.cpp 
-           src/dynamixel_sdk/PortHandler.cpp 
-           src/dynamixel_sdk/Protocol1PacketHandler.cpp 
-           src/dynamixel_sdk/Protocol2PacketHandler.cpp 
-           src/dynamixel_sdk/PortHandlerLinux.cpp)
+  src/dynamixel_sdk/GroupBulkRead.cpp
+  src/dynamixel_sdk/GroupBulkWrite.cpp
+  src/dynamixel_sdk/GroupSyncRead.cpp 
+  src/dynamixel_sdk/GroupSyncWrite.cpp
+  src/dynamixel_sdk/PacketHandler.cpp 
+  src/dynamixel_sdk/PortHandler.cpp 
+  src/dynamixel_sdk/Protocol1PacketHandler.cpp 
+  src/dynamixel_sdk/Protocol2PacketHandler.cpp 
+  src/dynamixel_sdk/PortHandlerLinux.cpp)
 
 add_library(uibk_robot_driver
-    src/base_controller.cpp
-    src/arm_controller.cpp
-    src/motor.cpp
-    src/robot_controller.cpp
+  src/base_controller.cpp
+  src/arm_controller.cpp
+  src/motor.cpp
+  src/robot_controller.cpp
 )
 
 add_executable(uibk_arm_demo src/uibk_arm_demo.cpp)
 add_executable(robot_controller_node src/robot_controller_node.cpp)
+add_executable(arm_controller_sim src/ArmControllerSim.cpp)
+
 add_dependencies(uibk_robot_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} dynamixel_lib)
 add_dependencies(uibk_arm_demo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
 add_dependencies(robot_controller_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
+add_dependencies(arm_controller_sim ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_arm_controller)
 
 target_link_libraries(uibk_robot_driver
   ${catkin_LIBRARIES}
   dynamixel_lib
   rt
 )
-
-
 
 target_link_libraries(uibk_arm_demo
   ${catkin_LIBRARIES}
@@ -66,6 +67,13 @@ target_link_libraries(robot_controller_node
   ${catkin_LIBRARIES}
   uibk_robot_driver
 )
+
+target_link_libraries(arm_controller_sim
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  uibk_arm_controller
+)
+
 FILE(GLOB_RECURSE LibFiles "*.h*")
 add_custom_target(headers SOURCES ${LibFiles})
 

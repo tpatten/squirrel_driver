@@ -93,8 +93,8 @@ bool ViewControllerNode::resetPosition( std_srvs::Empty::Request& req, std_srvs:
   return true;
 }
 
-bool ViewControllerNode::lookAtImagePosition(squirrel_object_perception_msgs::LookAtImagePosition::Request &req,
-                                             squirrel_object_perception_msgs::LookAtImagePosition::Response &res)
+bool ViewControllerNode::lookAtImagePosition(robotino_msgs::LookAtImagePosition::Request &req,
+                                             robotino_msgs::LookAtImagePosition::Response &res)
 {
   if(who_fixed_it.empty())
   {
@@ -111,22 +111,22 @@ bool ViewControllerNode::lookAtImagePosition(squirrel_object_perception_msgs::Lo
   }
 }
 
-bool ViewControllerNode::lookAtPosition(squirrel_object_perception_msgs::LookAtPosition::Request &req,
-                                        squirrel_object_perception_msgs::LookAtPosition::Response &res)
+bool ViewControllerNode::lookAtPosition(robotino_msgs::LookAtPosition::Request &req,
+                                        robotino_msgs::LookAtPosition::Response &res)
 {
   // TODO
   return false;
 }
 
-bool ViewControllerNode::fixatePosition(squirrel_object_perception_msgs::FixatePosition::Request &req,
-                                        squirrel_object_perception_msgs::FixatePosition::Response &res)
+bool ViewControllerNode::fixatePosition(robotino_msgs::FixatePosition::Request &req,
+                                        robotino_msgs::FixatePosition::Response &res)
 {
   // TODO
   return false;
 }
 
-bool ViewControllerNode::fixatePanTilt(squirrel_object_perception_msgs::FixatePanTilt::Request& req,
-				       squirrel_object_perception_msgs::FixatePanTilt::Response& res)
+bool ViewControllerNode::fixatePanTilt(robotino_msgs::FixatePanTilt::Request& req,
+				       robotino_msgs::FixatePanTilt::Response& res)
 {
   if(who_fixed_it.empty())
   {
@@ -146,8 +146,8 @@ bool ViewControllerNode::fixatePanTilt(squirrel_object_perception_msgs::FixatePa
   }
 }
 
-bool ViewControllerNode::clearFixation(squirrel_object_perception_msgs::ClearFixation::Request &req,
-                                       squirrel_object_perception_msgs::ClearFixation::Response &res)
+bool ViewControllerNode::clearFixation(robotino_msgs::ClearFixation::Request &req,
+                                       robotino_msgs::ClearFixation::Response &res)
 {
   if(!who_fixed_it.empty())
   {
