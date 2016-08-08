@@ -281,7 +281,7 @@ std::vector<double>* Tactile::readData(){
 
 
     for(int i=0;i<NUM_TACT;i++){//biasing to calibration
-        res->at(i)= (res->at(i)*(divider[i])); //calibartion curve maximum is (5-1)
+        res->at(i)= (res->(at(i)-1)*(divider[i])); //calibartion curve maximum is (5-1)
     }
 
 
@@ -301,7 +301,7 @@ std::vector<double>* Tactile::readData(){
    // cout << endl ;
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
-        res->at(i)= (res->at(i)*((divider[i])/MAX_PROX)); //calibartion curve maximum is accounted
+        res->at(i)= (res->(at(i)-1)*((divider[i])/MAX_PROX)); //calibartion curve maximum is accounted
     }
 
 
@@ -341,9 +341,9 @@ void Tactile::convertTact(vector<double>& num,int idx){
         }
     }
 
-    double v1=num.at(idx)-1;
-    double v2=num.at(idx+1)-1;
-    double v3=num.at(idx+2)-1;
+    double v1=num.at(idx);
+    double v2=num.at(idx+1);
+    double v3=num.at(idx+2);
 
 
     if(num[idx]!=-1)    //these checks are done to be sure that illigal values are not used for computing the formulas
@@ -368,7 +368,7 @@ double Tactile::convertProx(const double num){
         return -1;
     }
 
-    double val=num-1;   //subtract 1 volt
+    double val=num;   //subtract 1 volt
 
     return (-((A_PROX*pow(val,B_PROX))+C_PROX));
 
