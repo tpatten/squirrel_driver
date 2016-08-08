@@ -341,9 +341,9 @@ void Tactile::convertTact(vector<double>& num,int idx){
         }
     }
 
-    double v1=num.at(idx);
-    double v2=num.at(idx+1);
-    double v3=num.at(idx+2);
+    double v1=num.at(idx)-1;
+    double v2=num.at(idx+1)-1;
+    double v3=num.at(idx+2)-1;
 
 
     if(num[idx]!=-1)    //these checks are done to be sure that illigal values are not used for computing the formulas
@@ -368,7 +368,7 @@ double Tactile::convertProx(const double num){
         return -1;
     }
 
-    double val=num;//-1;   //subtract 1 volt
+    double val=num-1;   //subtract 1 volt
 
     return (-((A_PROX*pow(val,B_PROX))+C_PROX));
 
