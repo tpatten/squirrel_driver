@@ -75,14 +75,14 @@ int main(int argc, char** args) {
     std_msgs::Float64 cycleMsg; cycleMsg.data = cycleTime;
     std_msgs::Float64 maxStepPerCycleMsg; maxStepPerCycleMsg.data = maxStepPerCycle;
 
-    auto statePublisher = node.advertise<sensor_msgs::JointState>("/real/robotino/joint_control/get_state", 1);
-    auto modePublisher = node.advertise<std_msgs::Float32MultiArray>("/real/robotino/settings/get_command_state", 1);
-    auto cycleTimePublisher = node.advertise<std_msgs::Float64>("/real/robotino/settings/get_clock_cycle", 1);
-    auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("/real/robotino/joint_control/get_max_dist_per_cycle", 1);
+    auto statePublisher = node.advertise<sensor_msgs::JointState>("joint_control/get_state", 1);
+    auto modePublisher = node.advertise<std_msgs::Float32MultiArray>("settings/get_command_state", 1);
+    auto cycleTimePublisher = node.advertise<std_msgs::Float64>("settings/get_clock_cycle", 1);
+    auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("joint_control/get_max_dist_per_cycle", 1);
 
-    auto moveCommandSub= node.subscribe("/real/robotino/joint_control/move", 2, moveCommandStateHandler);
-    auto ptpCommandSub= node.subscribe("/real/robotino/joint_control/ptp", 2, ptpCommandStateHandler);
-    auto modeSub= node.subscribe("/real/robotino/settings/switch_mode", 1, switchModeHandler);
+    auto moveCommandSub= node.subscribe("joint_control/move", 2, moveCommandStateHandler);
+    auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
+    auto modeSub= node.subscribe("settings/switch_mode", 1, switchModeHandler);
 
     std_msgs::Float32MultiArray modeArray;
     modeArray.data.push_back(0.0); modeArray.data.push_back(0.0);

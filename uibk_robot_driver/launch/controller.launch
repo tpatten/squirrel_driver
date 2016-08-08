@@ -3,7 +3,7 @@
 
   <arg name="robot" default="uibk-robotino2"/>
   <arg name="use_robotino_safety" value="true" />
-<arg name="hostname" default="127.0.1.1" />
+  <arg name="hostname" default="127.0.1.1" />
   <param name="use_sim_time" value="false" />
   <arg name="use_velocity_controller" value="false" />
   <!-- robotino node -->
@@ -29,8 +29,10 @@
   <node name="robotino_odometry_node" pkg="robotino_driver" type="robotino_odometry_node" output="screen">
     <param name="hostname" value="$(arg hostname)" />
   </node>
-  
-  <node name="robot_controller_node" pkg="uibk_robot_driver" type="robot_controller_node" output="screen">
-  </node>
+  <group ns="real/robotino">
+	  <node name="robot_controller_node" pkg="uibk_robot_driver" type="robot_controller_node" output="screen">
+		<remap from="cmd_rotatory" to="/cmd_rotatory"/>
+	  </node>
+  </group>
   
 </launch>
