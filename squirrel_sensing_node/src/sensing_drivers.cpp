@@ -77,8 +77,8 @@ const int Tactile::NUM_VALS=Tactile::NUM_TACT+Tactile::NUM_PROX;  //should be 15
 
 const int Tactile::NUM_HISTORY_VALS=10;
 const int Tactile::NUM_BIAS_VALS=100;
-const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.0;    //volts
-const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.03;    //volts
+const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.00;    //volts
+const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.02;    //volts
 
 //calibration coefficients tactile sensor
 const double Tactile::A11_TACT=26.25;
@@ -89,21 +89,21 @@ const double Tactile::A21_TACT=-2.152;
 const double Tactile::A22_TACT=-1.381;
 const double Tactile::A23_TACT=0;
 
-const double Tactile::A31_TACT=27.52;
+const double Tactile::A31_TACT=-12.65;
 const double Tactile::A32_TACT=0;
-const double Tactile::A33_TACT=-12.65;
+const double Tactile::A33_TACT=27.52;
 
 //maximums of calibration curves in volts for tactile
 const double Tactile::MAX1_V1=0.35;
 const double Tactile::MAX1_V2=0.42;
 const double Tactile::MAX1_V3=3.56;
 
-const double Tactile::MAX2_V1=-0.0027;
-const double Tactile::MAX2_V2=-0.0035;
+const double Tactile::MAX2_V1=0.18;
+const double Tactile::MAX2_V2=0.25;
 const double Tactile::MAX2_V3=0;
 
-const double Tactile::MAX3_V1=-0.0017;
-const double Tactile::MAX3_V3=-0.0018;
+const double Tactile::MAX3_V1=0.15;
+const double Tactile::MAX3_V3=-0.12;
 
 //calibration coefficients proximity sensor
 const double Tactile::A_PROX=20.74;
@@ -281,7 +281,7 @@ std::vector<double>* Tactile::readData(){
 
 
     for(int i=0;i<NUM_TACT;i++){//biasing to calibration
-        res->at(i)= (res->at(i)-1)*divider[i]; //calibartion curve maximum is (5-1)
+        res->at(i)= res->at(i)*divider[i]; //calibartion curve maximum is (5-1)
     }
 
 
@@ -301,7 +301,7 @@ std::vector<double>* Tactile::readData(){
    // cout << endl ;
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
-        res->at(i)= (res->at(i)-1)*((divider[i])/MAX_PROX); //calibartion curve maximum is accounted
+        res->at(i)= res->at(i)*((divider[i])/MAX_PROX); //calibartion curve maximum is accounted
     }
 
 
