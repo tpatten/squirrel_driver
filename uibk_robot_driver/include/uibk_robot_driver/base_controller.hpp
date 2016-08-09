@@ -8,7 +8,7 @@
 #include <control_toolbox/pid.h>
 #include <tf/tf.h>
 #include <vector>
-#define ROBOTINO_MOVE_TOPIC "cmd_rotatory"
+#define ROBOTINO_MOVE_TOPIC "/cmd_vel"
 #define ROBOTINO_ODOM_TOPIC "/odom"
 #define DONTCARE nan("1")
 class BaseController {
@@ -51,7 +51,7 @@ private:
 
     geometry_msgs::Twist getNullTwist();
     double rotationDifference(double angle, double theta_robot);
-    void move(double desired_theta, double desired_x, double desired_y);
+    void move(double desired_x, double desired_y,double desired_theta);
     void initialize(ros::NodeHandle& node);
     bool targetReached(float currentVal, float targetVal, float startingVal);
 
@@ -60,10 +60,9 @@ public:
     BaseController(ros::NodeHandle& node,double controller_freq);
     ~BaseController();
 
-    void ptp(double desired_theta, double desired_x, double desired_y);
-    void moveBase(double desired_theta, double desired_x, double desired_y);
+    void ptp(double desired_x, double desired_y,double desired_theta);
+    void moveBase(double desired_x, double desired_y,double desired_theta);
     std::vector<double> getCurrentState();//
-//    std::vector<double> getCurrentPose();
 
 };
 
