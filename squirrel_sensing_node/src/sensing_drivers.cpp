@@ -281,7 +281,7 @@ std::vector<double>* Tactile::readData(){
 
 
     for(int i=0;i<NUM_TACT;i++){//biasing to calibration
-        res->at(i)= (res->(at(i)-1)*(divider[i])); //calibartion curve maximum is (5-1)
+        res->at(i)= (res->at(i)-1)*divider[i]; //calibartion curve maximum is (5-1)
     }
 
 
@@ -301,7 +301,7 @@ std::vector<double>* Tactile::readData(){
    // cout << endl ;
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
-        res->at(i)= (res->(at(i)-1)*((divider[i])/MAX_PROX)); //calibartion curve maximum is accounted
+        res->at(i)= (res->at(i)-1)*((divider[i])/MAX_PROX); //calibartion curve maximum is accounted
     }
 
 

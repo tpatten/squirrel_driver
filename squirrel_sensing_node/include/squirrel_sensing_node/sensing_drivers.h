@@ -47,8 +47,10 @@ class Tactile : public Driver{
     static const double MAX1_V3;
 
     static const double MAX2_V1;
+    static const double MAX2_V2;
+    static const double MAX2_V3;
 
-    static const double MAX3_V2;
+    static const double MAX3_V1;
     static const double MAX3_V3;
     //---
     static const double MAX_PROX; //proximity
