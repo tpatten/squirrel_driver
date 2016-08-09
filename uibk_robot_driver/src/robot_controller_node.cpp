@@ -95,6 +95,17 @@ int main(int argc, char** args) {
 
     while(runController) {
 
+	jointStateMsg.header.stamp = ros::Time::now();
+	jointStateMsg.name.resize(8);
+	jointStateMsg.name[0] ="base_jointx";
+	jointStateMsg.name[1] ="base_jointy";
+	jointStateMsg.name[2] ="base_jointz";
+	jointStateMsg.name[3] ="arm_joint1";
+	jointStateMsg.name[4] ="arm_joint2";
+	jointStateMsg.name[5] ="arm_joint3";
+	jointStateMsg.name[6] ="arm_joint4";
+	jointStateMsg.name[7] ="arm_joint5";
+
         jointStateMsg.position = robotinoController->getCurrentStates();
         jointStateMsg.velocity = computeDerivative(jointStateMsg.position, prevPos, stepTime);
         jointStateMsg.effort = computeDerivative(jointStateMsg.velocity, prevVel, stepTime);
