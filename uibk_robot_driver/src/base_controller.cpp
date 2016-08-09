@@ -68,7 +68,7 @@ void BaseController::callbackOdometry(nav_msgs::Odometry msg) {
     robot_pose_mutex_.unlock();
 }
 
-void BaseController::ptp(double desired_theta, double desired_x, double desired_y){
+void BaseController::ptp(double desired_x, double desired_y, double desired_theta){
     ptp_pose_mutex_.lock();
     desired_theta_ptp = desired_theta;
     desired_x_ptp= desired_x;
@@ -91,13 +91,13 @@ bool BaseController::targetReached(float currentVal, float targetVal , float sta
 }
 
 
-void BaseController::moveBase(double desired_theta, double desired_x, double desired_y) {
+void BaseController::moveBase(double desired_x, double desired_y,double desired_theta) {
     start_ptp_base_=false;
-    move(desired_theta, desired_x, desired_y);
+    move(desired_x, desired_y,desired_theta);
 
 }
 
-void BaseController::move(double desired_theta, double desired_x, double desired_y) {
+void BaseController::move(double desired_x, double desired_y,double desired_theta) {
 
     move_pose_mutex_.lock();
     desired_theta_ = desired_theta;
@@ -123,17 +123,17 @@ void BaseController::ptpBaseThread(){
 }
 
 void BaseController::moveBaseThread(){
-
+	
     ros::Rate moveBaseRate(controller_frequency_);
 
     while (ros::ok){
 
         if(start_move_base_) {
-
+			
 
             current_base_vel_ = getNullTwist();
             auto currentPose = getCurrentState();
-            double current_theta = currentPose.at(0);
+            double current_theta = currentPose.at(2);
             if(std::isnan(desired_theta_) == 0){
                 double orient_error = rotationDifference(desired_theta_, current_theta);
                 current_base_vel_.angular.z = pid_theta_.computeCommand(orient_error, ros::Duration(time_step_));
@@ -142,8 +142,8 @@ void BaseController::moveBaseThread(){
             }
 
 
-            double err_x_odom = std::isnan(desired_x_) == 0  ? desired_x_ - currentPose.at(1) : 0;
-            double err_y_odom = std::isnan(desired_y_) == 0  ? desired_y_ - currentPose.at(2) :0;
+            double err_x_odom = std::isnan(desired_x_) == 0  ? desired_x_ - currentPose.at(0) : 0;
+            double err_y_odom = std::isnan(desired_y_) == 0  ? desired_y_ - currentPose.at(1) :0;
 
 
             double err_x_r = cos(current_theta) * err_x_odom + sin(current_theta) * err_y_odom;
@@ -191,9 +191,10 @@ std::vector<double> BaseController::getCurrentState() {
     geometry_msgs::Quaternion odomBkp = odometry.pose.pose.orientation;
     tf::Quaternion quat(odomBkp.x,odomBkp.y,odomBkp.z,odomBkp.w);
     quat.normalize();
-    states.push_back(tf::getYaw(quat));
+
     states.push_back(odometry.pose.pose.position.x);
     states.push_back(odometry.pose.pose.position.y);
+    states.push_back(tf::getYaw(quat));
     robot_pose_mutex_.unlock();
 
     return states;
