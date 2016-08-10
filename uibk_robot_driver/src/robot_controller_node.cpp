@@ -59,11 +59,11 @@ int main(int argc, char** args) {
     robotinoController->initBase();
     robotinoController->initArm({1, 2, 3, 4, 5},
     {DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_SMALL_MOTOR, DYNAMIXEL_SMALL_MOTOR, DYNAMIXEL_SMALL_MOTOR},
-    {std::make_pair<double, double>(-125000.0 / Motor::TICKS_FOR_180_DEG * M_PI, 130000 / Motor::TICKS_FOR_180_DEG * M_PI),
-                                                 std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG * M_PI, 185000 / Motor::TICKS_FOR_180_DEG * M_PI),
-                                                 std::make_pair<double, double>(-150000 / Motor::TICKS_FOR_180_DEG * M_PI, 150000 / Motor::TICKS_FOR_180_DEG * M_PI),
-                                                 std::make_pair<double, double>(-100000 / Motor::TICKS_FOR_180_DEG * M_PI, 100000 / Motor::TICKS_FOR_180_DEG * M_PI),
-                                                 std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG * M_PI, 140000 / Motor::TICKS_FOR_180_DEG * M_PI)});
+												{std::make_pair<double, double>(-125000.0 / Motor::TICKS_FOR_180_DEG_BIG * M_PI, 130000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI),
+                                                 std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI, 185000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI),
+                                                 std::make_pair<double, double>(-150000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI, 150000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI),
+                                                 std::make_pair<double, double>(-100000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI, 100000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI),
+                                                 std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI, 140000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI)});
                                                  
     moveCommandState = robotinoController->getCurrentStates();
     auto cycleTime = robotinoController->getArmCycleTime();

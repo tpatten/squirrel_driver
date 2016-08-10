@@ -67,7 +67,7 @@ namespace motor_controller {
     void Motor::sendNextCommand(double pos) {
 
         if(pos < upperLimit && pos > lowerLimit){
-            submitPacket(portHandler, motorId, ADDR_PRO_GOAL_POSITION, (int) (pos / M_PI * TICKS_FOR_180_DEG));
+            submitPacket(portHandler, motorId, ADDR_PRO_GOAL_POSITION, (int) (pos / M_PI * ticks_for_180_deg));
         }else
             std::cerr << "commanded position out of security limits (com: " << pos << ", lim: " << lowerLimit << ", " << upperLimit << ")" << std::endl;
 
@@ -82,9 +82,14 @@ namespace motor_controller {
         this->upperLimit = upperLimit;
         this->baudRate = baudRate;
         nextCommandSet = false;
+        
+        ticks_for_180_deg = (type == DYNAMIXEL_BIG_MOTOR) ? TICKS_FOR_180_DEG_BIG : TICKS_FOR_180_DEG_SMALL;
+        std_stepsize = 20.0 / ticks_for_180_deg * M_PI;
+        std_max_vel_limit = 5000.0 / ticks_for_180_deg * M_PI;
+        
     }
 
-    double Motor::getStepSize() { return STD_STEP_SIZE; }
+    double Motor::getStepSize() { return std_stepsize; }
     double Motor::getFrequency() { return STD_FREQUENCY; }
 
     void Motor::initialize() {
@@ -185,7 +190,7 @@ namespace motor_controller {
             bool worked = false;
             for(int i = 0; i < 3 && !worked; ++i) {
                 try {
-                    currentState = (double) (receiveState() / TICKS_FOR_180_DEG * M_PI);
+                    currentState = (double) (receiveState() / ticks_for_180_deg * M_PI);
                     worked = true;
                 } catch(MotorException &ex) {
 
@@ -218,7 +223,7 @@ namespace motor_controller {
 
         auto currState = getCurrentState();
         int sig = ((targetPos - currState) > 0) ? 1 : -1;
-        for(; fabs(currState - targetPos) > (500 / TICKS_FOR_180_DEG * M_PI); currState += sig * STD_STEP_SIZE) {
+        for(; fabs(currState - targetPos) > (500 / ticks_for_180_deg * M_PI); currState += sig * std_stepsize) {
             setNextState(currState);
             spinOnce();
             std::this_thread::sleep_for(std::chrono::milliseconds(stdSleepTime));
@@ -235,9 +240,9 @@ namespace motor_controller {
 
         auto currState = getCurrentState();
         int sig = ((targetPos - currState) > 0) ? 1 : -1;
-      if( fabs(currState - targetPos) > (500 / TICKS_FOR_180_DEG * M_PI))
+      if( fabs(currState - targetPos) > (500 / ticks_for_180_deg * M_PI))
       {
-            currState += sig * STD_STEP_SIZE;
+            currState += sig * std_stepsize;
             setNextState(currState);
             spinOnce();
             std::this_thread::sleep_for(std::chrono::milliseconds(stdSleepTime));
@@ -275,6 +280,6 @@ namespace motor_controller {
     }
 
     double Motor::getMaxVelLimit() {
-        return STD_MAX_VEL_LIMIT;
+        return std_max_vel_limit;
     }
 }
