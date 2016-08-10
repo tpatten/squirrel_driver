@@ -63,10 +63,18 @@ void RobotController::moveAll(vector<double> targetStates) {
     myBase->moveBase(targetStates.at(0),targetStates.at(1),targetStates.at(2)) ;
   if (armExists){
       vector<double> temp = vector<double> (targetStates.begin()+3,targetStates.end());
-      myArm->moveArm(temp);
+      myArm->move(temp);
   }
 }
 
+void RobotController::gotoAll(vector<double> targetStates) {
+  if (baseExists)
+    myBase->moveBase(targetStates.at(0),targetStates.at(1),targetStates.at(2)) ;
+  if (armExists){
+      vector<double> temp = vector<double> (targetStates.begin()+3,targetStates.end());
+      myArm->gotoArm(temp);
+  }
+}
 
 void RobotController::ptpAll(vector<double> targetStates) {
 
