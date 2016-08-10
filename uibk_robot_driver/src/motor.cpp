@@ -1,13 +1,14 @@
 #include "uibk_robot_driver/motor.hpp"
 
 using namespace ROBOTIS;                                    // Uses functions defined in ROBOTIS namespace
+using namespace std;
 
 namespace motor_controller {
 
     MotorException::MotorException(const char* msg) { this->msg = msg; }
 
     const char* MotorException::what() const throw() {
-     return msg;
+		return msg;
     }
 
     void Motor::submitPacket(ROBOTIS::PortHandler* portHandler, int motorId, int address, int value) {
@@ -74,6 +75,7 @@ namespace motor_controller {
     }
 
     Motor::Motor(std::string deviceName, int motorId, motor_type type, float protocolVersion, double lowerLimit, double upperLimit, int baudRate) {
+		
         this->type = type;
         this->deviceName = deviceName;
         this->motorId = motorId;
@@ -86,6 +88,8 @@ namespace motor_controller {
         ticks_for_180_deg = (type == DYNAMIXEL_BIG_MOTOR) ? TICKS_FOR_180_DEG_BIG : TICKS_FOR_180_DEG_SMALL;
         std_stepsize = 20.0 / ticks_for_180_deg * M_PI;
         std_max_vel_limit = 5000.0 / ticks_for_180_deg * M_PI;
+        
+        cout << ticks_for_180_deg << " " << std_stepsize << " " << std_max_vel_limit << " " << endl;
         
     }
 
@@ -190,7 +194,8 @@ namespace motor_controller {
             bool worked = false;
             for(int i = 0; i < 3 && !worked; ++i) {
                 try {
-                    currentState = (double) (receiveState() / ticks_for_180_deg * M_PI);
+					auto currentTicks = receiveState();
+                    currentState = (double) (currentTicks / ticks_for_180_deg * M_PI);
                     worked = true;
                 } catch(MotorException &ex) {
 

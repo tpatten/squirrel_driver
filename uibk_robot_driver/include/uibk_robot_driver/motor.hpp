@@ -54,9 +54,9 @@ class Motor {
         double currentState;
         double nextCommand;
         
-        int std_stepsize;
-        int std_max_vel_limit;
-        int ticks_for_180_deg;
+        double std_stepsize;
+        double std_max_vel_limit;
+        double ticks_for_180_deg;
 
         int motorId;
         double lowerLimit;
@@ -85,7 +85,7 @@ class Motor {
 
         static auto constexpr STD_FREQUENCY = 80.0;
 
-		static auto constexpr TICKS_FOR_180_DEG_BIG = 300000.0;
+		static auto constexpr TICKS_FOR_180_DEG_BIG = 250000.0;
         static auto constexpr TICKS_FOR_180_DEG_SMALL = 150000.0;
 
         Motor(std::string deviceName, int motorId, motor_type type, float protocolVersion, double lowerLimit, double upperLimit, int baudRate);

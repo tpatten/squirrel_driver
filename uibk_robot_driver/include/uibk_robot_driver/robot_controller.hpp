@@ -28,8 +28,6 @@ public:
 
 
 	// For arm
-
-	double getArmStepSize();
 	double getArmFrequency();
 	double getArmCycleTime();
 	double getArmMaxStepPerCycle();

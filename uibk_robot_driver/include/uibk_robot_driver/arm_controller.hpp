@@ -61,7 +61,7 @@ class Arm {
         void moveArm(std::vector<double> nextJointPos);
         int getDegOfFreedom();
 
-        double getStepSize();
+        double getStepSize(int motorId);
         double getFrequency();
         double getCycleTime();
         double getMaxStepPerCycle();

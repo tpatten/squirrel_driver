@@ -58,10 +58,10 @@ int main(int argc, char** args) {
 
     robotinoController->initBase();
     robotinoController->initArm({1, 2, 3, 4, 5},
-    {DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_SMALL_MOTOR, DYNAMIXEL_SMALL_MOTOR, DYNAMIXEL_SMALL_MOTOR},
+    {DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_SMALL_MOTOR, DYNAMIXEL_SMALL_MOTOR},
 												{std::make_pair<double, double>(-125000.0 / Motor::TICKS_FOR_180_DEG_BIG * M_PI, 130000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI),
                                                  std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI, 185000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI),
-                                                 std::make_pair<double, double>(-150000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI, 150000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI),
+                                                 std::make_pair<double, double>(-150000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI, 150000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI),
                                                  std::make_pair<double, double>(-100000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI, 100000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI),
                                                  std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI, 140000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI)});
                                                  
@@ -78,7 +78,7 @@ int main(int argc, char** args) {
     auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("joint_control/get_max_dist_per_cycle", 1);
 
     auto moveCommandSub= node.subscribe("joint_control/move", 2, moveCommandStateHandler);
-    auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
+    //auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
     auto modeSub= node.subscribe("settings/switch_mode", 1, switchModeHandler);
 
     std_msgs::Float32MultiArray modeArray;
@@ -92,16 +92,16 @@ int main(int argc, char** args) {
 
     while(runController) {
 
-	jointStateMsg.header.stamp = ros::Time::now();
-	jointStateMsg.name.resize(8);
-	jointStateMsg.name[0] ="base_jointx";
-	jointStateMsg.name[1] ="base_jointy";
-	jointStateMsg.name[2] ="base_jointz";
-	jointStateMsg.name[3] ="arm_joint1";
-	jointStateMsg.name[4] ="arm_joint2";
-	jointStateMsg.name[5] ="arm_joint3";
-	jointStateMsg.name[6] ="arm_joint4";
-	jointStateMsg.name[7] ="arm_joint5";
+		jointStateMsg.header.stamp = ros::Time::now();
+		jointStateMsg.name.resize(8);
+		jointStateMsg.name[0] ="base_jointx";
+		jointStateMsg.name[1] ="base_jointy";
+		jointStateMsg.name[2] ="base_jointz";
+		jointStateMsg.name[3] ="arm_joint1";
+		jointStateMsg.name[4] ="arm_joint2";
+		jointStateMsg.name[5] ="arm_joint3";
+		jointStateMsg.name[6] ="arm_joint4";
+		jointStateMsg.name[7] ="arm_joint5";
 
         jointStateMsg.position = robotinoController->getCurrentStates();
         jointStateMsg.velocity = computeDerivative(jointStateMsg.position, prevPos, stepTime);

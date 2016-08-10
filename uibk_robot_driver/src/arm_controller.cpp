@@ -17,10 +17,14 @@ void Arm::armLoop() {
 		jointStateMutex.lock();
 
 			currentJointState.clear();
-			for(auto motor : motors) {
-
-				auto currState = motor->getCurrentState();
-				currentJointState.push_back(currState);
+			for(int i = 0; i < motors.size(); ++i) {
+				
+				auto motor = motors.at(i);
+				
+				if(i == 0 || i == 3)
+					currentJointState.push_back(-motor->getCurrentState());
+				else
+					currentJointState.push_back(motor->getCurrentState());
 
 			}
 			
@@ -78,8 +82,13 @@ void Arm::move(std::vector<double> nextJointPos) {
 	double exceededDist = 0.0;
 	if(checkDistance(js, nextJointPos, exceededDist, velLimit)) {
 		for(unsigned int i = 0; i < nextJointPos.size(); ++i){
-			if (std::isnan(nextJointPos.at(i)) == 0)
-				motors.at(i)->setNextState(nextJointPos.at(i));
+			if (std::isnan(nextJointPos.at(i)) == 0) {
+				// swap sign
+				if(i == 0 || i == 3)
+					motors.at(i)->setNextState(-nextJointPos.at(i));
+				else
+					motors.at(i)->setNextState(nextJointPos.at(i));
+			}
 		}
 	} else {
 		std::cerr << "velocity limit exceeded (maxVel: " << velLimit << ", commandedVel: " << exceededDist << ")" << std::endl;
@@ -113,45 +122,39 @@ void Arm::moveArmThreadController() {
 		myRate.sleep();
 	}
 
-	}
+}
 
-	void Arm::moveArmThread() {
-		ros::Rate myRate(move_rate);
+void Arm::moveArmThread() {
+	ros::Rate myRate(move_rate);
 
-		while(1){
+	while(1){
 
-			auto jointState = getCurrentState();
-			auto runnerState = jointState;
-			auto stepSize = getStepSize() * 3;
-			auto targetReached = false;
-			while(!targetReached && allowMovement) {
+		auto jointState = getCurrentState();
+		auto runnerState = jointState;
+		auto targetReached = false;
+		while(!targetReached && allowMovement) {
 
-				targetReached = true;
-				for(unsigned int i = 0; i < runnerState.size(); ++i) {
-					if(std::isnan(targetPosMove.at(i))!= 0)
-						targetPosMove.at(i)=runnerState.at(i);
-					auto sig = ((runnerState.at(i) - targetPosMove.at(i)) > 0) ? -1 : 1;
-					if(fabs(runnerState.at(i) - targetPosMove.at(i)) > (stepSize * 2)) {
-						runnerState.at(i) += sig * stepSize;
-						targetReached = false;
-					}
+			targetReached = true;
+			for(unsigned int i = 0; i < runnerState.size(); ++i) {
+				auto stepSize = getStepSize(i) * 3;
+				if(std::isnan(targetPosMove.at(i))!= 0)
+					targetPosMove.at(i)=runnerState.at(i);
+				auto sig = ((runnerState.at(i) - targetPosMove.at(i)) > 0) ? -1 : 1;
+				if(fabs(runnerState.at(i) - targetPosMove.at(i)) > (stepSize * 2)) {
+					runnerState.at(i) += sig * stepSize;
+					targetReached = false;
 				}
-
-				move(runnerState);
-
-				myRate.sleep();
-
 			}
+
+			move(runnerState);
+
+			myRate.sleep();
+
 		}
+	}
 }
 
 bool Arm::checkDistance(std::vector<double>& current, std::vector<double>& target, double& exceededDist, double& maxDist) {
-
-//        if(fabs(current.front() - target.front()) > 0.6) {
-//            exceededDist = fabs(current.front() - target.front());
-//            maxDist = 0.6;
-//            return false;
-//        }
 
 	for(int i = 0; i < current.size(); ++i) {
 
@@ -191,17 +194,17 @@ void Arm::shutdown() {
 }
 
 void Arm::jointPtp(std::vector<double> targetPos) {
-	
+
 	auto jointState = getCurrentState();
 	auto runnerState = jointState;
 	int sleepTime = (int) (1.0 / getFrequency() * 1e3);
-	auto stepSize = getStepSize() * 3;
 	
 	auto targetReached = false;
 	while(!targetReached) {
 
 		targetReached = true;
 		for(unsigned int i = 0; i < runnerState.size(); ++i) {
+			auto stepSize = getStepSize(i) * 3;
 			if(std::isnan(targetPos.at(i))!= 0)
 				targetPos.at(i)=runnerState.at(i);
 			auto sig = ((runnerState.at(i) - targetPos.at(i)) > 0) ? -1 : 1;
@@ -230,7 +233,7 @@ void Arm::moveHome() {
 	
 }
 
-double Arm::getStepSize() { return motors.front()->getStepSize(); }
+double Arm::getStepSize(int motorId) { return motors.at(motorId)->getStepSize(); }
 int Arm::getDegOfFreedom() { return motors.size() + 1; }
 double Arm::getFrequency() { return motors.front()->getFrequency(); }
 double Arm::getCycleTime() { return 1.0 / getFrequency(); }
