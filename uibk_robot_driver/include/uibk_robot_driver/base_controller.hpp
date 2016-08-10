@@ -15,9 +15,6 @@ class BaseController {
 
 private:
 
- //   static auto constexpr ROBOTINO_MOVE_TOPIC = "/cmd_vel";
- //   static auto constexpr ROBOTINO_ODOM_TOPIC = "/odom";
-
     ros::NodeHandle  private_nh;
 
     ros::Subscriber subOdometry;

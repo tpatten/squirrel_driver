@@ -15,15 +15,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-
-
 using namespace std;
-
+using namespace motor_controller;
 
 bool runController = true;
 std::shared_ptr<RobotController> robotinoController;
-//std::shared_ptr<Arm> robotinoArm;
-//std::shared_ptr<std::thread> armThread;
 
 bool newMoveCommandStateSet = false;
 bool newPtpCommandStateSet = false;
@@ -60,14 +56,15 @@ int main(int argc, char** args) {
 
     sigaction(SIGINT, &sigIntHandler, NULL);
 
-
-
     robotinoController->initBase();
-    robotinoController->initArm({1, 2, 3, 4, 5},{std::make_pair<double, double>(-125000.0 / Motor::TICKS_FOR_180_DEG * M_PI, 130000 / Motor::TICKS_FOR_180_DEG * M_PI),
+    robotinoController->initArm({1, 2, 3, 4, 5},
+    {DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_SMALL_MOTOR, DYNAMIXEL_SMALL_MOTOR, DYNAMIXEL_SMALL_MOTOR},
+    {std::make_pair<double, double>(-125000.0 / Motor::TICKS_FOR_180_DEG * M_PI, 130000 / Motor::TICKS_FOR_180_DEG * M_PI),
                                                  std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG * M_PI, 185000 / Motor::TICKS_FOR_180_DEG * M_PI),
                                                  std::make_pair<double, double>(-150000 / Motor::TICKS_FOR_180_DEG * M_PI, 150000 / Motor::TICKS_FOR_180_DEG * M_PI),
                                                  std::make_pair<double, double>(-100000 / Motor::TICKS_FOR_180_DEG * M_PI, 100000 / Motor::TICKS_FOR_180_DEG * M_PI),
                                                  std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG * M_PI, 140000 / Motor::TICKS_FOR_180_DEG * M_PI)});
+                                                 
     moveCommandState = robotinoController->getCurrentStates();
     auto cycleTime = robotinoController->getArmCycleTime();
     auto maxStepPerCycle = robotinoController->getArmMaxStepPerCycle();

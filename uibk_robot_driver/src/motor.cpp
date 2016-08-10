@@ -73,7 +73,8 @@ namespace motor_controller {
 
     }
 
-    Motor::Motor(std::string deviceName, int motorId, float protocolVersion, double lowerLimit, double upperLimit, int baudRate) {
+    Motor::Motor(std::string deviceName, int motorId, motor_type type, float protocolVersion, double lowerLimit, double upperLimit, int baudRate) {
+        this->type = type;
         this->deviceName = deviceName;
         this->motorId = motorId;
         this->protocolVersion = protocolVersion;
