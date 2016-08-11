@@ -32,9 +32,9 @@ def show_help():
 def main():
     global joint_values, step
     rospy.init_node('incremental_arm_movement', anonymous=True)
-    mode_pub = rospy.Publisher('/real/robotino_arm/settings/switch_mode', Int32, queue_size=10, latch=True)
-    pub = rospy.Publisher('/real/robotino_arm/joint_control/move', Float64MultiArray, queue_size=10)
-    rospy.Subscriber('/real/robotino_arm/joint_control/get_state', JointState, callback)
+    mode_pub = rospy.Publisher('/real/robotino/settings/switch_mode', Int32, queue_size=10, latch=True)
+    pub = rospy.Publisher('/real/robotino/joint_control/move', Float64MultiArray, queue_size=10)
+    rospy.Subscriber('/real/robotino/joint_control/get_state', JointState, callback)
     joint = None
 
     rospy.loginfo('incremental_arm_movement started')
