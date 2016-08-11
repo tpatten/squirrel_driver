@@ -23,14 +23,18 @@ std::shared_ptr<RobotController> robotinoController;
 
 bool newMoveCommandStateSet = false;
 bool newPtpCommandStateSet = false;
+bool newGotoCommandStateSet = false;
 std::vector<double> moveCommandState;
 std::vector<double> ptpCommandState;
+std::vector<double> gotoCommandState;
 std::mutex moveCommandMutex;
 std::mutex ptpCommandMutex;
+std::mutex gotoCommandMutex;
 
 void stopHandler(int s);
 void moveCommandStateHandler(std_msgs::Float64MultiArray arr);
 void ptpCommandStateHandler(std_msgs::Float64MultiArray arr);
+void gotoCommandStateHandler(std_msgs::Float64MultiArray arr);
 void switchModeHandler(std_msgs::Int32 mode);
 
 vector<int> transformVector(vector<double> v);
@@ -78,6 +82,7 @@ int main(int argc, char** args) {
     auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("joint_control/get_max_dist_per_cycle", 1);
 
     auto moveCommandSub= node.subscribe("joint_control/move", 2, moveCommandStateHandler);
+    auto gotoCommandSub= node.subscribe("joint_control/goto", 2, gotoCommandStateHandler);
     //auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
     auto modeSub= node.subscribe("settings/switch_mode", 1, switchModeHandler);
 
@@ -121,7 +126,16 @@ int main(int argc, char** args) {
                 newMoveCommandStateSet = false;
             }
             moveCommandMutex.unlock();
+			
+			gotoCommandMutex.lock();
+            if(newGotoCommandStateSet) {
 
+                robotinoController->gotoAll(gotoCommandState);
+
+                newGotoCommandStateSet = false;
+            }
+            gotoCommandMutex.unlock();
+            
             ptpCommandMutex.lock();
             if(newPtpCommandStateSet) {
 
@@ -207,6 +221,18 @@ void ptpCommandStateHandler(std_msgs::Float64MultiArray arr) {
 
 }
 
+void gotoCommandStateHandler(std_msgs::Float64MultiArray arr) {
+
+   gotoCommandMutex.lock();
+    if(arr.data.size() == 8) {//8 degrees of freedom
+        gotoCommandState = arr.data;
+        newGotoCommandStateSet = true;
+    } else {
+        cerr << "your joint data has wrong dimension (of " << arr.data.size() << ")" << endl;
+    }
+    gotoCommandMutex.unlock();
+
+}
 
 void switchModeHandler(std_msgs::Int32 mode) {
     currentMode = mode.data;
