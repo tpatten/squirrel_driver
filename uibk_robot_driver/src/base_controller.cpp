@@ -113,8 +113,8 @@ void BaseController::ptpBaseThread(){
             auto startingPose = getCurrentState();
             auto current_pose = startingPose;
 
-            while (start_ptp_base_ && !(targetReached(current_pose.at(0),desired_theta_ptp,startingPose.at(0)) && targetReached(current_pose.at(1),desired_x_ptp,startingPose.at(1)) && targetReached(current_pose.at(2),desired_y_ptp,startingPose.at(1)))){
-                move( desired_theta_ptp,desired_x_ptp, desired_y_ptp);
+            while (start_ptp_base_ && !(targetReached(current_pose.at(2),desired_theta_ptp,startingPose.at(2)) && targetReached(current_pose.at(0),desired_x_ptp,startingPose.at(0)) && targetReached(current_pose.at(1),desired_y_ptp,startingPose.at(1)))){
+                move( desired_x_ptp,desired_y_ptp, desired_theta_ptp);
                 current_pose = getCurrentState();
             }
             start_ptp_base_=false;

@@ -78,7 +78,7 @@ int main(int argc, char** args) {
     auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("joint_control/get_max_dist_per_cycle", 1);
 
     auto moveCommandSub= node.subscribe("joint_control/move", 2, moveCommandStateHandler);
-    //auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
+    auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
     auto modeSub= node.subscribe("settings/switch_mode", 1, switchModeHandler);
 
     std_msgs::Float32MultiArray modeArray;
