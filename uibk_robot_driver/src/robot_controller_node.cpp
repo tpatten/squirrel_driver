@@ -8,6 +8,7 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <std_msgs/Int32.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Bool.h>
 #include <sensor_msgs/JointState.h>
 #include <mutex>
 
@@ -27,15 +28,18 @@ bool newGotoCommandStateSet = false;
 std::vector<double> moveCommandState;
 std::vector<double> ptpCommandState;
 std::vector<double> gotoCommandState;
+
 std::mutex moveCommandMutex;
 std::mutex ptpCommandMutex;
 std::mutex gotoCommandMutex;
+std::mutex airskinStopSafetyMutex;
 
 void stopHandler(int s);
 void moveCommandStateHandler(std_msgs::Float64MultiArray arr);
 void ptpCommandStateHandler(std_msgs::Float64MultiArray arr);
 void gotoCommandStateHandler(std_msgs::Float64MultiArray arr);
 void switchModeHandler(std_msgs::Int32 mode);
+void airskinStopSafetyHandler(std_msgs::Bool block);
 
 vector<int> transformVector(vector<double> v);
 vector<double> transformVector(vector<int> v);
@@ -82,10 +86,14 @@ int main(int argc, char** args) {
     auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("joint_control/get_max_dist_per_cycle", 1);
 
     auto moveCommandSub= node.subscribe("joint_control/move", 2, moveCommandStateHandler);
-    auto gotoCommandSub= node.subscribe("joint_control/goto", 2, gotoCommandStateHandler);
-    //auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
-    auto modeSub= node.subscribe("settings/switch_mode", 1, switchModeHandler);
 
+    auto gotoCommandSub= node.subscribe("joint_control/goto", 2, gotoCommandStateHandler);\
+    auto airskinStopSafetySub= node.subscribe("/airskin/arm_bumper", 1, airskinStopSafetyHandler);
+    //auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
+
+    auto modeSub= node.subscribe("settings/switch_mode", 1, switchModeHandler);
+    
+    
     std_msgs::Float32MultiArray modeArray;
     modeArray.data.push_back(0.0); modeArray.data.push_back(0.0);
 
@@ -96,7 +104,10 @@ int main(int argc, char** args) {
     double stepTime = 1.0 / freq;
 
     while(runController) {
-
+        int myMode=0;
+        airskinStopSafetyMutex.lock();
+            myMode=currentMode;
+        airskinStopSafetyMutex.unlock();
 		jointStateMsg.header.stamp = ros::Time::now();
 		jointStateMsg.name.resize(8);
 		jointStateMsg.name[0] ="base_jointx";
@@ -113,12 +124,15 @@ int main(int argc, char** args) {
         jointStateMsg.effort = computeDerivative(jointStateMsg.velocity, prevVel, stepTime);
 
         statePublisher.publish(jointStateMsg);
-        modeArray.data.at(1) = currentMode;
+        modeArray.data.at(1) = myMode;
         modePublisher.publish(modeArray);
 
         cycleTimePublisher.publish(cycleMsg);
         maxStepPerCyclePublisher.publish(maxStepPerCycleMsg);
-        if(currentMode == 10) {
+
+
+
+        if(myMode == 10) {
 
             moveCommandMutex.lock();
             if(newMoveCommandStateSet) {
@@ -233,8 +247,17 @@ void gotoCommandStateHandler(std_msgs::Float64MultiArray arr) {
     gotoCommandMutex.unlock();
 
 }
+void airskinStopSafetyHandler(std_msgs::Bool block){
 
-void switchModeHandler(std_msgs::Int32 mode) {
+    airskinStopSafetyMutex.lock();
+    if (block.data)
+        currentMode=0;
+    airskinStopSafetyMutex.unlock();
+
+ }
+
+void switchModeHandler(std_msgs::Int32 mode) {\
+    airskinStopSafetyMutex.lock();
     currentMode = mode.data;
-
+    airskinStopSafetyMutex.unlock();
 }
