@@ -41,9 +41,9 @@ The driver publishes information about its current state and configuration on th
 
 After running the driver, it is initialized on freeze mode for safety reasons. To enable movement, a message of type std_msgs/Int32 containing '10' should be sent over:
 
-
+```
 /real/robotino/settings/switch_mode
-
+```
 
 In the terminal, you can try:
 
@@ -54,11 +54,11 @@ rostopic pub /real/robotino/settings/switch_mode std_msgs/Int32 "data: 10"
 
 To move the robot, you can either use the move command topic or the goto command topic as below:
 
-
+```
 /real/robotino/joint_control/move
 
 /real/robotino/joint_control/goto
-
+```
 
 Both expect a message of type std_msgs/Float64MultiArray of length 8, containing absolute target coordinates for the robot's degrees of freedom. The controller relies on the odometry package to determine the robot location and orientation.
 
@@ -102,7 +102,6 @@ rosrun uibk_robot_driver uibk_arm_demo
 ```
 
 which uses the goto topic and sends the target state continuosly until any button is pressed.
-
 
 
 
