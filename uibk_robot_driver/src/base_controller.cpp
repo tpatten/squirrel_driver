@@ -9,30 +9,30 @@ using namespace std;
 void BaseController::initialize(ros::NodeHandle& node){
 
     private_nh.param("baseControl/proportional_theta", p_theta_, 0.8);
-    private_nh.param("baseControl/derivative_theta", d_theta_, 0.25);
-    private_nh.param("baseControl/integral_theta", i_theta_, 0.004);
-    private_nh.param("baseControl/integral_theta_max", i_theta_max_, 0.8);
-    private_nh.param("baseControl/integral_theta_min", i_theta_min_, -0.8);
+//    private_nh.param("baseControl/derivative_theta", d_theta_, 0.25);
+//    private_nh.param("baseControl/integral_theta", i_theta_, 0.004);
+//    private_nh.param("baseControl/integral_theta_max", i_theta_max_, 0.8);
+//    private_nh.param("baseControl/integral_theta_min", i_theta_min_, -0.8);
 
     private_nh.param("baseControl/proportional_x", p_x_, 1.23);
-    private_nh.param("baseControl/derivative_x", d_x_, 0.3);
-    private_nh.param("baseControl/integral_x", i_x_, 0.004);
-    private_nh.param("baseControl/integral_x_max", i_x_max_, 0.8);
-    private_nh.param("baseControl/integral_x_min", i_x_min_, -0.8);
+//    private_nh.param("baseControl/derivative_x", d_x_, 0.3);
+//    private_nh.param("baseControl/integral_x", i_x_, 0.004);
+//    private_nh.param("baseControl/integral_x_max", i_x_max_, 0.8);
+//    private_nh.param("baseControl/integral_x_min", i_x_min_, -0.8);
 
     private_nh.param("baseControl/proportional_y", p_y_, 1.23);
-    private_nh.param("baseControl/derivative_y", d_y_, 0.3);
-    private_nh.param("baseControl/integral_y", i_y_, 0.004);
-    private_nh.param("baseControl/integral_y_max", i_y_max_, 0.8);
-    private_nh.param("baseControl/integral_y_min", i_y_min_, -0.8);
+//    private_nh.param("baseControl/derivative_y", d_y_, 0.3);
+//    private_nh.param("baseControl/integral_y", i_y_, 0.004);
+//    private_nh.param("baseControl/integral_y_max", i_y_max_, 0.8);
+//    private_nh.param("baseControl/integral_y_min", i_y_min_, -0.8);
 
     private_nh.param("baseControl/vel_ang_max", vel_ang_max_, 0.5);
     private_nh.param("baseControl/vel_x_max", vel_x_max_, 0.5);
     private_nh.param("baseControl/vel_y_max", vel_y_max_, 0.5);
 
-    pid_theta_.initPid(p_theta_, i_theta_, d_theta_, i_theta_max_, i_theta_min_);
-    pid_x_.initPid(p_x_, i_x_, d_x_, i_x_max_, i_x_min_);
-    pid_y_.initPid(p_y_, i_y_, d_y_, i_y_max_, i_y_min_);
+    pid_theta_.initPid(p_theta_, 0.0,0.0,0.0,0.0);
+    pid_x_.initPid(p_x_, 0.0,0.0,0.0,0.0);
+    pid_y_.initPid(p_y_, 0.0,0.0,0.0,0.0);
 
     this->time_step_ = 1 / controller_frequency_;
 
@@ -41,7 +41,7 @@ void BaseController::initialize(ros::NodeHandle& node){
 
     sleep(1);
     //std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
+    gotoCommand=false;
     move_base_thread_ = new boost::thread(boost::bind(&BaseController::moveBaseThread, this));
     ptp_base_thread_ = new boost::thread(boost::bind(&BaseController::ptpBaseThread, this));
 }
@@ -94,8 +94,16 @@ bool BaseController::targetReached(float currentVal, float targetVal , float sta
 void BaseController::moveBase(double desired_x, double desired_y,double desired_theta) {
     start_ptp_base_=false;
     move(desired_x, desired_y,desired_theta);
+     gotoCommand=false;
+}
+
+void BaseController::gotoBase(double desired_x, double desired_y,double desired_theta) {
+    start_ptp_base_=false;
+    gotoCommand=true;
+    move(desired_x, desired_y,desired_theta);
 
 }
+
 
 void BaseController::move(double desired_x, double desired_y,double desired_theta) {
 
@@ -130,29 +138,54 @@ void BaseController::moveBaseThread(){
 
         if(start_move_base_) {
 			
-
+            bool velExceeded=false;
             current_base_vel_ = getNullTwist();
             auto currentPose = getCurrentState();
             double current_theta = currentPose.at(2);
             if(std::isnan(desired_theta_) == 0){
                 double orient_error = rotationDifference(desired_theta_, current_theta);
                 current_base_vel_.angular.z = pid_theta_.computeCommand(orient_error, ros::Duration(time_step_));
-                if(fabs(current_base_vel_.angular.z) > vel_ang_max_) current_base_vel_.angular.z = (current_base_vel_.angular.z > 0 ? vel_ang_max_ : - vel_ang_max_);
+                if(fabs(current_base_vel_.angular.z) > vel_ang_max_) {
+                    if(gotoCommand)
+                        current_base_vel_.angular.z = (current_base_vel_.angular.z > 0 ? vel_ang_max_ : - vel_ang_max_);
+                    else
+                        velExceeded=true;
+                }
+
 
             }
 
 
             double err_x_odom = std::isnan(desired_x_) == 0  ? desired_x_ - currentPose.at(0) : 0;
-            double err_y_odom = std::isnan(desired_y_) == 0  ? desired_y_ - currentPose.at(1) :0;
+            double err_y_odom = std::isnan(desired_y_) == 0  ? desired_y_ - currentPose.at(1) : 0;
 
 
             double err_x_r = cos(current_theta) * err_x_odom + sin(current_theta) * err_y_odom;
             double err_y_r = -sin(current_theta) * err_x_odom + cos(current_theta) * err_y_odom;
             current_base_vel_.linear.x = pid_x_.computeCommand(err_x_r, ros::Duration(time_step_));
-            if(fabs(current_base_vel_.linear.x) > vel_x_max_) current_base_vel_.linear.x= (current_base_vel_.linear.x > 0 ? vel_x_max_ : - vel_x_max_);
+            if(fabs(current_base_vel_.linear.x) > vel_x_max_) {
+                if (gotoCommand)
+                        current_base_vel_.linear.x= (current_base_vel_.linear.x > 0 ? vel_x_max_ : - vel_x_max_);
+                else
+                    velExceeded=true;
+            }
+
+
             current_base_vel_.linear.y = pid_y_.computeCommand(err_y_r, ros::Duration(time_step_));
-            if(fabs(current_base_vel_.linear.y) > vel_y_max_) current_base_vel_.linear.y = (current_base_vel_.linear.y > 0 ? vel_y_max_ : - vel_y_max_);
-            pubMove.publish(current_base_vel_);
+
+            if(fabs(current_base_vel_.linear.y) > vel_y_max_) {
+                if(gotoCommand)
+                    current_base_vel_.linear.y = (current_base_vel_.linear.y > 0 ? vel_y_max_ : - vel_y_max_);
+                else
+                    velExceeded=true;
+
+            }
+
+            if (!velExceeded)
+                pubMove.publish(current_base_vel_);
+            else
+                cout << " velocity exceeded the limit";
+
             start_move_base_ = false;
         }
 
