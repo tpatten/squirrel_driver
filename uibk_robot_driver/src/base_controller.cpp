@@ -26,9 +26,9 @@ void BaseController::initialize(ros::NodeHandle& node){
 //    private_nh.param("baseControl/integral_y_max", i_y_max_, 0.8);
 //    private_nh.param("baseControl/integral_y_min", i_y_min_, -0.8);
 
-    private_nh.param("baseControl/vel_ang_max", vel_ang_max_, 0.5);
-    private_nh.param("baseControl/vel_x_max", vel_x_max_, 0.5);
-    private_nh.param("baseControl/vel_y_max", vel_y_max_, 0.5);
+    private_nh.param("baseControl/vel_ang_max", vel_ang_max_, 0.2);
+    private_nh.param("baseControl/vel_x_max", vel_x_max_, 0.2);
+    private_nh.param("baseControl/vel_y_max", vel_y_max_, 0.2);
 
     pid_theta_.initPid(p_theta_, 0.0,0.0,0.0,0.0);
     pid_x_.initPid(p_x_, 0.0,0.0,0.0,0.0);
@@ -94,7 +94,7 @@ bool BaseController::targetReached(float currentVal, float targetVal , float sta
 void BaseController::moveBase(double desired_x, double desired_y,double desired_theta) {
     start_ptp_base_=false;
     move(desired_x, desired_y,desired_theta);
-     gotoCommand=false;
+    gotoCommand=false;
 }
 
 void BaseController::gotoBase(double desired_x, double desired_y,double desired_theta) {
@@ -184,7 +184,7 @@ void BaseController::moveBaseThread(){
             if (!velExceeded)
                 pubMove.publish(current_base_vel_);
             else
-                cout << " velocity exceeded the limit";
+                cout << " Base velocity exceeded the limit" << endl;
 
             start_move_base_ = false;
         }
