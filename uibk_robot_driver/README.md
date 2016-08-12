@@ -23,9 +23,9 @@ Execution:
 
 To run the 8 dof controller, you can use the launch file:
 
-'''
+```
 roslaunch robotino_bringup robot.launch
-'''
+```
 
 The driver publishes information about its current state and configuration on the following topics:
 
@@ -47,9 +47,9 @@ After running the driver, it is initialized on freeze mode for safety reasons. T
 
 In the terminal, you can try:
 
-'''
+```
 rostopic pub /real/robotino/settings/switch_mode std_msgs/Int32 "data: 10"
-'''
+```
 
 
 To move the robot, you can either use the move command topic or the goto command topic as below:
@@ -77,7 +77,7 @@ In general, if you want to control only some of the controller's degrees of free
 
 In the terminal, you can try the goto command as follows:
 
-'''
+```
 rostopic pub /real/robotino/joint_control/goto std_msgs/Float64MultiArray "layout:
 
 dim:
@@ -93,13 +93,13 @@ data_offset: 0
 data:
 
 [-0.1, .nan, 0.1, .nan, 0.2, 0.0, .nan, 0.0] "
-'''
+```
 
 A demo for trying the controller easily can be launched by:
 
-'''
+```
 rosrun uibk_robot_driver uibk_arm_demo
-'''
+```
 
 which uses the goto topic and sends the target state continuosly until any button is pressed.
 
