@@ -29,15 +29,15 @@ roslaunch robotino_bringup robot.launch
 
 The driver publishes information about its current state and configuration on the following topics:
 
-
-/real/robotino/joint_control/get_state"
+```
+/real/robotino/joint_control/get_state
 
 /real/robotino/settings/get_command_state
 
 /real/robotino/settings/get_clock_cycle
 
 /real/robotino/joint_control/get_max_dist_per_cycle
-
+```
 
 After running the driver, it is initialized on freeze mode for safety reasons. To enable movement, a message of type std_msgs/Int32 containing '10' should be sent over:
 
