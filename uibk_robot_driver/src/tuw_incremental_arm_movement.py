@@ -6,7 +6,8 @@ import sys
 from std_msgs.msg import Float64MultiArray, Int32
 from sensor_msgs.msg import JointState
 
-step = 0.02 # roughly 1 degree in radian
+STEP = 0.02 # roughly 1 degree in radian
+DOF = 8 # Number of Degrees of Freedom
 joint_values = []
 
 def publish(pub, joint_values):
@@ -30,7 +31,7 @@ def show_help():
     print("*"*60)
 
 def main():
-    global joint_values, step
+    global joint_values, STEP, DOF
     rospy.init_node('incremental_arm_movement', anonymous=True)
     mode_pub = rospy.Publisher('/real/robotino/settings/switch_mode', Int32, queue_size=10, latch=True)
     pub = rospy.Publisher('/real/robotino/joint_control/move', Float64MultiArray, queue_size=10)
@@ -44,31 +45,34 @@ def main():
     while True:
         try:
             c = readchar.readchar()
-            if c.lower() == 'q':
+            if len(joint_values) < DOF:
+                joint_values = []
+            elif c.lower() == 'q':
                 rospy.loginfo("Quit node")
                 sys.exit()
             elif c.lower() == 'h':
                 show_help()
             elif c == '+' and joint is not None:
                 rospy.loginfo("joint #{}: plus".format(joint))
-                tmp = joint_values[joint] + step
+                tmp = joint_values[joint] + STEP
                 for i in xrange(len(joint_values)):
                     joint_values[i] = float('nan')
                 joint_values[joint] = tmp
                 publish(pub, joint_values)
+                joint_values = []
             elif c == '-' and joint is not None:
                 rospy.loginfo("joint #{}: minus".format(joint))
-                tmp = joint_values[joint] - step
+                tmp = joint_values[joint] - STEP
                 for i in xrange(len(joint_values)):
                     joint_values[i] = float('nan')
                 joint_values[joint] = tmp
                 publish(pub, joint_values)
-            elif abs(int(c)) <= 8:
+                joint_values = []
+            elif abs(int(c)) <= DOF:
                 rospy.loginfo(c)
                 joint = int(c)
             else:
                 rospy.loginfo("unknown")
-                pass
         except ValueError as e:
             #print(e)
             print("Command not recognized. Press 'h' for instructions")
