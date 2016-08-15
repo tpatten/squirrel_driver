@@ -66,26 +66,26 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
         //read from sensor
 
         //proximity and tactile
-        vector<double>* vals=sensor->readData();
+        vector<double> &vals=sensor->readData();
 
         std_msgs::Float64MultiArray msg;
-        msg.data.resize(vals->size());
+        msg.data.resize(vals.size());
 
         //fill in msg
-        for(int i=0;i<vals->size();i++){
-            msg.data[i]=vals->at(i);
+        for(int i=0;i<vals.size();i++){
+            msg.data[i]=vals.at(i);
         }
 
 #ifdef _FT17_AVAIL
         //wrist
-        vector<double>* wriVals=wrist->readData();
+        vector<double> &wriVals=wrist->readData();
 
         std_msgs::Float64MultiArray msgWri;
-        msgWri.data.resize(wriVals->size());
+        msgWri.data.resize(wriVals.size());
 
         //fill in msg
-        for(int i=0;i<wriVals->size();i++){
-            msgWri.data[i]=wriVals->at(i);
+        for(int i=0;i<wriVals.size();i++){
+            msgWri.data[i]=wriVals.at(i);
         }
 #endif
 
@@ -96,8 +96,6 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
 #endif
 
         ros::spinOnce();
-
-        delete vals;
 
         loop_rate->sleep();
     }
