@@ -10,7 +10,6 @@
   <author>Nadia Hammoudeh Garcia</author>
 
   <buildtool_depend>catkin</buildtool_depend>
-
   <build_depend>dpkg</build_depend>
 
 </package>
