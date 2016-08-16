@@ -151,6 +151,8 @@ void Arm::gotoThread() {
 			myRate.sleep();
 
 		}
+					myRate.sleep();
+
 	}
 }
 

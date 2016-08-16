@@ -43,7 +43,7 @@ void BaseController::initialize(ros::NodeHandle& node){
     //std::this_thread::sleep_for(std::chrono::milliseconds(100));
     gotoCommand=false;
     move_base_thread_ = new boost::thread(boost::bind(&BaseController::moveBaseThread, this));
-    ptp_base_thread_ = new boost::thread(boost::bind(&BaseController::ptpBaseThread, this));
+    //ptp_base_thread_ = new boost::thread(boost::bind(&BaseController::ptpBaseThread, this));
 }
 
 BaseController::BaseController(ros::NodeHandle& node,double controller_freq): start_move_base_(false),start_ptp_base_(false), private_nh("~"),controller_frequency_(controller_freq) {
