@@ -25,7 +25,7 @@ def show_welcome():
 
 def show_help():
     print("*"*60)
-    print("First select the axis to rotate \n(0: base platform x-axis\n, 1: base platform y-axis\n, 2: base platform rotation\n, 3-8: axis counted from bottom to top)")
+    print("First select the axis to rotate \n0: base platform x-axis\n, 1: base platform y-axis\n, 2: base platform rotation\n, 3-8: axis counted from bottom to top")
     print("Second, move the axis with '+' or '-' keys. q,Q to quit.")
     print("*"*60)
 
@@ -51,11 +51,17 @@ def main():
                 show_help()
             elif c == '+' and joint is not None:
                 rospy.loginfo("joint #{}: plus".format(joint))
-                joint_values[joint] += step
+                tmp = joint_values[joint] + step
+                for i in xrange(len(joint_values)):
+                    joint_values[i] = float('nan')
+                joint_values[joint] = tmp
                 publish(pub, joint_values)
             elif c == '-' and joint is not None:
                 rospy.loginfo("joint #{}: minus".format(joint))
-                joint_values[joint] -= step
+                tmp = joint_values[joint] - step
+                for i in xrange(len(joint_values)):
+                    joint_values[i] = float('nan')
+                joint_values[joint] = tmp
                 publish(pub, joint_values)
             elif abs(int(c)) <= 8:
                 rospy.loginfo(c)
