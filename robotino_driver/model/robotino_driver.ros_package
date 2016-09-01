@@ -39,6 +39,6 @@
   <depend>robotino_msgs</depend>
   <depend>tf</depend>
   <depend>roscpp</depend>
-  <depend>robotino-api2</depend>
+  <depend>robotino_api2</depend>
   <depend>sensor_msgs</depend>
 </ros:Package>
