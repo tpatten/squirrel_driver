@@ -8,7 +8,7 @@ if [ -e $INSTALLED_DIR ]; then
 	echo  "robotino-api2 is already installed."
 else
 	wget -qO - http://packages.openrobotino.org/keyFile | sudo apt-key add -
-	sudo echo "deb http://packages.openrobotino.org/trusty trusty main" > /etc/apt/sources.list.d/openrobotino.list
+	sudo echo "deb http://doc.openrobotino.org/download/packages/amd64 ./" >> /etc/apt/sources.list
 	sudo apt-get update
 	sudo apt-get install rec-rpc robotino-common robotino_daemons robotino-api2 robotino-examples robotino3-firmware
 	touch $INSTALLED_DIR
