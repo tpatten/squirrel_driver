@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package>
+  <name>robotino_api2</name>
+  <version>0.0.1</version>
+  <description>Wrapper for installing robotino-api2</description>
+
+  <maintainer email="nadia.hammoudeh.garcia@ipa.fraunhofer.de">Nadia Hammoudeh Garcia</maintainer>
+  <license>BSD</license>
+  <author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</author>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+</package>
