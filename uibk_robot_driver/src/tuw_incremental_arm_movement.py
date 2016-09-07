@@ -6,7 +6,8 @@ import sys
 from std_msgs.msg import Float64MultiArray, Int32
 from sensor_msgs.msg import JointState
 
-step = 0.02 # roughly 1 degree in radian
+STEP = 0.02 # roughly 1 degree in radian
+DOF = 8 # Number of Degrees of Freedom
 joint_values = []
 
 def publish(pub, joint_values):
@@ -20,17 +21,24 @@ def callback(data):
     joint_values = list(data.position)
 
 def show_welcome():
-    print("Welcome to the simple node to incrementally move SQUIRREL's arm and base")
+    print("*"*80)
+    print("*   Welcome to the simple node to incrementally move SQUIRREL's arm and base   *")
     show_help()
 
 def show_help():
-    print("*"*60)
-    print("First select the axis to rotate \n0: base platform x-axis\n, 1: base platform y-axis\n, 2: base platform rotation\n, 3-8: axis counted from bottom to top")
-    print("Second, move the axis with '+' or '-' keys. q,Q to quit.")
-    print("*"*60)
+    print("*"*80)
+    print("First select the axis to rotate \n\
+           0: base platform x-axis\n\
+           1: base platform y-axis\n\
+           2: base platform rotation\n\
+           3-8: axis counted from bottom to top")
+    print("Second, move the axis with '+' or '-' keys.")
+    print("Press 'h' for help.")
+    print("Press 'q' to quit.")
+    print("*"*80)
 
 def main():
-    global joint_values, step
+    global joint_values, STEP, DOF
     rospy.init_node('incremental_arm_movement', anonymous=True)
     mode_pub = rospy.Publisher('/real/robotino/settings/switch_mode', Int32, queue_size=10, latch=True)
     pub = rospy.Publisher('/real/robotino/joint_control/move', Float64MultiArray, queue_size=10)
@@ -51,27 +59,38 @@ def main():
                 show_help()
             elif c == '+' and joint is not None:
                 rospy.loginfo("joint #{}: plus".format(joint))
-                tmp = joint_values[joint] + step
-                for i in xrange(len(joint_values)):
-                    joint_values[i] = float('nan')
-                joint_values[joint] = tmp
-                publish(pub, joint_values)
+                if len(joint_values) < DOF:
+                    print('No data was received on /real/robotino/joint_control/get_state\n\
+                           Unable to calculate a new position.\n\
+                           Skipping movement')
+                else:
+                    tmp = joint_values[joint] + STEP
+                    for i in xrange(len(joint_values)):
+                        joint_values[i] = float('nan')
+                    joint_values[joint] = tmp
+                    publish(pub, joint_values)
+                joint_values = []
             elif c == '-' and joint is not None:
                 rospy.loginfo("joint #{}: minus".format(joint))
-                tmp = joint_values[joint] - step
-                for i in xrange(len(joint_values)):
-                    joint_values[i] = float('nan')
-                joint_values[joint] = tmp
-                publish(pub, joint_values)
-            elif abs(int(c)) <= 8:
+                if len(joint_values) < DOF:
+                    print('No data was received on /real/robotino/joint_control/get_state\n\
+                           Unable to calculate a new position.\n\
+                           Skipping movement')
+                else:
+                    tmp = joint_values[joint] - STEP
+                    for i in xrange(len(joint_values)):
+                        joint_values[i] = float('nan')
+                    joint_values[joint] = tmp
+                    publish(pub, joint_values)
+                joint_values = []
+            elif abs(int(c)) <= DOF:
                 rospy.loginfo(c)
                 joint = int(c)
             else:
                 rospy.loginfo("unknown")
-                pass
         except ValueError as e:
             #print(e)
-            print("Command not recognized. Press 'h' for instructions")
+            print("Command not recognized or no joint selected.\nPress 'h' for instructions")
 
 
 if __name__ == '__main__':

@@ -23,21 +23,13 @@ bool runController = true;
 std::shared_ptr<RobotController> robotinoController;
 
 bool newMoveCommandStateSet = false;
-bool newPtpCommandStateSet = false;
-bool newGotoCommandStateSet = false;
 std::vector<double> moveCommandState;
-std::vector<double> ptpCommandState;
-std::vector<double> gotoCommandState;
 
 std::mutex moveCommandMutex;
-std::mutex ptpCommandMutex;
-std::mutex gotoCommandMutex;
 std::mutex airskinStopSafetyMutex;
 
 void stopHandler(int s);
 void moveCommandStateHandler(std_msgs::Float64MultiArray arr);
-void ptpCommandStateHandler(std_msgs::Float64MultiArray arr);
-void gotoCommandStateHandler(std_msgs::Float64MultiArray arr);
 void switchModeHandler(std_msgs::Int32 mode);
 void airskinStopSafetyHandler(std_msgs::Bool block);
 
@@ -86,11 +78,7 @@ int main(int argc, char** args) {
     auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("joint_control/get_max_dist_per_cycle", 1);
 
     auto moveCommandSub= node.subscribe("joint_control/move", 2, moveCommandStateHandler);
-
-    auto gotoCommandSub= node.subscribe("joint_control/goto", 2, gotoCommandStateHandler);\
     auto airskinStopSafetySub= node.subscribe("/airskin/arm_bumper", 1, airskinStopSafetyHandler);
-    //auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
-
     auto modeSub= node.subscribe("settings/switch_mode", 1, switchModeHandler);
     
 
@@ -104,6 +92,7 @@ int main(int argc, char** args) {
     double stepTime = 1.0 / freq;
 
     while(runController) {
+		
         int myMode=0;
         airskinStopSafetyMutex.lock();
             myMode=currentMode;
@@ -138,25 +127,6 @@ int main(int argc, char** args) {
                 newMoveCommandStateSet = false;
             }
             moveCommandMutex.unlock();
-			
-			gotoCommandMutex.lock();
-            if(newGotoCommandStateSet) {
-
-                robotinoController->gotoAll(gotoCommandState);
-
-                newGotoCommandStateSet = false;
-            }
-            gotoCommandMutex.unlock();
-            
-            ptpCommandMutex.lock();
-            if(newPtpCommandStateSet) {
-
-                robotinoController->ptpAll(ptpCommandState);
-
-                newPtpCommandStateSet = false;
-            }
-            ptpCommandMutex.unlock();
-
 
         }
 
@@ -220,32 +190,7 @@ void moveCommandStateHandler(std_msgs::Float64MultiArray arr) {
 
 }
 
-void ptpCommandStateHandler(std_msgs::Float64MultiArray arr) {
-
-   ptpCommandMutex.lock();
-    if(arr.data.size() == 8) {//8 degrees of freedom
-        ptpCommandState = arr.data;
-        newPtpCommandStateSet = true;
-    } else {
-        cerr << "your joint data has wrong dimension (of " << arr.data.size() << ")" << endl;
-    }
-    ptpCommandMutex.unlock();
-
-}
-
-void gotoCommandStateHandler(std_msgs::Float64MultiArray arr) {
-
-   gotoCommandMutex.lock();
-    if(arr.data.size() == 8) {//8 degrees of freedom
-        gotoCommandState = arr.data;
-        newGotoCommandStateSet = true;
-    } else {
-        cerr << "your joint data has wrong dimension (of " << arr.data.size() << ")" << endl;
-    }
-    gotoCommandMutex.unlock();
-
-}
-void airskinStopSafetyHandler(std_msgs::Bool block){
+void airskinStopSafetyHandler(std_msgs::Bool block) {
 
     airskinStopSafetyMutex.lock();
     if (block.data)
@@ -254,7 +199,7 @@ void airskinStopSafetyHandler(std_msgs::Bool block){
 
  }
 
-void switchModeHandler(std_msgs::Int32 mode) {\
+void switchModeHandler(std_msgs::Int32 mode) {
     airskinStopSafetyMutex.lock();
     currentMode = mode.data;
     airskinStopSafetyMutex.unlock();
