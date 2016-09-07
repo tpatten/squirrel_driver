@@ -76,9 +76,6 @@ target_link_libraries(arm_controller_sim
 FILE(GLOB_RECURSE LibFiles "*.h*")
 add_custom_target(headers SOURCES ${LibFiles})
 
-install(DIRECTORY launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
 
 install(DIRECTORY include/dynamixel_sdk
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
