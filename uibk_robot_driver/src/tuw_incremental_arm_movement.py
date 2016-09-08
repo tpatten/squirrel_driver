@@ -5,6 +5,7 @@ import readchar
 import sys
 from std_msgs.msg import Float64MultiArray, Int32
 from sensor_msgs.msg import JointState
+from robotino_msgs.srv import ResetOdometry
 
 STEP = 0.02 # roughly 1 degree in radian
 DOF = 8 # Number of Degrees of Freedom
@@ -37,6 +38,16 @@ def show_help():
     print("Press 'q' to quit.")
     print("*"*80)
 
+def reset_odometry():
+    rospy.wait_for_service('reset_odometry')
+    try:
+        reset_odom = rospy.ServiceProxy('reset_odometry', ResetOdometry)
+        resp1 = reset_odom(0.0, 0.0, 0.0)
+        print "Service call to /reset_odometry was a success"
+        return resp1
+    except rospy.ServiceException, e:
+        print "Service call failed: %s"%e
+
 def main():
     global joint_values, STEP, DOF
     rospy.init_node('incremental_arm_movement', anonymous=True)
@@ -46,6 +57,7 @@ def main():
     joint = None
 
     rospy.loginfo('incremental_arm_movement started')
+    reset_odometry()
     show_welcome() 
     mode_pub.publish(data=10)
   
