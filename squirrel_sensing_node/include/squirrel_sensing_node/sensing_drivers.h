@@ -19,7 +19,7 @@ protected:
 
 
 public:
-    virtual std::vector<double>& readData()=0;  //this function reads the data from the sensors and returns a vector (double[][])
+    virtual std::vector<double>* readData()=0;  //this function reads the data from the sensors and returns a vector (double[][])
     virtual void flush();
 
 };
@@ -86,7 +86,7 @@ class Tactile : public Driver{
 public:
     Tactile(const std::string& portname);
     ~Tactile();
-    virtual std::vector<double>& readData();
+    virtual std::vector<double>* readData();
 
 };
 
@@ -119,7 +119,7 @@ public:
     Wrist();
     ~Wrist();
 
-    virtual std::vector<double>& readData();
+    virtual std::vector<double>* readData();
 
 };
 
