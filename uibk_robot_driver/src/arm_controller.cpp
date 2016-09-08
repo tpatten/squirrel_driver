@@ -67,8 +67,8 @@ void Arm::initialize() {
 		motor->releaseBrakes();
 		motor->spinOnce();
 	}
-	moveThread=std::make_shared<std::thread>(&Arm::moveArmThread, this);
-	moveThreadController=std::make_shared<std::thread>(&Arm::moveArmThreadController, this);
+	moveThread=std::make_shared<std::thread>(&Arm::gotoThread, this);
+	moveThreadController=std::make_shared<std::thread>(&Arm::gotoThreadController, this);
 
 }
 
@@ -95,14 +95,14 @@ void Arm::move(std::vector<double> nextJointPos) {
 	}
 
 }
-void Arm::moveArm(std::vector<double> targetPos) {
+void Arm::gotoArm(std::vector<double> targetPos) {
 	moveMutex.lock();
 	targetPosMove=targetPos;
 	moveArmOk=true;
 	moveMutex.unlock();
 
 }
-void Arm::moveArmThreadController() {
+void Arm::gotoThreadController() {
 
 	const int numberOfMoveOrdersAllowedBeforeNextCommand= 1;
 	ros::Rate myRate(move_rate);
@@ -124,7 +124,7 @@ void Arm::moveArmThreadController() {
 
 }
 
-void Arm::moveArmThread() {
+void Arm::gotoThread() {
 	ros::Rate myRate(move_rate);
 
 	while(1){
@@ -151,6 +151,8 @@ void Arm::moveArmThread() {
 			myRate.sleep();
 
 		}
+					myRate.sleep();
+
 	}
 }
 
