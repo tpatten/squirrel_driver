@@ -24,6 +24,7 @@ public:
 	void initArm(std::vector<int> ids, std::vector<motor_controller::motor_type> types, std::vector< std::pair<double, double> > jointLimits);
 	void moveAll(std::vector<double> targetStates);
 	void ptpAll(std::vector<double> targetStates);
+	void gotoAll(std::vector<double> targetStates);
 	std::vector<double> getCurrentStates();
 
 

@@ -42,10 +42,10 @@ class Arm {
         bool allowMovement;
         std::vector<double> targetPosMove;
         void armLoop();
-        void moveArmThread();
-        void moveArmThreadController();
+        void gotoThread();
+        void gotoThreadController();
         bool checkDistance(std::vector<double> &current, std::vector<double> &target, double& exceededDist, double& maxDist);
-        void move(std::vector<double> nextJointPos);
+
     public:
 
         Arm(std::vector<int> ids, std::vector<motor_controller::motor_type> types, std::string portName, std::vector< std::pair<double, double> > jointLimits, double protocolVersion, int baudRate, double move_freq);
@@ -56,9 +56,9 @@ class Arm {
         void moveHome();
         void shutdown();
         void initialize();
-
+        void move(std::vector<double> nextJointPos);
         void jointPtp(std::vector<double> targetPos);
-        void moveArm(std::vector<double> nextJointPos);
+        void gotoArm(std::vector<double> nextJointPos);
         int getDegOfFreedom();
 
         double getStepSize(int motorId);
