@@ -229,7 +229,7 @@ double Tactile::bias(const int idx,const double val)
 }
 
 
-std::vector<double>* Tactile::readData(){
+std::vector<double>& Tactile::readData(){
 
     std::vector<double>* res=new vector<double>(NUM_VALS,-1.0); //if a -1 is given it means there was a problem with reading that value
 
@@ -321,7 +321,7 @@ std::vector<double>* Tactile::readData(){
 
    // cin.ignore();
 
-    return res;
+    return *res;
 }
 
 //convert volts into newtons
@@ -391,10 +391,11 @@ Wrist::~Wrist()
     delete ft17;
 }
 
-std::vector<double>* Wrist::readData(){
+std::vector<double>& Wrist::readData(){
 
 	if(ft17==NULL){
-		return new vector<double>(WristDataNum,0);
+        vector<double>tmp(WristDataNum,0);
+        return tmp;
 	}
 
     // get the FT17 data
@@ -416,6 +417,6 @@ std::vector<double>* Wrist::readData(){
     res->at(Wrist::TorqueZ) = ft_bc_data.FT_filt[Wrist::TorqueZ];
     res->at(Wrist::Timestamp) =  ft_bc_data.tStamp ;
 
-    return res;
+    return *res;
 }
 
