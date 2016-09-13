@@ -29,4 +29,5 @@ Proximity sensors display the value of -100 in case of no reading. The sensor do
    
 4. Information about sensors safety use and calibration (including setting to zero and saturation removal) can be found in squirrel_driver/squirrel_sensing_node/doc.
     
+5. Make sure that you are using correct calibration file for your setup - squirrel_sensing_node/tactile_calibration.ini. Calibration files for each setup of the senors are located in squirrel_sensing_node/doc. 
 
