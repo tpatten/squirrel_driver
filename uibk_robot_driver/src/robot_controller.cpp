@@ -4,32 +4,41 @@ using namespace std;
 using namespace motor_controller;
 
 RobotController::RobotController(ros::NodeHandle& node, double control_freq) {
-    controller_freq=control_freq;
-    myNode =node;
-    armExists=false;
-    baseExists=false;
-    
+    controller_freq = control_freq;
+    myNode = node;
+    armExists = false;
+    baseExists = false;
+    receivedFirstSkinPacket = false;
 }
 
 void RobotController::initBase() {
 
-   myBase = std::shared_ptr<BaseController> (new BaseController (myNode,controller_freq));
+   myBase = std::shared_ptr<BaseController>(new BaseController (myNode,controller_freq));
    baseExists=true;
+   receivedFirstSkinPacket = false;
 
 }
 
 void RobotController::initArm(std::vector<int> ids, std::vector<motor_type> types, std::vector< std::pair<double, double> > jointLimits) {
 
-   myNode.param("portName",portName,std::string("/dev/ttyArm"));
-   myNode.param("protocolVersion",protocolVersion,2.0);
-   myNode.param("baudRate",baudRate,3000000);
+   myNode.param("portName", portName, std::string("/dev/ttyArm"));
+   myNode.param("protocolVersion", protocolVersion, 2.0);
+   myNode.param("baudRate", baudRate, 3000000);
    myArm = std::shared_ptr<Arm> (new Arm(ids, types, portName, jointLimits, protocolVersion, baudRate, controller_freq));
    myArm->initialize();
    myArm->runArm();
-   armExists=true;
+   armExists = true;
+   receivedFirstSkinPacket = false;
    
 }
 
+// the topic publishes false if nothing is pressed, and switches to true if something is pressed
+void RobotController::skinCallback(std_msgs::Bool& skinReply) {
+
+    receivedFirstSkinPacket = true;
+    skinReply.data;
+
+}
 
 vector<double> RobotController::getCurrentStates() {
 

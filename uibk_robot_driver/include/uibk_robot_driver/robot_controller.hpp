@@ -4,18 +4,27 @@
 #include <vector>
 #include <uibk_robot_driver/base_controller.hpp>
 #include <uibk_robot_driver/arm_controller.hpp>
+#include <std_msgs/Bool.h>
 
 #define DONTCARE nan("1")
 
 class RobotController {
+
+private:
+
+    void skinCallback(std_msgs::Bool& skinReply);
 	
+    bool receivedFirstSkinPacket;
 	std::shared_ptr<BaseController> myBase;
 	std::shared_ptr<Arm> myArm;
 	std::shared_ptr<std::thread> myArmThread;
-	bool baseExists,armExists;
+    bool baseExists, armExists;
 	double controller_freq;
 	ros::NodeHandle myNode;
-	std::string portName; double protocolVersion; int baudRate;
+    std::string portName;
+    double protocolVersion;
+    int baudRate;
+    ros::Subscriber skinBumper;
 
 public:
 

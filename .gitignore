@@ -6,3 +6,4 @@ build-uibk_robot_driver-Desktop-Default/
 *.swp
 *.orig
 MT.log
+*.autosave
