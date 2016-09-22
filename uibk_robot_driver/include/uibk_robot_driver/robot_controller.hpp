@@ -4,7 +4,9 @@
 #include <vector>
 #include <uibk_robot_driver/base_controller.hpp>
 #include <uibk_robot_driver/arm_controller.hpp>
+#include <uibk_robot_driver/tictoc.hpp>
 #include <std_msgs/Bool.h>
+#include <mutex>
 
 #define DONTCARE nan("1")
 
@@ -12,7 +14,10 @@ class RobotController {
 
 private:
 
-    void skinCallback(std_msgs::Bool& skinReply);
+    void skinCallback(const std_msgs::Bool &skinReply);
+
+    TicToc skinTic;
+    std::mutex skinMutex;
 	
     bool receivedFirstSkinPacket;
 	std::shared_ptr<BaseController> myBase;

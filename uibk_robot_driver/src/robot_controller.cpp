@@ -14,7 +14,7 @@ RobotController::RobotController(ros::NodeHandle& node, double control_freq) {
 void RobotController::initBase() {
 
    myBase = std::shared_ptr<BaseController>(new BaseController (myNode,controller_freq));
-   baseExists=true;
+   baseExists = true;
    receivedFirstSkinPacket = false;
 
 }
@@ -29,19 +29,24 @@ void RobotController::initArm(std::vector<int> ids, std::vector<motor_type> type
    myArm->runArm();
    armExists = true;
    receivedFirstSkinPacket = false;
+
+   skinBumper = myNode.subscribe("/airskin/arm_bumper", 2, &RobotController::skinCallback, this);
    
 }
 
 // the topic publishes false if nothing is pressed, and switches to true if something is pressed
-void RobotController::skinCallback(std_msgs::Bool& skinReply) {
+void RobotController::skinCallback(const std_msgs::Bool& skinReply) {
 
     receivedFirstSkinPacket = true;
-    skinReply.data;
+    if(!skinReply.data) {
+        skinMutex.lock();
+            skinTic.tic("skin");
+        skinMutex.unlock();
+    }
 
 }
 
 vector<double> RobotController::getCurrentStates() {
-
 
     vector<double> allStates,temp,temp2;
     if (baseExists){
@@ -68,12 +73,21 @@ vector<double> RobotController::getCurrentStates() {
 }
 
 void RobotController::moveAll(vector<double> targetStates) {
-  if (baseExists)
-    myBase->moveBase(targetStates.at(0),targetStates.at(1),targetStates.at(2)) ;
-  if (armExists){
-      vector<double> temp = vector<double> (targetStates.begin()+3,targetStates.end());
-      myArm->move(temp);
-  }
+
+    if(receivedFirstSkinPacket) {
+        double timeSinceLastOk = skinTic.toc("skin");
+        if(timeSinceLastOk < 0.2) {
+            if(baseExists)
+                myBase->moveBase(targetStates.at(0), targetStates.at(1), targetStates.at(2)) ;
+            if(armExists){
+                vector<double> temp = vector<double> (targetStates.begin() + 3, targetStates.end());
+                myArm->move(temp);
+            }
+        } else {
+            // if the skin is not ok (either timed out or is pressed), ignore the move commands
+        }
+    }
+
 }
 
 void RobotController::gotoAll(vector<double> targetStates) {
