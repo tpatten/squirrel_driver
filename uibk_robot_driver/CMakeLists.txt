@@ -41,6 +41,7 @@ add_library(uibk_robot_driver
   src/arm_controller.cpp
   src/motor.cpp
   src/robot_controller.cpp
+  src/tictoc.cpp
 )
 
 add_executable(uibk_arm_demo src/uibk_arm_demo.cpp)
