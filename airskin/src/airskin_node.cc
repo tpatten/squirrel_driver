@@ -93,6 +93,7 @@ class AirSkinNode
   std::string device_file_name;
   std::vector<unsigned char> addrs;  // 8 Bit I2C addresses
   std::vector<std::string> names;  // readable names of respective pads
+  bool airskin_ok;
   I2C_Master *i2c_master;
   std::vector<AirSkin_Sense*> sensors;
   std::vector<RunningMean> means;
@@ -147,6 +148,7 @@ AirSkinNode::AirSkinNode()
     means.push_back(RunningMean(HISTORY_SIZE));
     ROS_INFO("using AirSkin sensor with I2C address (8 Bit) %02X", addrs[i]);
   }
+  size_t ok_cnt = 0;
   for(size_t i = 0; i < addrs.size(); i++)
   {
     bool filled = false;
@@ -163,10 +165,16 @@ AirSkinNode::AirSkinNode()
       cnt++;
     }
     if(filled)
+    {
+      ok_cnt++;
       ROS_INFO("sensor %02X ready", addrs[i]);
+    }
     else
+    {
       ROS_ERROR("failed to get mean for sensor %02X", addrs[i]);
+    }
   }
+  airskin_ok = (ok_cnt == addrs.size());
 }
 
 AirSkinNode::~AirSkinNode()
@@ -188,7 +196,7 @@ void AirSkinNode::run()
   std::vector<int> pressures(sensors.size());
   ros::Rate r(10); // 10 hz
 
-  while(ros::ok())
+  while(ros::ok() && airskin_ok)
   {
     bool anyActivated = false;
     std::stringstream info;
@@ -232,6 +240,8 @@ void AirSkinNode::run()
     cycle_cnt++;
     r.sleep();
   }
+  if(!airskin_ok)
+    ROS_ERROR("Airskin is damaged");
 }
 
 int main (int argc, char ** argv)
