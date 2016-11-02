@@ -15,8 +15,10 @@ include_directories(
 catkin_package()
 
 add_library(qb_lib src/qbmove_communications.cpp)
+
 add_executable(softhand_controller src/softhand_controller.cpp)
 target_link_libraries(softhand_controller qb_lib ${catkin_LIBRARIES})
+add_dependencies(softhand_controller squirrel_manipulation_msgs_gencpp)
 
 install(TARGETS
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
