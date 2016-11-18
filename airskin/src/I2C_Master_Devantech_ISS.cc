@@ -117,7 +117,7 @@ void I2C_Master_Devantech_ISS::SetI2CMode()
   unsigned char buf[20];
   buf[0] = USB_ISS;
   buf[1] = ISS_MODE;
-  buf[2] = 0x40;  // Set mode to 100KHz I2C
+  buf[2] = 0x60;  // Set mode to 100KHz I2C using hardware I2C ports
   buf[3] = 0x00;  // Spare pins set to output low
   if(write(fd, buf, 4) < 0)
     throw Except(__HERE__, "write");
