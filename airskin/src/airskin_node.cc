@@ -92,6 +92,7 @@ private:
   static const int HISTORY_SIZE = 50;
   static const int ACTIVATION_THR = 50;
   static const int ACTIVATION_HYST = 25;
+  static const float UNFREEZE_DLEAY = 5.;
 
   AirSkin_Sense sensor;
   RunningMean mean;
@@ -192,7 +193,7 @@ void Sensor::update()
     {
       if(p >= getReference() + ACTIVATION_THR)
       {
-        ROS_INFO("pad %s (addr %02X) pressed", name.c_str(), addr);
+        ROS_DEBUG("pad %s (addr %02X) pressed", name.c_str(), addr);
         is_activated = true;
         // freeze reference value calculation
         ref_is_frozen = true;
@@ -202,7 +203,7 @@ void Sensor::update()
     {
       if(p <= getReference() + ACTIVATION_THR - ACTIVATION_HYST)
       {
-        ROS_INFO("pad %s (addr %02X) released", name.c_str(), addr);
+        ROS_DEBUG("pad %s (addr %02X) released", name.c_str(), addr);
         is_activated = false;
         // trigger unfreezing reference value calculation
         ref_unfreeze_timer = ros::Time::now();
@@ -215,7 +216,7 @@ void Sensor::update()
     else
     {
       ros::Duration d = ros::Time::now() - ref_unfreeze_timer;
-      if(d.toSec() > 1.)
+      if(d.toSec() > UNFREEZE_DLEAY)
       {
         // NOTE: This check is necessary in case the pad is leaking. In that case there
         // will be under-pressurs after a longer/harder press, which will slowly grow to
@@ -224,7 +225,7 @@ void Sensor::update()
         if(p > getReference() - ACTIVATION_HYST && p < getReference())
         {
           ref_is_frozen = false;
-          ROS_INFO("pad %s (addr %02X) resume reference", name.c_str(), addr);
+          ROS_DEBUG("pad %s (addr %02X) resume reference", name.c_str(), addr);
         }
       }
     }
@@ -295,12 +296,11 @@ void AirSkinNode::init()
 
 void AirSkinNode::run()
 {
-  int cycle_cnt = 0;
   ros::Rate r(10); // 10 hz
+  bool isActivated = false;
 
   while(ros::ok() && airskin_ok)
   {
-    stringstream info;
     bool anyActivated = false;
     for(size_t i = 0; i < sensors.size(); i++)
     {
@@ -308,24 +308,23 @@ void AirSkinNode::run()
       if(sensors[i]->isActivated())
         anyActivated = true;
 
-      // print some info every 10 cycles
-      if(cycle_cnt % 10 == 0)
-      {
-        info << sensors[i]->getPressure() << " "
-             << sensors[i]->getReference();
-        if(sensors[i]->isActivated())
-          info << " *  ";
-        else
-          info << "    ";
-      }
     }
 
     if(anyActivated)
-      ROS_INFO("arm skin pressed");
-    if(cycle_cnt % 10 == 0)
     {
-      info << "\n";
-      ROS_DEBUG("%s", info.str().c_str());
+      if(!isActivated)
+      {
+        isActivated = true;
+        ROS_INFO("arm skin pressed");
+      }
+    }
+    else
+    {
+      if(isActivated)
+      {
+        isActivated = false;
+        ROS_INFO("arm skin released");
+      }
     }
 
     std_msgs::Bool msg;
@@ -333,7 +332,6 @@ void AirSkinNode::run()
     bump_pub.publish(msg);
 
     ros::spinOnce();
-    cycle_cnt++;
     r.sleep();
   }
 
