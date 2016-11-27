@@ -1,6 +1,7 @@
 <launch>
     <node name="softhand_controller" pkg="squirrel_softhand" type="softhand_controller" output="screen" respawn="true">
           <param name="port" value="/dev/ttyUSB0" type="string"/>
-          <param name="device_id" value="1" type="int"/>          
+          <param name="device_id" value="1" type="int"/>
+          <param name="calibrate" value="true" type="bool"/>          
     </node>
 </launch>
