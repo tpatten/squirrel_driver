@@ -1,13 +1,27 @@
 #include "ros/ros.h"
 #include "squirrel_manipulation_msgs/SoftHandGrasp.h"
-#include "stdlib.h"
 #include "math.h"
+#include "signal.h"
+#include "stdlib.h"
 #include "../include/qbmove_communications.h"
 
 struct global_args {
     int device_id;
     comm_settings comm_settings_t;
 } global_args;
+
+
+void my_handler(int s){
+    ROS_INFO("Received signal: %d", s);
+    short int inputs[2];
+    inputs[0] = 0;
+    inputs[1] = 0;
+    commSetInputs(&global_args.comm_settings_t, global_args.device_id, inputs);
+    commActivate(&global_args.comm_settings_t, global_args.device_id, 0);
+    closeRS485(&global_args.comm_settings_t);
+    exit(EXIT_SUCCESS);
+}
+
 
 bool actuate(squirrel_manipulation_msgs::SoftHandGrasp::Request & req,
              squirrel_manipulation_msgs::SoftHandGrasp::Response & res)
@@ -27,10 +41,14 @@ bool actuate(squirrel_manipulation_msgs::SoftHandGrasp::Request & req,
     return true;    
 }
 
+
 int main(int argc, char **argv)
 {
+
     ros::init(argc, argv, "squirrel_softhand");
     ros::NodeHandle n;
+
+    signal(SIGINT, my_handler);
 
     char ports[10][255];
     RS485listPorts(ports);
