@@ -377,9 +377,9 @@ double Tactile::convertProx(const double num){
 
 //----------------------WRIST-----------------------
 
-Wrist::Wrist()
+Wrist::Wrist(const std::string& portname)
 {
-    ft17=new FT17Interface ( "eth0" );
+    ft17=new FT17Interface ( portname.c_str() );
     ft17->init();
 	// FT17 configured in POLLING mode
     ft17->configure_polling ( (uint16_t)127 );
@@ -395,7 +395,7 @@ std::vector<double>& Wrist::readData(){
 
 	if(ft17==NULL){
         vector<double>tmp(WristDataNum,0);
-        return tmp;
+        return tmp; //WARNING reference to local variable returned
 	}
 
     // get the FT17 data
