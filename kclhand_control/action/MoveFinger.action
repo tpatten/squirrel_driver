@@ -1,0 +1,29 @@
+# KCL Metahand action for controlling a single finger
+# author: Michael Zillich <michael.zillich@tuwien.ac.at>, Nov 2016
+
+# goal definition
+
+# Which finger to move:
+#  LEFT_PALM     = 0;  // node id 1, velocity + is downwards
+#  RIGHT_PALM    = 1;  // node id 3, velocity + is upwards
+#  RIGHT_FINGER  = 2;  // node id 5, velocity + is outwards
+#  MIDDLE_FINGER = 3;  // node id 7, velocity + is outwards
+#  LEFT_FINGER   = 4;  // node id 9, velocity + is inwards
+uint8 finger
+
+# Position in deg
+float32 position
+
+---
+
+# result definition
+
+# forces excerted by the finger
+float32 holding_forces
+
+---
+
+# feedback definition
+
+string current_phase
+
