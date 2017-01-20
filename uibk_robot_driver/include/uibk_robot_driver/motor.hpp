@@ -29,7 +29,6 @@
 
 namespace motor_controller {
 
-
 class MotorException : public std::exception {
 
     private:
@@ -42,14 +41,22 @@ class MotorException : public std::exception {
 
 };
 
+enum motor_type { DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_SMALL_MOTOR };
+
 class Motor {
 
     private:
+    
+		motor_type type;
 
         bool nextCommandSet;
 
         double currentState;
         double nextCommand;
+        
+        double std_stepsize;
+        double std_max_vel_limit;
+        double ticks_for_180_deg;
 
         int motorId;
         double lowerLimit;
@@ -78,12 +85,10 @@ class Motor {
 
         static auto constexpr STD_FREQUENCY = 80.0;
 
-        static auto constexpr TICKS_FOR_180_DEG = 150000.0;
+		static auto constexpr TICKS_FOR_180_DEG_BIG = 250000.0;
+        static auto constexpr TICKS_FOR_180_DEG_SMALL = 150000.0;
 
-        static auto constexpr STD_STEP_SIZE = 20.0 / TICKS_FOR_180_DEG * M_PI;
-        static auto constexpr STD_MAX_VEL_LIMIT = 5000.0 / TICKS_FOR_180_DEG * M_PI;
-
-        Motor(std::string deviceName, int motorId, float protocolVersion, double lowerLimit, double upperLimit, int baudRate);
+        Motor(std::string deviceName, int motorId, motor_type type, float protocolVersion, double lowerLimit, double upperLimit, int baudRate);
 
         double getStepSize();
         double getFrequency();

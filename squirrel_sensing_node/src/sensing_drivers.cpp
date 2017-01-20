@@ -279,6 +279,10 @@ std::vector<double>& Tactile::readData(){
 
     }//for stuff in buff
 
+    //for(int i = 0; i < NUM_VALS; i++)   // HACK: Michael
+    //    ROS_INFO("%6lf ", res->at[i]);
+    //ROS_INFO("\n");
+
 
     for(int i=0;i<NUM_TACT;i++){//biasing to calibration
         res->at(i)= res->at(i)*divider[i]; //calibartion curve maximum is (5-1)
@@ -379,7 +383,9 @@ double Tactile::convertProx(const double num){
 
 Wrist::Wrist(const std::string& portname)
 {
+
     ft17=new FT17Interface ( portname.c_str() );
+
     ft17->init();
 	// FT17 configured in POLLING mode
     ft17->configure_polling ( (uint16_t)127 );
@@ -394,8 +400,10 @@ Wrist::~Wrist()
 std::vector<double>& Wrist::readData(){
 
 	if(ft17==NULL){
+
         vector<double>tmp(WristDataNum,0);
         return tmp; //WARNING reference to local variable returned
+
 	}
 
     // get the FT17 data

@@ -41,14 +41,17 @@ add_library(uibk_robot_driver
   src/arm_controller.cpp
   src/motor.cpp
   src/robot_controller.cpp
+  src/tictoc.cpp
 )
 
 add_executable(uibk_arm_demo src/uibk_arm_demo.cpp)
 add_executable(robot_controller_node src/robot_controller_node.cpp)
+add_executable(arm_controller_sim src/ArmControllerSim.cpp)
 
 add_dependencies(uibk_robot_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} dynamixel_lib)
 add_dependencies(uibk_arm_demo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
 add_dependencies(robot_controller_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
+add_dependencies(arm_controller_sim ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} uibk_robot_driver)
 
 target_link_libraries(uibk_robot_driver
   ${catkin_LIBRARIES}
@@ -66,12 +69,14 @@ target_link_libraries(robot_controller_node
   uibk_robot_driver
 )
 
+target_link_libraries(arm_controller_sim
+  ${catkin_LIBRARIES}
+  uibk_robot_driver
+)
+
 FILE(GLOB_RECURSE LibFiles "*.h*")
 add_custom_target(headers SOURCES ${LibFiles})
 
-install(DIRECTORY launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
 
 install(DIRECTORY include/dynamixel_sdk
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
@@ -89,4 +94,9 @@ install(TARGETS
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(PROGRAMS 
+  src/tuw_incremental_arm_movement.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}/src
 )

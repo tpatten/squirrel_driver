@@ -4,7 +4,7 @@
 #include <std_msgs/Int32.h>
 #include <boost/thread.hpp>
 
-#define MOVECOMMANDTOPIC "/real/robotino/joint_control/move"
+#define MOVECOMMANDTOPIC "/real/robotino/joint_control/goto"
 #define PTPCOMMANDTOPIC "/real/robotino/joint_control/ptp"
 #define MODETOPIC "/real/robotino/settings/switch_mode"
 #define DONTCARE nan("1")
@@ -29,13 +29,13 @@ int main(int argc, char** args) {
 
     pubMove = node.advertise<std_msgs::Float64MultiArray>(MOVECOMMANDTOPIC, 1);
     pubMode = node.advertise<std_msgs::Int32>(MODETOPIC, 1);
-    pubPtp = node.advertise<std_msgs::Float64MultiArray>(PTPCOMMANDTOPIC, 1);
+    //pubPtp = node.advertise<std_msgs::Float64MultiArray>(PTPCOMMANDTOPIC, 1);
     boost::thread* workThread;
     workThread = new boost::thread(boost::bind(doWork));
 
 
     mode.data = 10;
-    std::cout << "press any key to set the moving mode" << std::endl;
+    std::cout << "press any key to set the  mode" << std::endl;
     getchar();
     pubMode.publish(mode);
 
@@ -43,12 +43,12 @@ int main(int argc, char** args) {
     int cnt=0;
     command.data = {DONTCARE,DONTCARE, DONTCARE, DONTCARE, DONTCARE, DONTCARE, DONTCARE, DONTCARE};
     char type;
-    while (!(type == 'm' || type == 'p')){
-        std::cout << "m for move demo or p for ptp demo" << std::endl;
-        cin >> type;
-    }
+//    while (!(type == 'g' || type == 'p')){
+//        std::cout << "g for move demo or p for ptp demo" << std::endl;
+//        cin >> type;
+//    }
 
-    std::cout << "Enter 8 values as a move command. Enter d for don't care. Enter quit to go out of the loop" << std::endl;
+   std::cout << "Enter 8 values as a move command. Enter d for don't care. Enter quit to go out of the loop" << std::endl;
     while (1){
         if (cnt <8){
 
@@ -65,7 +65,7 @@ int main(int argc, char** args) {
         cnt++;
         }
         else{
-            if (type == 'm'){
+//            if (type == 'g'){
                 sendCommands=true;
                 std::cout << "press any key to stop moving" << std::endl;
                 cin.clear();
@@ -73,10 +73,10 @@ int main(int argc, char** args) {
                 cout << command << endl;
                 getchar();
                 sendCommands=false;
-            } else {
-                 pubPtp.publish(command);
-                 cout << command << endl;
-            }
+////            } else {
+//                 pubPtp.publish(command);
+//                 cout << command << endl;
+//            }
 
             cnt=0;
             std::cout << "Enter 8 values as a move command. Enter d for don't care. Enter quit to go out of the loop" << std::endl;
