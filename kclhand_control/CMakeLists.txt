@@ -71,6 +71,7 @@ add_custom_target(build_EposCmd
 	COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/lib/squirrel_kclhand/libEposCmd.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}
 	COMMENT "copy EposCmd"
 )
+
 add_library(EposCmd SHARED)
 set_target_properties(EposCmd PROPERTIES LINKER_LANGUAGE CXX) 
 add_dependencies(EposCmd build_EposCmd)
@@ -79,6 +80,7 @@ add_custom_target(build_ftd2xx
 	COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/lib/squirrel_kclhand/libftd2xx.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}
 	COMMENT "Copying ${PROJECT_SOURCE_DIR}/lib/squirrel_kclhand/libftd2xx.so to ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}"
 )
+
 add_library(ftd2xx SHARED)
 set_target_properties(ftd2xx PROPERTIES LINKER_LANGUAGE CXX) 
 add_dependencies(ftd2xx build_ftd2xx)
@@ -129,3 +131,10 @@ install(TARGETS
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+install(FILES lib/squirrel_kclhand/libftd2xx.so
+  DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+install(FILES lib/squirrel_kclhand/libEposCmd.so
+  DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
