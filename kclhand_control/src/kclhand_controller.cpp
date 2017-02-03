@@ -47,6 +47,8 @@
 
 using namespace std;
 
+static bool pre_grasp = true;  // HACK
+
 template<class T>
 static T clamp(T val, T min, T max)
 {
@@ -55,6 +57,11 @@ static T clamp(T val, T min, T max)
   else if(val > max)
     val = max;
   return val;
+}
+
+static double deg_to_rad(double deg)
+{
+  return deg*M_PI/180.;
 }
 
 class RunningAverage
@@ -165,6 +172,10 @@ public:
   {
     return k*raw + b;
   }
+  double rawValueToRadians(double raw)
+  {
+    return deg_to_rad(k*raw + b);
+  }
 };
 
 class KCLHandController
@@ -181,13 +192,13 @@ private:
    * continuous current is 189 mA. During closing we almost always surpass that,
    * but not for a long time. So that should be ok.
    */ 
-  static const short MAX_SUSTAINED_CURRENT = 250;
+  static const short MAX_SUSTAINED_CURRENT = 300;
   /// the short time peak current can be higher
   static const short MAX_PEAK_CURRENT = 400;
   /// time in ms over which we averge motor currents for limit check
   static const int CURRENT_AVERAGING_TIME_MS = 500;
-  /// threshold (in degrees) below which two joint positions are regarded equal
-  static const double POSITION_REACHED_THRESHOLD = 2.;
+  /// threshold (in rad) below which two joint positions are regarded equal
+  static const double POSITION_REACHED_THRESHOLD = 0.035;
   /** joint numbers
     * NOTE: the EPOS node id is i*2 + 1
     * NOTE: the nominal directions are:
@@ -262,6 +273,10 @@ private:
    * Close the Maxon Motor EPOS device.
    */
   void closeDevice();
+  /**
+   * Get motor errors.
+   */
+  void getErrors();
   /**
    * Start motors: clear failure flags and enable.
    */
@@ -372,16 +387,17 @@ KCLHandController::KCLHandController(std::string name)
   joint_velocities_[RIGHT_FINGER] = FINGER_VELOCITY;
   joint_velocities_[MIDDLE_FINGER] = FINGER_VELOCITY;
   joint_velocities_[LEFT_FINGER] = FINGER_VELOCITY;
-  // reserve space for receiving joint state
+  // set up joint state to publish
+  joint_state_.header.frame_id = "hand_base_link";
   joint_state_.position.assign(NUM_MOTORS, 0.);
   joint_state_.velocity.assign(NUM_MOTORS, 0.);
   joint_state_.effort.assign(NUM_MOTORS, 0.);
   joint_state_.name.resize(NUM_MOTORS);
-  joint_state_.name[RIGHT_PALM] =    "PALM_RIGHT";
-  joint_state_.name[LEFT_PALM] =     "PALM_LEFT";
-  joint_state_.name[RIGHT_FINGER] =  "FINGER_RIGHT";
-  joint_state_.name[MIDDLE_FINGER] = "FINGER_MIDDLE";
-  joint_state_.name[LEFT_FINGER] =   "FINGER_LEFT";
+  joint_state_.name[RIGHT_PALM] =    "hand_right_crank_base_joint";
+  joint_state_.name[LEFT_PALM] =     "hand_left_crank_base_joint";
+  joint_state_.name[RIGHT_FINGER] =  "hand_right_finger_lower_joint";
+  joint_state_.name[MIDDLE_FINGER] = "hand_middle_finger_lower_joint";
+  joint_state_.name[LEFT_FINGER] =   "hand_left_finger_lower_joint";
   // use a small median filter for the noisy joint values
   for(int i = 0; i < NUM_MOTORS; i++)
     joint_value_filters_.push_back(MedianFilter(5));
@@ -390,7 +406,7 @@ KCLHandController::KCLHandController(std::string name)
 
   double zero = 0;
   // NOTE: I don't know if the association of sensor numbers is correct
-  nh_.getParam("/joint_sensor_calibration/palm_sensor1", zero);
+  nh_.getParam("joint_sensor_calibration/palm_sensor1", zero);
   sensor_calibrations_[LEFT_PALM] = zero;
   nh_.getParam("joint_sensor_calibration/palm_sensor2", zero);
   sensor_calibrations_[RIGHT_PALM] = zero;
@@ -411,7 +427,7 @@ KCLHandController::KCLHandController(std::string name)
   //openFingers(MAX_SUSTAINED_CURRENT);
 
   joint_value_sub_= new ros::Subscriber(nh_.subscribe("joint_value_arduino", 1, &KCLHandController::jointValueCB, this));
-  joint_state_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("sensorToForwardKinematics", 1));
+  joint_state_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("active_joint_states", 1));
 
   as_.start();
 }
@@ -465,8 +481,7 @@ void KCLHandController::actuateHandCB(const kclhand_control::ActuateHandGoalCons
 
 void KCLHandController::jointValueCB(const std_msgs::Int16MultiArray::ConstPtr &msg)
 {
-  static const int CURRENT_READ_SLOWDOWN_FACTOR = 10;
-  static int slowdown_cnt = CURRENT_READ_SLOWDOWN_FACTOR;
+  static unsigned int seq = 0;
 
   if((int)msg->data.size() != NUM_MOTORS)
     throw runtime_error("Maxon Motor EPOS: wrong number of joint position values received");
@@ -482,20 +497,13 @@ void KCLHandController::jointValueCB(const std_msgs::Int16MultiArray::ConstPtr &
   joint_value_mutex_.lock();
   for(size_t i = 0; i < msg->data.size(); i++)
   {
-    joint_value_filters_[i].add(sensor_directions_[i]*sensor_calibrations_[i].rawValueToDegrees(msg->data[i]));
+    joint_value_filters_[i].add(sensor_directions_[i]*sensor_calibrations_[i].rawValueToRadians(msg->data[i]));
     joint_state_.position[i] = joint_value_filters_[i].get();
     joint_state_.effort[i] = currents[i];
   }
-  //joint_state_.position[RIGHT_FINGER] = -joint_state_.position[RIGHT_FINGER]; // HACK for UIBK hand
-  if(slowdown_cnt == 0)
-  {
-    joint_state_pub_->publish(joint_state_);
-    slowdown_cnt = CURRENT_READ_SLOWDOWN_FACTOR;
-  }
-  else
-  {
-    slowdown_cnt--;
-  }
+  joint_state_.header.seq = seq++;
+  joint_state_.header.stamp = ros::Time::now();
+  joint_state_pub_->publish(joint_state_);
   joint_value_mutex_.unlock();
 }
 
@@ -566,9 +574,42 @@ void KCLHandController::closeDevice()
   motor_mutex_.unlock();
 }
 
+void KCLHandController::getErrors()
+{
+  // number of actual errors
+  unsigned char nbOfDeviceError = 0;
+  // error code from function
+  unsigned int error_code;
+  //error code from device
+  unsigned int deviceErrorCode = 0;
+
+  for(int i = 0; i < node_ids_.size(); i++)
+  {
+    // get number of device errors
+    if(VCS_GetNbOfDeviceError(key_handle_, node_ids_[i], &nbOfDeviceError, &error_code))
+    {
+      //  read device error code
+      for(unsigned char errorNumber = 1; errorNumber <= nbOfDeviceError; errorNumber++)
+      {
+        if(VCS_GetDeviceErrorCode(key_handle_, node_ids_[i], errorNumber, &deviceErrorCode, &error_code))
+        {
+          ROS_INFO("Maxon Motor EPOS: joint %13s (node id %d) error # %d",
+                   joint_state_.name[i].c_str(), (int)node_ids_[i], (int)deviceErrorCode); 
+        }
+        else
+          ROS_INFO("FUCK C");
+      }
+    }
+    else
+      ROS_INFO("FUCK B");
+  }
+}
+
 void KCLHandController::startMotors()
 {
   motor_mutex_.lock();
+
+  getErrors();
 
   for(int i = 0; i < node_ids_.size(); i++)
   {
@@ -674,12 +715,13 @@ bool KCLHandController::openFingers(float rel_current_limit)
 {
   std::vector<double> target_positions(NUM_MOTORS);
   bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = 15.;
-  target_positions[LEFT_PALM] = 15.;
-  target_positions[RIGHT_FINGER] = -50.;
-  target_positions[MIDDLE_FINGER] = -50.;
-  target_positions[LEFT_FINGER] = -50.;
+  target_positions[RIGHT_PALM] = deg_to_rad(15.);
+  target_positions[LEFT_PALM] = deg_to_rad(15.);
+  target_positions[RIGHT_FINGER] = deg_to_rad(-60.);  // HACK: was -50
+  target_positions[MIDDLE_FINGER] = deg_to_rad(-60.);  // HACK: was -50
+  target_positions[LEFT_FINGER] = deg_to_rad(-60.);  // HACK: was -50
   bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
+  pre_grasp = true;  // HACK
   return succeeded;
 }
 
@@ -687,11 +729,22 @@ bool KCLHandController::closeFingers(float rel_current_limit)
 {
   std::vector<double> target_positions(NUM_MOTORS);
   bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = 15.;
-  target_positions[LEFT_PALM] = 15.;
-  target_positions[RIGHT_FINGER] = -15.;
-  target_positions[MIDDLE_FINGER] = 10.;
-  target_positions[LEFT_FINGER] = -15.;
+  target_positions[RIGHT_PALM] = deg_to_rad(15.);
+  target_positions[LEFT_PALM] = deg_to_rad(15.);
+  // HACK
+  if(pre_grasp)
+  {
+    target_positions[RIGHT_FINGER] = deg_to_rad(-50.);
+    target_positions[MIDDLE_FINGER] = deg_to_rad(-50.);
+    target_positions[LEFT_FINGER] = deg_to_rad(-50.);
+    pre_grasp = false;
+  }
+  else
+  {
+    target_positions[RIGHT_FINGER] = deg_to_rad(-15.);
+    target_positions[MIDDLE_FINGER] = deg_to_rad(10.);
+    target_positions[LEFT_FINGER] = deg_to_rad(-15.);
+  }
   bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
   // if targets not reached, then some joints ran into their current limit, i.e. we are probably
   // holding an object.
@@ -709,6 +762,8 @@ bool KCLHandController::moveFingers(float rel_current_limit, std::vector<double>
                                     bool &all_target_positions_reached)
 {
   ROS_INFO("start moving fingers");
+
+  static bool first_call = true;  // HACK: only move the palm ONCE with the first move
 
   startMotors();  // HACK: Do I really need to clear failure states all the time?
 
@@ -736,6 +791,10 @@ bool KCLHandController::moveFingers(float rel_current_limit, std::vector<double>
   // first set all motors in motion
   for(int i = 0; i < node_ids_.size(); i++)
   {
+    // HACK
+    if(!first_call && (i == LEFT_PALM || i == RIGHT_PALM))
+      continue;
+
     if(!isAtPosition(state.position[i], target_positions[i], 0))
     {
       activateVelocityMode(i);
@@ -759,7 +818,7 @@ bool KCLHandController::moveFingers(float rel_current_limit, std::vector<double>
       num_targets_reached++;
     }
 
-    ROS_INFO("joint %13s:  pos [deg]: %5.0lf  target [deg]: %5.0lf  vel [rpm]: %5.0lf",
+    ROS_INFO("joint %13s:  pos [rad]: %5.3lf  target [rad]: %5.3lf  vel [rpm]: %5.0lf",
              state.name[i].c_str(), state.position[i], target_positions[i], state.velocity[i]);
   }
 
@@ -781,6 +840,10 @@ bool KCLHandController::moveFingers(float rel_current_limit, std::vector<double>
 
     for(int i = 0; i < node_ids_.size(); i++)
     {
+      // HACK
+      if(!first_call && (i == LEFT_PALM || i == RIGHT_PALM))
+        continue;
+
       if(motor_running[i])
       {
         double current = state.effort[i];
@@ -794,13 +857,13 @@ bool KCLHandController::moveFingers(float rel_current_limit, std::vector<double>
         if(peak_current_exceeded || avg_current_exceeded || target_position_reached || timeout_cnt <= 0)
         {
           if(target_position_reached)
-            ROS_INFO("joint %13s (node id %d) reached target position pos [deg]: %5.0lf",
+            ROS_INFO("joint %13s (node id %d) reached target position pos [rad]: %5.3lf",
                       state.name[i].c_str(), (int)node_ids_[i], state.position[i]);
           else if(peak_current_exceeded)
-            ROS_INFO("joint %13s (node id %d) reached peak current limit: %5.0lf mA, pos [deg]: %5.0lf",
+            ROS_INFO("joint %13s (node id %d) reached peak current limit: %5.0lf mA, pos [rad]: %5.3lf",
                       state.name[i].c_str(), (int)node_ids_[i], current, state.position[i]);
           else if(avg_current_exceeded)
-            ROS_INFO("joint %13s (node id %d) reached sustained current limit: %5.0lf mA, pos [deg]: %5.0lf",
+            ROS_INFO("joint %13s (node id %d) reached sustained current limit: %5.0lf mA, pos [rad]: %5.3lf",
                       state.name[i].c_str(), (int)node_ids_[i], avg_currents[i].get(), state.position[i]);
           else
             ROS_INFO("joint %13s (node id %d) reached timeout", state.name[i].c_str(), (int)node_ids_[i]);
@@ -829,6 +892,8 @@ bool KCLHandController::moveFingers(float rel_current_limit, std::vector<double>
   all_target_positions_reached = (num_targets_reached == (int)target_positions.size());
 
   ROS_INFO("done moving fingers");
+
+  first_call = false;
 
   return timeout_cnt > 0;
 }
@@ -882,7 +947,7 @@ bool KCLHandController::moveFinger(int joint_idx, float rel_current_limit, doubl
   joint_state_ = state;
   joint_value_mutex_.unlock();
 
-  ROS_INFO("joint %13s:  pos [deg]: %5.0lf  target [deg]: %5.0lf  vel [rpm]: %5.0lf",
+  ROS_INFO("joint %13s:  pos [rad]: %5.3lf  target [rad]: %5.3lf  vel [rpm]: %5.0lf",
            state.name[joint_idx].c_str(), state.position[joint_idx],
            target_position, state.velocity[joint_idx]);
 
@@ -909,13 +974,13 @@ bool KCLHandController::moveFinger(int joint_idx, float rel_current_limit, doubl
     if(peak_current_exceeded || avg_current_exceeded || target_position_reached || timeout_cnt <= 0)
     {
       if(target_position_reached)
-        ROS_INFO("joint %13s (node id %d) reached target [deg]: %5.0lf, pos [deg]: %5.0lf",
+        ROS_INFO("joint %13s (node id %d) reached target [rad]: %5.3lf, pos [rad]: %5.3lf",
                   state.name[joint_idx].c_str(), (int)node_ids_[joint_idx], target_position, state.position[joint_idx]);
       else if(peak_current_exceeded)
-        ROS_INFO("joint %13s (node id %d) reached peak current limit: %5.0lf mA, pos [deg]: %5.0lf",
+        ROS_INFO("joint %13s (node id %d) reached peak current limit: %5.0lf mA, pos [rad]: %5.3lf",
                   state.name[joint_idx].c_str(), (int)node_ids_[joint_idx], current, state.position[joint_idx]);
       else if(avg_current_exceeded)
-        ROS_INFO("joint %13s (node id %d) reached sustained current limit: %5.0lf mA, pos [deg]: %5.0lf",
+        ROS_INFO("joint %13s (node id %d) reached sustained current limit: %5.0lf mA, pos [rad]: %5.3lf",
                   state.name[joint_idx].c_str(), (int)node_ids_[joint_idx], avg_current.get(), state.position[joint_idx]);
       else
         ROS_INFO("joint %13s (node id %d) reached timeout", state.name[joint_idx].c_str(), (int)node_ids_[joint_idx]);
