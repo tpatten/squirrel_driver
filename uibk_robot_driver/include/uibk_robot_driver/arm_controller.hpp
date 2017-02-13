@@ -20,7 +20,7 @@
 
 // Control table address
 #define DONTCARE nan("1")
-using namespace motor_controller;
+
 class Arm {
 
     private:
@@ -28,7 +28,7 @@ class Arm {
         bool keepThreadRunning;
         bool firstJointStateRetrieved;
 
-        std::vector<std::shared_ptr<Motor> > motors;
+        std::vector<std::shared_ptr<motor_controller::Motor> > motors;
         std::vector<double> currentJointState;
 
         boost::mutex jointStateMutex;
@@ -42,27 +42,26 @@ class Arm {
         bool allowMovement;
         std::vector<double> targetPosMove;
         void armLoop();
-        void moveArmThread();
-        void moveArmThreadController();
+        void gotoThread();
+        void gotoThreadController();
         bool checkDistance(std::vector<double> &current, std::vector<double> &target, double& exceededDist, double& maxDist);
-        void move(std::vector<double> nextJointPos);
+
     public:
 
-        Arm(std::vector<int> ids, std::string portName, std::vector< std::pair<double, double> > jointLimits, double protocolVersion, int baudRate, double move_freq);
+        Arm(std::vector<int> ids, std::vector<motor_controller::motor_type> types, std::string portName, std::vector< std::pair<double, double> > jointLimits, double protocolVersion, int baudRate, double move_freq);
 
         std::vector<double> getCurrentState();
 
         std::shared_ptr<std::thread> runArm();
- //       std::shared_ptr<std::thread> moveCommandThread;
         void moveHome();
         void shutdown();
         void initialize();
-
+        void move(std::vector<double> nextJointPos);
         void jointPtp(std::vector<double> targetPos);
-        void moveArm(std::vector<double> nextJointPos);
+        void gotoArm(std::vector<double> nextJointPos);
         int getDegOfFreedom();
 
-        double getStepSize();
+        double getStepSize(int motorId);
         double getFrequency();
         double getCycleTime();
         double getMaxStepPerCycle();

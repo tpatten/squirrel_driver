@@ -8,6 +8,7 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <std_msgs/Int32.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Bool.h>
 #include <sensor_msgs/JointState.h>
 #include <mutex>
 
@@ -15,27 +16,22 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-
-
 using namespace std;
-
+using namespace motor_controller;
 
 bool runController = true;
 std::shared_ptr<RobotController> robotinoController;
-//std::shared_ptr<Arm> robotinoArm;
-//std::shared_ptr<std::thread> armThread;
 
 bool newMoveCommandStateSet = false;
-bool newPtpCommandStateSet = false;
 std::vector<double> moveCommandState;
-std::vector<double> ptpCommandState;
+
 std::mutex moveCommandMutex;
-std::mutex ptpCommandMutex;
+std::mutex airskinStopSafetyMutex;
 
 void stopHandler(int s);
 void moveCommandStateHandler(std_msgs::Float64MultiArray arr);
-void ptpCommandStateHandler(std_msgs::Float64MultiArray arr);
 void switchModeHandler(std_msgs::Int32 mode);
+void airskinStopSafetyHandler(std_msgs::Bool block);
 
 vector<int> transformVector(vector<double> v);
 vector<double> transformVector(vector<int> v);
@@ -60,14 +56,15 @@ int main(int argc, char** args) {
 
     sigaction(SIGINT, &sigIntHandler, NULL);
 
-
-
     robotinoController->initBase();
-    robotinoController->initArm({1, 2, 3, 4, 5},{std::make_pair<double, double>(-125000.0 / Motor::TICKS_FOR_180_DEG * M_PI, 130000 / Motor::TICKS_FOR_180_DEG * M_PI),
-                                                 std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG * M_PI, 185000 / Motor::TICKS_FOR_180_DEG * M_PI),
-                                                 std::make_pair<double, double>(-150000 / Motor::TICKS_FOR_180_DEG * M_PI, 150000 / Motor::TICKS_FOR_180_DEG * M_PI),
-                                                 std::make_pair<double, double>(-100000 / Motor::TICKS_FOR_180_DEG * M_PI, 100000 / Motor::TICKS_FOR_180_DEG * M_PI),
-                                                 std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG * M_PI, 140000 / Motor::TICKS_FOR_180_DEG * M_PI)});
+    robotinoController->initArm({1, 2, 3, 4, 5},
+    {DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_BIG_MOTOR, DYNAMIXEL_SMALL_MOTOR, DYNAMIXEL_SMALL_MOTOR},
+												{std::make_pair<double, double>(-125000.0 / Motor::TICKS_FOR_180_DEG_BIG * M_PI, 130000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI),
+                                                 std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI, 185000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI),
+                                                 std::make_pair<double, double>(-150000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI, 150000 / Motor::TICKS_FOR_180_DEG_BIG * M_PI),
+                                                 std::make_pair<double, double>(-100000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI, 100000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI),
+                                                 std::make_pair<double, double>(-140000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI, 140000 / Motor::TICKS_FOR_180_DEG_SMALL * M_PI)});
+                                                 
     moveCommandState = robotinoController->getCurrentStates();
     auto cycleTime = robotinoController->getArmCycleTime();
     auto maxStepPerCycle = robotinoController->getArmMaxStepPerCycle();
@@ -81,8 +78,9 @@ int main(int argc, char** args) {
     auto maxStepPerCyclePublisher = node.advertise<std_msgs::Float64>("joint_control/get_max_dist_per_cycle", 1);
 
     auto moveCommandSub= node.subscribe("joint_control/move", 2, moveCommandStateHandler);
-    auto ptpCommandSub= node.subscribe("joint_control/ptp", 2, ptpCommandStateHandler);
+    auto airskinStopSafetySub= node.subscribe("/airskin/arm_bumper", 1, airskinStopSafetyHandler);
     auto modeSub= node.subscribe("settings/switch_mode", 1, switchModeHandler);
+    
 
     std_msgs::Float32MultiArray modeArray;
     modeArray.data.push_back(0.0); modeArray.data.push_back(0.0);
@@ -94,18 +92,34 @@ int main(int argc, char** args) {
     double stepTime = 1.0 / freq;
 
     while(runController) {
+		
+        int myMode=0;
+        airskinStopSafetyMutex.lock();
+            myMode=currentMode;
+        airskinStopSafetyMutex.unlock();
+		jointStateMsg.header.stamp = ros::Time::now();
+		jointStateMsg.name.resize(8);
+		jointStateMsg.name[0] ="base_jointx";
+		jointStateMsg.name[1] ="base_jointy";
+		jointStateMsg.name[2] ="base_jointz";
+		jointStateMsg.name[3] ="arm_joint1";
+		jointStateMsg.name[4] ="arm_joint2";
+		jointStateMsg.name[5] ="arm_joint3";
+		jointStateMsg.name[6] ="arm_joint4";
+		jointStateMsg.name[7] ="arm_joint5";
 
         jointStateMsg.position = robotinoController->getCurrentStates();
         jointStateMsg.velocity = computeDerivative(jointStateMsg.position, prevPos, stepTime);
         jointStateMsg.effort = computeDerivative(jointStateMsg.velocity, prevVel, stepTime);
 
         statePublisher.publish(jointStateMsg);
-        modeArray.data.at(1) = currentMode;
+        modeArray.data.at(1) = myMode;
         modePublisher.publish(modeArray);
 
         cycleTimePublisher.publish(cycleMsg);
         maxStepPerCyclePublisher.publish(maxStepPerCycleMsg);
-        if(currentMode == 10) {
+
+        if(myMode == 10) {
 
             moveCommandMutex.lock();
             if(newMoveCommandStateSet) {
@@ -113,16 +127,6 @@ int main(int argc, char** args) {
                 newMoveCommandStateSet = false;
             }
             moveCommandMutex.unlock();
-
-            ptpCommandMutex.lock();
-            if(newPtpCommandStateSet) {
-
-                robotinoController->ptpAll(ptpCommandState);
-
-                newPtpCommandStateSet = false;
-            }
-            ptpCommandMutex.unlock();
-
 
         }
 
@@ -186,21 +190,17 @@ void moveCommandStateHandler(std_msgs::Float64MultiArray arr) {
 
 }
 
-void ptpCommandStateHandler(std_msgs::Float64MultiArray arr) {
+void airskinStopSafetyHandler(std_msgs::Bool block) {
 
-   ptpCommandMutex.lock();
-    if(arr.data.size() == 8) {//8 degrees of freedom
-        ptpCommandState = arr.data;
-        newPtpCommandStateSet = true;
-    } else {
-        cerr << "your joint data has wrong dimension (of " << arr.data.size() << ")" << endl;
-    }
-    ptpCommandMutex.unlock();
+    airskinStopSafetyMutex.lock();
+    if (block.data)
+        currentMode=0;
+    airskinStopSafetyMutex.unlock();
 
-}
-
+ }
 
 void switchModeHandler(std_msgs::Int32 mode) {
+    airskinStopSafetyMutex.lock();
     currentMode = mode.data;
-
+    airskinStopSafetyMutex.unlock();
 }
