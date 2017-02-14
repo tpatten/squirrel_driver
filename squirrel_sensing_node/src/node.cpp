@@ -20,7 +20,8 @@ using namespace ros;
 using namespace std;
 
 
-const double SensingNode::pause=1000.0;    //this might be became a constructor parameter
+// The rate at which the sensors publish. 100 Hz seem enough.
+const double SensingNode::pause=100.0;    //this might be became a constructor parameter
 
 //consider instantiating everything in a configure() function instead of the constructor
 SensingNode::SensingNode(const std::string& name, const std::vector<std::string>& portnames){
