@@ -169,8 +169,8 @@ target_link_libraries(
 
 add_executable(
   robotino_view_controller
-  src/view_controller_node.cpp
-  src/ViewControllerNode.cpp
+  #src/view_controller_node.cpp
+  src/ViewController.cpp
 )
 
 target_link_libraries(
