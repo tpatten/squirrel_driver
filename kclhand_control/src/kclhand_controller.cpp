@@ -715,16 +715,17 @@ bool KCLHandController::openFingers(float rel_current_limit)
   bool all_target_positions_reached = false;
   target_positions[RIGHT_PALM] = deg_to_rad(30.);
   target_positions[LEFT_PALM] = deg_to_rad(30.);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-60.);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(-60.);
-  target_positions[LEFT_FINGER] = deg_to_rad(-60.);
+  target_positions[RIGHT_FINGER] = deg_to_rad(-80.);
+  target_positions[MIDDLE_FINGER] = deg_to_rad(-80.);
+  target_positions[LEFT_FINGER] = deg_to_rad(-80.);
   bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
   // Now slightly close the fingers to pre-tension the tendons
   if(succeeded)
   {
-    target_positions[RIGHT_FINGER] = deg_to_rad(-50.);
-    target_positions[MIDDLE_FINGER] = deg_to_rad(-50.);
-    target_positions[LEFT_FINGER] = deg_to_rad(-50.);
+    target_positions[RIGHT_FINGER] = deg_to_rad(-70.);
+    target_positions[MIDDLE_FINGER] = deg_to_rad(-70.);
+    target_positions[LEFT_FINGER] = deg_to_rad(-70.);
+    succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
   }
   return succeeded;
 }
