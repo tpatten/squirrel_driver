@@ -72,10 +72,7 @@ int main(int argc, char **argv)
     ros::ServiceServer service = n.advertiseService("softhand_grasp", actuate);
     ROS_INFO("Ready to grasp.");
 
-    // SERVICE
-    while(ros::ok()){
-        ros::spinOnce();
-    }
+    ros::spin();
 
     // SHUTDOWN
     short int inputs[2];
