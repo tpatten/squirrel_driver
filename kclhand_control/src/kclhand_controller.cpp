@@ -47,8 +47,6 @@
 
 using namespace std;
 
-static bool pre_grasp = true;  // HACK
-
 template<class T>
 static T clamp(T val, T min, T max)
 {
@@ -715,13 +713,20 @@ bool KCLHandController::openFingers(float rel_current_limit)
 {
   std::vector<double> target_positions(NUM_MOTORS);
   bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = deg_to_rad(15.);
-  target_positions[LEFT_PALM] = deg_to_rad(15.);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-60.);  // HACK: was -50
-  target_positions[MIDDLE_FINGER] = deg_to_rad(-60.);  // HACK: was -50
-  target_positions[LEFT_FINGER] = deg_to_rad(-60.);  // HACK: was -50
+  target_positions[RIGHT_PALM] = deg_to_rad(30.);
+  target_positions[LEFT_PALM] = deg_to_rad(30.);
+  target_positions[RIGHT_FINGER] = deg_to_rad(-80.);
+  target_positions[MIDDLE_FINGER] = deg_to_rad(-80.);
+  target_positions[LEFT_FINGER] = deg_to_rad(-80.);
   bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  pre_grasp = true;  // HACK
+  // Now slightly close the fingers to pre-tension the tendons
+  if(succeeded)
+  {
+    target_positions[RIGHT_FINGER] = deg_to_rad(-70.);
+    target_positions[MIDDLE_FINGER] = deg_to_rad(-70.);
+    target_positions[LEFT_FINGER] = deg_to_rad(-70.);
+    succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
+  }
   return succeeded;
 }
 
@@ -729,26 +734,15 @@ bool KCLHandController::closeFingers(float rel_current_limit)
 {
   std::vector<double> target_positions(NUM_MOTORS);
   bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = deg_to_rad(15.);
-  target_positions[LEFT_PALM] = deg_to_rad(15.);
-  // HACK
-  if(pre_grasp)
-  {
-    target_positions[RIGHT_FINGER] = deg_to_rad(-50.);
-    target_positions[MIDDLE_FINGER] = deg_to_rad(-50.);
-    target_positions[LEFT_FINGER] = deg_to_rad(-50.);
-    pre_grasp = false;
-  }
-  else
-  {
-    target_positions[RIGHT_FINGER] = deg_to_rad(-15.);
-    target_positions[MIDDLE_FINGER] = deg_to_rad(10.);
-    target_positions[LEFT_FINGER] = deg_to_rad(-15.);
-  }
+  target_positions[RIGHT_PALM] = deg_to_rad(30.);
+  target_positions[LEFT_PALM] = deg_to_rad(30.);
+  target_positions[RIGHT_FINGER] = deg_to_rad(-15.);
+  target_positions[MIDDLE_FINGER] = deg_to_rad(10.);
+  target_positions[LEFT_FINGER] = deg_to_rad(-15.);
   bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
   // if targets not reached, then some joints ran into their current limit, i.e. we are probably
   // holding an object.
-  /* HACK: leave out for now
+  /* HACK: leave out for now:
   if(!all_target_positions_reached)
     keepTightGrip();*/
   return succeeded;

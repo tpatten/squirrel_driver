@@ -24,5 +24,5 @@ def bumper_callback(msg):
 
 if __name__ == '__main__':
     rospy.init_node('bumper_sound', anonymous=True)
-    rospy.Subscriber("/airskin/arm_bumper", std_msgs.msg.Bool, bumper_callback)
+    rospy.Subscriber("arm_bumper", std_msgs.msg.Bool, bumper_callback)
     rospy.spin()
