@@ -4,12 +4,14 @@
 
 using namespace std;
 
+
 int main(int argc,char** argv){
 
-    //if(argc!=2){
-    //    cout << "Error starting sensing node. The node requires as input the port from where the microcontroller is connected" << endl;
-    //    return -1;
-    //}
+    if(argc<ParamNum){
+        cout << "Error starting sensing node. Correct syntax:" << endl;
+        cout << "rosrun squirrel_sensing_node sensing [arduino_port_name] [ft17_port_name]" << endl;	//<----Liza: check if the node name is correct
+        return 1;
+    }
 
     string name="sensing";  //can be read from argv
 
@@ -17,14 +19,38 @@ int main(int argc,char** argv){
 
     cout << "Creating " << name << " node " << endl;
 
-    //TODO implement portname parameter passing
-    //cout << "Args: " << argv << endl;
+	vector<string> pars;	//better to use a vector than an array of strings
+    
+    cout << "Arguments: " << endl;
+    for(unsigned int i=0; i<argc-1; ++i)	//we skip the executable name
+	{
+        if(i<ParamNum)
+		{
+            pars.push_back(argv[i+1]);
+		}
+        else if(i==ParamNum)	//+1 because the char* paramters are 1-indexed
+		{
+			cout << "----------" << endl; //anything under this line will be ignored
+        }
+        cout << argv[i+1] << endl;
+		
+	}
+    cout << "#######" << endl;   //for beauty
 
-    SensingNode sensing(name,"/dev/ttyArduinoSensors"); //string(argv[1]) ); //TODO to test
+    if(pars.size()!=ParamNum)
+    {
+        cout << "ERROR: Wrong number of parameter received! Expected: " << ParamNum << " Received: " << pars.size() << endl;
+        cout << "Is time to fail gently" << endl;
+        return 2;
+    }
+
+    SensingNode sensing(name,pars); 
 
     cout << "Executing " << name << " node " << endl;
 
     sensing.run();
 
     cout << name << " node has terminated his execution" << endl;
+
+    return 0;
 }

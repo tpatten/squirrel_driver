@@ -48,8 +48,10 @@ class Tactile : public Driver{
     static const double MAX1_V3;
 
     static const double MAX2_V1;
+    static const double MAX2_V2;
+    static const double MAX2_V3;
 
-    static const double MAX3_V2;
+    static const double MAX3_V1;
     static const double MAX3_V3;
     //---
     static const double MAX_PROX; //proximity
@@ -88,13 +90,6 @@ public:
 
 };
 
-//not used for now
-/*class Proximity : public Driver{
-
-public:
-    virtual std::vector<double>* readData();
-
-};*/
 
 class Wrist : public Driver{
 
@@ -114,7 +109,7 @@ public:
         WristDataNum
     };
 
-    Wrist();
+    Wrist(const std::string& portname);
     ~Wrist();
 
     virtual std::vector<double>& readData();

@@ -20,10 +20,11 @@ using namespace ros;
 using namespace std;
 
 
-const double SensingNode::pause=1000.0;    //this might be became a constructor parameter
+// The rate at which the sensors publish. 100 Hz seem enough.
+const double SensingNode::pause=100.0;    //this might be became a constructor parameter
 
 //consider instantiating everything in a configure() function instead of the constructor
-SensingNode::SensingNode(const std::string& name, const std::string& portname){
+SensingNode::SensingNode(const std::string& name, const std::vector<std::string>& portnames){
 
     this->name=name;
 
@@ -33,9 +34,9 @@ SensingNode::SensingNode(const std::string& name, const std::string& portname){
 
     loop_rate=new Rate(pause);
 
-    sensor=new Tactile(portname); //"/dev/ttyACM0");      //the port name will be given from command line
+    sensor=new Tactile(portnames[ArduinoPort]);      //the port name is given from command line
 #ifdef _FT17_AVAIL
-    wrist=new Wrist();
+    wrist=new Wrist(portnames[FT17Port]);
 #else
     wrist=NULL;
 #endif
