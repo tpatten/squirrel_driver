@@ -12,6 +12,8 @@
  * @date Sept 2015
  */
 
+#ifndef VIEW_CONTROLLER_H
+#define VIEW_CONTROLLER_H
 
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
@@ -49,3 +51,4 @@ public:
   FixateOnPoseAction(std::string name);
   ~FixateOnPoseAction();
 };
+#endif // VIEW_CONTROLLER_H
