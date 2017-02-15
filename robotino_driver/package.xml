@@ -11,6 +11,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>geometry_msgs</build_depend>
+  <build_depend>squirrel_view_controller_msgs</build_depend>
   <build_depend>image_transport</build_depend>
   <build_depend>nav_msgs</build_depend>
   <build_depend>pcl_conversions</build_depend>
@@ -36,5 +37,6 @@
   <run_depend>dynamixel_msgs</run_depend>
   <run_depend>dynamixel_controllers</run_depend>
   <run_depend>robotino_msgs</run_depend>
+  <run_depend>squirrel_view_controller_msgs</run_depend>
 
 </package>

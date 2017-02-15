@@ -47,7 +47,7 @@ void FixateOnPoseAction::executeCB(const squirrel_view_controller_msgs::FixateOn
   ros::Rate r(25);
   bool success = true;
 
-if (as_.isPreemptRequested() || !ros::ok())
+if (as_.isPreemptRequested() || !ros::ok() || !goal->enable)
   {
     ROS_INFO("%s: Preempted", action_name_.c_str());
     // set the action state to preempted
