@@ -65,6 +65,7 @@ add_executable(
   #src/view_controller_node.cpp
   src/ViewController.cpp
 )
+add_dependencies(robotino_view_controller squirrel_view_controller_msgs_gencpp)
 
 target_link_libraries(
   robotino_view_controller
