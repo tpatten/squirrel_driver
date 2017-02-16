@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "squirrel_view_controller");
 
-  ViewController fixate("squirrel_view_controller");
+  ViewController fixate(ros::this_node::getName());
   ros::spin();
 
   return 0;

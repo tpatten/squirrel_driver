@@ -19,7 +19,9 @@
 #include <actionlib/server/simple_action_server.h>
 #include <squirrel_view_controller_msgs/FixateOnPoseAction.h>
 #include "std_msgs/Float64.h"
+#include <std_srvs/Empty.h>
 #include <dynamixel_controllers/SetSpeed.h>
+#include <dynamixel_msgs/JointState.h>
 #include <geometry_msgs/PointStamped.h>
 #include <tf/transform_listener.h>
 #include <robotino_msgs/LookAtImagePosition.h>
@@ -72,6 +74,7 @@ protected:
 
 public:
   void executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal);
+  void init();
 
   ViewController(std::string name);
   ~ViewController();
