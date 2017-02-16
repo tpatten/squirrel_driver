@@ -24,6 +24,8 @@
   <build_depend>dynamixel_controllers</build_depend>
   <build_depend>robotino_msgs</build_depend>
   <build_depend>std_srvs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>image_transport</run_depend>
   <run_depend>nav_msgs</run_depend>
@@ -38,5 +40,7 @@
   <run_depend>dynamixel_controllers</run_depend>
   <run_depend>robotino_msgs</run_depend>
   <run_depend>squirrel_view_controller_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
 
 </package>

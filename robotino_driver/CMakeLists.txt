@@ -10,11 +10,11 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   roscpp
   std_srvs
-)
-
-include_directories(
-  include/robotino_driver
-  ${catkin_INCLUDE_DIRS}
+  dynamixel_controllers
+  dynamixel_msgs
+  geometry_msgs
+  sensor_msgs
+  std_msgs
 )
 
 list(APPEND CMAKE_MODULE_PATH "/usr/local/robotino/api2/cmake")
@@ -22,7 +22,12 @@ find_package(RobotinoAPI2 REQUIRED)
 
 catkin_package(
  INCLUDE_DIRS include
- CATKIN_DEPENDS nav_msgs robotino_msgs std_srvs
+ CATKIN_DEPENDS nav_msgs robotino_msgs std_srvs dynamixel_controllers dynamixel_msgs geometry_msgs image_transport pcl_conversions pcl_ros sensor_msgs std_msgs tf
+)
+
+include_directories(
+  include/robotino_driver
+  ${catkin_INCLUDE_DIRS}
 )
 
 add_executable(
@@ -61,14 +66,14 @@ target_link_libraries(robotino_pan_controller ${catkin_LIBRARIES})
 add_dependencies(robotino_pan_controller robotino_msgs_gencpp)
 
 add_executable(
-  robotino_view_controller
+  squirrel_view_controller
   #src/view_controller_node.cpp
   src/ViewController.cpp
 )
-add_dependencies(robotino_view_controller squirrel_view_controller_msgs_gencpp)
+add_dependencies(squirrel_view_controller squirrel_view_controller_msgs_gencpp)
 
 target_link_libraries(
-  robotino_view_controller
+  squirrel_view_controller
   ${catkin_LIBRARIES}
 )
 
