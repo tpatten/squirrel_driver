@@ -90,13 +90,6 @@ public:
 
 };
 
-//not used for now
-/*class Proximity : public Driver{
-
-public:
-    virtual std::vector<double>* readData();
-
-};*/
 
 class Wrist : public Driver{
 
@@ -116,7 +109,7 @@ public:
         WristDataNum
     };
 
-    Wrist();
+    Wrist(const std::string& portname);
     ~Wrist();
 
     virtual std::vector<double>& readData();

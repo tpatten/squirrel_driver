@@ -1,0 +1,45 @@
+# KCL Metahand action for controlling the hand (opening, closing etc.)
+# author: Michael Zillich <michael.zillich@tuwien.ac.at>, Sept 2016
+
+uint8 CMD_OPEN  = 0
+uint8 CMD_CLOSE = 1
+uint8 CMD_MOVE_FINGER = 2
+uint8 GRASP_TYPE_STANDARD = 0
+
+# goal definition
+
+# Which action to perform (OPEN, CLOSE, ..)
+uint8 command
+
+# Type of grasp to perform (STANDARD, PINCE, POWER etc.)
+# Only used for CMD_CLOSE
+uint8 grasp_type
+
+# Which finger to move: (only used with CMD_MOVE_FINGER)
+#  LEFT_PALM     = 0;  // node id 1, velocity + is downwards
+#  RIGHT_PALM    = 1;  // node id 3, velocity + is upwards
+#  RIGHT_FINGER  = 2;  // node id 5, velocity + is outwards
+#  MIDDLE_FINGER = 3;  // node id 7, velocity + is outwards
+#  LEFT_FINGER   = 4;  // node id 9, velocity + is inwards
+uint8 finger
+
+# Position to move to in deg (only used with CMD_MOVE_FINGER)
+float32 position
+
+# Maximum force of any motor in the hand, in a fictional unit, i.e. [0, 1]
+# Essentially this defines how much of the maximum allowed current is used
+# in the joint motors.
+float32 force_limit
+
+---
+
+# result definition
+
+# forces excerted by the 3 fingers: right, middle, left
+float32[] holding_forces
+
+---
+
+# feedback definition
+
+string current_phase

@@ -9,6 +9,13 @@
 //comment below line to disable wrist sensor (in case it is not plugged in)
 #define _FT17_AVAIL
 
+enum Param
+{
+	ArduinoPort,
+	FT17Port,
+	ParamNum
+};
+
 
 class SensingNode{
 
@@ -26,7 +33,7 @@ class SensingNode{
     std::string name;
 
 public:
-    SensingNode(const std::string& name, const std::string& portname);
+    SensingNode(const std::string& name, const std::vector<std::string>& portnames);
     ~SensingNode();
 
     void run(); //this function will make the node loop as long as ros::ok() is true

@@ -13,12 +13,13 @@ This squirrel_driver is composed of two parts, the ROS node (node.cpp/.h) and th
 2. To run the sensor: 
   Prerequisites
 - Connect the ethernet cable from the PC to the FT17 sensor.
-- Set a manual IP in the 192.168.1.1/24 subnet, e.g. 192.168.1.100 with a subnet mask 255.255.255.0
+- Set a manual IP in the 192.168.1.1/24 subnet, e.g. 192.168.1.100cd D with a subnet mask 255.255.255.0
 - Install the FT17_driver as described above
 - Check that the port name of Atduino board corresponds to the port name defined in main.cpp, line 23.
 
 Execute:
-  rosrun squirrel_sensing_node sensing
+  rosrun squirrel_sensing_node sensing [arduino_port_name] [ft17_port_name]
+For example, rosrun squirrel_sensing_node sensing dev/tty0 eth0
   Two topics are published:
     /wrist  - that publishes [Fx, Fy, Fz, Mx, My, Mz]
     /fingertips - that publishes [Fz1, Mx1, My1, Fz2, Mx2, My2, Fz3, Mx3, My3, Dd1, Dp1, Dd2, Dp2, Dd3, Dp3], Dp stands for pad proximity sensor, and Dd stands for distal proximity sensor. Force is measured in N, moments in N/m, and distance in mm.
