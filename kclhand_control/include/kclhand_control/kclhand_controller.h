@@ -211,7 +211,7 @@ private:
    */
   void startMotor();
   /**
-   * Stop motors: disable nodes.
+   * Stop motor: disable node.
    */
   void stopMotor();
   /**
@@ -262,6 +262,7 @@ private:
 
 public:
   JointController(ros::NodeHandle &nh, void *epos_handle, int num);
+  ~JointController();
   /**
    * Update position in [rad] from raw sensor value.
    */
@@ -325,6 +326,10 @@ public:
    * And stop, once reached.
    */
   void stopMoveToTarget();
+  /**
+   * Resets motor
+   */
+  void reset();
 };
 
 class KCLHandController

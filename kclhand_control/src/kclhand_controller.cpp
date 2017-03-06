@@ -88,6 +88,12 @@ JointController::JointController(ros::NodeHandle &nh, void *epos_handle, int num
   startMotor();
 }
 
+JointController::~JointController()
+{
+  stopMotor();
+  reset();
+}
+
 void JointController::getErrors()
 {
   // number of actual errors
@@ -150,6 +156,13 @@ void JointController::stopMotor()
   unsigned int error_code;
   if(VCS_SetDisableState(epos_handle_, node_id_, &error_code) == 0)
     throw runtime_error("Maxon Motor EPOS: failed to disable node");
+}
+
+void JointController::reset()
+{
+  unsigned int error_code;
+  if(VCS_ResetDevice(epos_handle_, node_id_, &error_code) == 0)
+    throw runtime_error("Maxon Motor EPOS: failed to reset node");
 }
 
 void JointController::activateVelocityMode()
@@ -325,6 +338,11 @@ void KCLHandController::actuateHandCB(const kclhand_control::ActuateHandGoalCons
       bool reached = false;
       succeeded = moveFinger(goal->finger, 1., goal->position, reached);
     }
+  }
+  else if(goal->command == 3)  // HACK: make a constant
+  {
+    for(size_t i = 0; i < joints_.size(); i++)
+      joints_[i].reset();
   }
   else
   {
