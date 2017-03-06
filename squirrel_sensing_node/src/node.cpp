@@ -31,6 +31,11 @@ SensingNode::SensingNode(const std::string& name, const std::vector<std::string>
     //proximity_pub=(node.advertise<std_msgs::Float64MultiArray>("pro",1));    //1 is maximum number of messages sent before going in overflow
     wrist_pub=(node.advertise<std_msgs::Float64MultiArray>("wrist",1));    //1 is maximum number of messages sent before going in overflow
 
+    torqPerc_pub=(node.advertise<std_msgs::Float64MultiArray>("torque_percs",1));    //1 is maximum number of messages sent before going in overflow
+
+    for(int i=0;i<3;i++)
+        dominantTorques.push_back(0.0); //initialise dominant torque vector
+
     loop_rate=new Rate(pause);
 
     sensor=new Tactile(portnames[ArduinoPort]);      //the port name is given from command line
@@ -68,12 +73,25 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
         //proximity and tactile
         vector<double> &vals=sensor->readData();
 
+        vector<double> &torqPerc=((Tactile*)sensor)->readTorquePerc();   //obtain percentages
+
+        pickDominants(torqPerc);  //this can be copied blindly in the msg
+
         std_msgs::Float64MultiArray msg;
         msg.data.resize(vals.size());
 
         //fill in msg
         for(int i=0;i<vals.size();i++){
             msg.data[i]=vals.at(i);
+        }
+
+        //torque percs
+        std_msgs::Float64MultiArray msgTorq;
+        msgTorq.data.resize(dominantTorques.size());
+
+        //fill in msg
+        for(int i=0;i<dominantTorques.size();i++){
+            msgTorq.data[i]=dominantTorques.at(i);
         }
 
 #ifdef _FT17_AVAIL
@@ -91,6 +109,7 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
 
         //ROS_INFO("Broadcasting...");
         tactile_pub.publish(msg);
+        torqPerc_pub.publish(msgTorq);
 #ifdef _FT17_AVAIL
         wrist_pub.publish(msgWri);
 #endif
@@ -98,6 +117,22 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
         ros::spinOnce();
 
         loop_rate->sleep();
+    }
+
+}
+
+void SensingNode::pickDominants(vector<double> &torqPerc)
+{
+    for(int i=0,j=0;i<torqPerc.size();i+=2,++j)
+    {
+        if(torqPerc[i]>torqPerc[i+1])
+        {
+            dominantTorques[j]=torqPerc[i];
+        }
+        else
+        {
+            dominantTorques[j]=torqPerc[i+1];
+        }
     }
 
 }

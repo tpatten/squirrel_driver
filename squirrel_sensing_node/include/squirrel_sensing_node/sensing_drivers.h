@@ -69,6 +69,7 @@ class Tactile : public Driver{
     static const int NUM_BIAS_VALS; //number of values to accumulate for calculating the bias
     static const double STATIONARY_TACTILE_THREASHOLD; //voltage threashold, if passed data is stationary
     static const double STATIONARY_PROXIMITY_THREASHOLD; //voltage threashold, if passed data is stationary
+    static const int NUM_FLATTENING_TORQUES; //number of values to be used for calculating the mean for flattening the torque
 
     std::vector<double> divider; //vecotr containing voltage divider numbers read from file
     std::vector<double> history_val_tact; //sum previous voltage values
@@ -76,17 +77,27 @@ class Tactile : public Driver{
     std::vector<double> history_val_prox; //sum previous voltage values
     std::vector<std::queue<double>* > history_prox; //list of previous voltage values
     std::vector<std::vector<double> > mean; //first 10 values used for calculating the bias
+    std::vector<double> maximumTorque;  //vector containing the maximum toque values for tactile sensor
+    std::vector<double> torque_perc;    //pecrentages of torque values
+
+    double m_accumulator_t1;    //accumulator to calculate the average flattening number for torque 1
+    double m_accumulator_t2;    //as above for torque 2
+    int m_divider;              //counts the number of samples read for flattening the torque
 
     double bias(const int idx,const double val);
     void convertTact(std::vector<double>& num,int idx);
     double convertProx(const double num);
     bool isStationaryTact(const double val,const int idx);
     bool isStationaryProx(const double val,const int idx);
+    void flatteningProcessing(std::vector<double>& num,const int idx);    //caluclates accumulator and dividers to flatten the torques
+    void flattenTorque(std::vector<double>& num,int idx);
+    void calculateTorquePerc(std::vector<double>& num);
 
 public:
     Tactile(const std::string& portname);
     ~Tactile();
     virtual std::vector<double>& readData();
+    std::vector<double>& readTorquePerc();
 
 };
 

@@ -93,14 +93,14 @@ const double Tactile::A31_TACT=-12.65;
 const double Tactile::A32_TACT=0;
 const double Tactile::A33_TACT=27.52;
 
-//maximums of calibration curves in volts for tactile
+//maximums of calibration curves in volts for tactile //NEVER set them to 0 or you will get a NaN
 const double Tactile::MAX1_V1=0.35;
 const double Tactile::MAX1_V2=0.42;
 const double Tactile::MAX1_V3=3.56;
 
 const double Tactile::MAX2_V1=0.18;
 const double Tactile::MAX2_V2=0.25;
-const double Tactile::MAX2_V3=0;
+const double Tactile::MAX2_V3=1;
 
 const double Tactile::MAX3_V1=0.15;
 const double Tactile::MAX3_V3=-0.12;
@@ -113,11 +113,21 @@ const double Tactile::C_PROX=-17.28;
 //calibration maximum for proximity
 const double Tactile::MAX_PROX=2.5;
 
+//number of values used to calculate average flattening value
+const int Tactile::NUM_FLATTENING_TORQUES=10;
+
 
 
 Tactile::Tactile(const std::string& portname){
 
     m_portname=portname;
+    m_accumulator_t1=0;
+    m_accumulator_t2=0;
+    m_divider=1;
+    for(int i=0;i<(3*2);++i)
+    {
+        torque_perc.push_back(0.0); //3 axis x 2 values set to 0
+    }
 
     //initialising history
     for(int i=0;i<NUM_TACT;i++)
@@ -138,18 +148,32 @@ Tactile::Tactile(const std::string& portname){
     string filepath=ros::package::getPath("squirrel_sensing_node");
     filepath+="/tactile_calibration.ini";
     ifstream config(filepath.c_str());
+    bool isReadMaximums=false;  //if more items will be added to the ini file, this will became an enum
     if(config.good()){
         string line;
         int sensId=0;
         while(getline(config,line) && sensId<=NUM_VALS){    //one divider per sensor reading
-            if(line.length()!=0 && line.at(0)!='#'){ //if line is not a comment or blank
+
+            if(line.at(0)=='@') //this caracther changes the parsing
+            {
+              isReadMaximums=true;
+            }
+
+            if(!isReadMaximums && line.length()!=0 && line.at(0)!='#' && line.at(0)!='@'){ //if line is not a comment or blank
                 istringstream iss(line);
                 double val;
-                iss >> val;
+                iss >> val;                         //parsing dividers
                 divider.push_back(val);
                 sensId++;
             }
+            else if(isReadMaximums && line.length()!=0 && line.at(0)!='#' && line.at(0)!='@'){ //if line is not a comment or blank
+                istringstream iss(line);
+                double val;                         //parsing maximums
+                iss >> val;
+                maximumTorque.push_back(val);
+            }
         }
+
     }else{
         ROS_INFO("ERROR: Could not locate file config.ini, assumed no dividers (==1)");
         for(int i=0;i<NUM_TACT;++i){
@@ -228,6 +252,23 @@ double Tactile::bias(const int idx,const double val)
     return (accumulator/mean[idx].size());
 }
 
+void Tactile::flatteningProcessing(vector<double>& reads,const int idx)
+{
+    if(m_divider==NUM_FLATTENING_TORQUES)
+    {
+        flattenTorque(reads,idx);      //flattens torque values
+        return;
+    }
+
+    m_accumulator_t1+=reads[idx+1];   // 3 is number of values per axis
+    m_accumulator_t2+=reads[idx+2];   // +1 and +2 are to select torque 1 and 2
+
+    if(idx==6)  //if we are processing the last triplet (6+2=9 which is the last triplet) then increment the counter
+    {
+        ++m_divider;
+    }
+}
+
 
 std::vector<double>& Tactile::readData(){
 
@@ -249,6 +290,7 @@ std::vector<double>& Tactile::readData(){
    //testing
 #endif
 
+    //parsing from arduino
     bool done=false;
     int readingNum=0;
     string st_buf;
@@ -279,9 +321,7 @@ std::vector<double>& Tactile::readData(){
 
     }//for stuff in buff
 
-    //for(int i = 0; i < NUM_VALS; i++)   // HACK: Michael
-    //    ROS_INFO("%6lf ", res->at[i]);
-    //ROS_INFO("\n");
+    //parsing from arduino - END
 
 
     for(int i=0;i<NUM_TACT;i++){//biasing to calibration
@@ -295,14 +335,17 @@ std::vector<double>& Tactile::readData(){
 
         if(!isStationaryTact(res->at(i),i)){      //if values changed
           convertTact(*res,i);     //we pass 3 values at time (that is why the for increments i+3)
+          flatteningProcessing(*res,i);
         }else{
-        res->at(i)=0;
+            res->at(i)=0;
         }//if not stationary
 
 
         //cout << res->at(i) << " " << res->at(i+1) << " " << res->at(i+2) << " ";
     }
    // cout << endl ;
+
+    calculateTorquePerc(*res);  //fills in the torque perc vector
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
         res->at(i)= res->at(i)*((divider[i])/MAX_PROX); //calibartion curve maximum is accounted
@@ -365,6 +408,16 @@ void Tactile::convertTact(vector<double>& num,int idx){
 
 }
 
+//flatten torque values using the number initialised at startup
+void Tactile::flattenTorque(vector<double>& num,int idx)
+{
+    double flattening_t1= m_accumulator_t1/m_divider;
+    double flattening_t2= m_accumulator_t2/m_divider;
+
+    num.at(idx+1)-=flattening_t1;    //first torque
+    num.at(idx+2)-=flattening_t2;    //second torque
+}
+
 //convert volts into distance
 double Tactile::convertProx(const double num){
 
@@ -377,6 +430,28 @@ double Tactile::convertProx(const double num){
     return (-((A_PROX*pow(val,B_PROX))+C_PROX));
 
 
+}
+
+void Tactile::calculateTorquePerc(vector<double>& num)
+{
+
+  for(int j=0,i=0;j<9;j+=3,i+=2)    //TODO 9 is the first proximity value
+  {
+      torque_perc[i]=num.at(j+1);
+      torque_perc[i+1]=num.at(j+2);
+  }
+
+
+for(int i=0;i<torque_perc.size();++i)
+  {
+      torque_perc[i]=(torque_perc.at(i)/maximumTorque.at(i))*100;
+  }
+
+}
+
+vector<double>& Tactile::readTorquePerc()
+{
+    return torque_perc;
 }
 
 //----------------------WRIST-----------------------
