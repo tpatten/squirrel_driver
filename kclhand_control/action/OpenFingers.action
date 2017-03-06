@@ -1,0 +1,22 @@
+# KCL Metahand action for opening fingers 
+# author: Michael Zillich <michael.zillich@tuwien.ac.at>, Sept 2016
+
+# goal definition
+
+# Maximum force of any motor in the hand, in a fictional unit, i.e. [0, 1]
+# Essentially this defines how much of the maximum allowed current is used
+# in the joint motors.
+float32 force_limit
+
+---
+
+# result definition
+
+# forces excerted by the 3 fingers: right, middle, left
+std_msgs/Float32MultiArray holding_forces
+
+---
+
+# feedback definition
+
+string current_phase

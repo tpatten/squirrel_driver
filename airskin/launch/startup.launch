@@ -1,8 +1,16 @@
 <launch>
-  <arg name="device" default="/dev/ttyAirskin" />
+
+  <arg name="device" default="/dev/ttyUSB0" />
+
+  <!-- Actual AirSkin node (checks set of pads and publishes arm_bumper)  -->
   <node pkg="airskin" type="airskin" name="airskin" output="screen">
     <param name="device" value="$(arg device)" />
   </node>
 
+  <!-- Plays a sound when bumped -->
   <node pkg="airskin" type="bumper_sound.py" name="bumper_sound" output="screen" />
+
+  <!-- The sound player -->
+  <node name="soundplay_node" pkg="sound_play" type="soundplay_node.py" />
+
 </launch>
