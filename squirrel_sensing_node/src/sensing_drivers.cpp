@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
+#include <assert.h>
 #include <ros/package.h>
 #include <ros/ros.h>
 
@@ -121,13 +122,17 @@ const int Tactile::NUM_FLATTENING_TORQUES=10;
 Tactile::Tactile(const std::string& portname){
 
     m_portname=portname;
-    m_accumulator_t1=0;
-    m_accumulator_t2=0;
-    m_divider=1;
+    m_divider=0;	//we shall never divide by 0
     for(int i=0;i<(3*2);++i)
     {
         torque_perc.push_back(0.0); //3 axis x 2 values set to 0
+		m_accumulator_fing.push_back(0.0);	//stores numerators of the mean for each finger and torque sensor
     }
+
+    //sensor is uninitialised at the beginning
+    m_isBiased=false;
+    m_hasHistoryTact=false;
+    m_hasHistoryProx=false;
 
     //initialising history
     for(int i=0;i<NUM_TACT;i++)
@@ -208,6 +213,7 @@ bool Tactile::isStationaryTact(const double val,const int idx){
     if(history_tact.at(idx)->size()<NUM_HISTORY_VALS){ //if we have not enough values yet
         return false;
     }
+    m_hasHistoryTact=true;
 
     history_val_tact.at(idx)-=history_tact.at(idx)->front(); //subtract oldest value
     history_tact.at(idx)->pop();
@@ -224,6 +230,7 @@ bool Tactile::isStationaryProx(const double val,const int idx){
     if(history_prox.at(idx)->size()<NUM_HISTORY_VALS){ //if we have not enough values yet
         return false;
     }
+    m_hasHistoryProx=true;
 
     history_val_prox.at(idx)-=history_prox.at(idx)->front(); //subtract oldest value
     history_prox.at(idx)->pop();
@@ -242,6 +249,7 @@ double Tactile::bias(const int idx,const double val)
     if(mean[idx].size()<NUM_BIAS_VALS){
         mean[idx].push_back(val);
     }
+    m_isBiased=true;
 
     double accumulator=0.0;
 
@@ -252,21 +260,40 @@ double Tactile::bias(const int idx,const double val)
     return (accumulator/mean[idx].size());
 }
 
-void Tactile::flatteningProcessing(vector<double>& reads,const int idx)
+bool Tactile::isSensorInit() const
 {
-    if(m_divider==NUM_FLATTENING_TORQUES)
-    {
-        flattenTorque(reads,idx);      //flattens torque values
-        return;
-    }
 
-    m_accumulator_t1+=reads[idx+1];   // 3 is number of values per axis
-    m_accumulator_t2+=reads[idx+2];   // +1 and +2 are to select torque 1 and 2
+    return ( m_isBiased && m_hasHistoryProx && m_hasHistoryTact );
+}
 
-    if(idx==6)  //if we are processing the last triplet (6+2=9 which is the last triplet) then increment the counter
+void Tactile::flatteningProcessing(vector<double>& reads)
+{
+
+    if(m_divider<NUM_FLATTENING_TORQUES)  //if we have less than NUM_FLATTENING readings, accumulate
     {
         ++m_divider;
+		for(int i=0, j=0;i<NUM_TACT;i+=3, j+=2){
+			m_accumulator_fing[j]+=reads[i+1];   // 3 is number of values per axis
+			m_accumulator_fing[j+1]+=reads[i+2];   // +1 and +2 are to select torque 1 and 2
+            //cout << " j " << j << " m_accumulator_fing[j] " << m_accumulator_fing[j] << " m_accumulator_fing[j+1] " << m_accumulator_fing[j+1] << endl;
+		}
+        //cout << " m_divider " << m_divider << endl;
     }
+	else	//else flatten the torque
+	{
+	    flattenTorque(reads);      //flattens torque values
+	}
+}
+
+//flatten torque values using the number initialised at startup
+void Tactile::flattenTorque(vector<double>& num)
+{
+	assert(m_divider!=0);	//never divide by 0
+	for(int i=0, j=0;i<NUM_TACT;i+=3, j+=2){
+		num.at(i+1)-=(m_accumulator_fing[j]/m_divider);    //first torque
+		num.at(i+2)-=(m_accumulator_fing[j+1]/m_divider);    //second torque
+        //cout << " num.at(i+1) " << num.at(i+1) << " num.at(i+2) " << num.at(i+2) << " mean[j] " << m_accumulator_fing[j]/m_divider << " mean[j+1] " << m_accumulator_fing[j+1]/m_divider << endl;
+	}
 }
 
 
@@ -335,7 +362,6 @@ std::vector<double>& Tactile::readData(){
 
         if(!isStationaryTact(res->at(i),i)){      //if values changed
           convertTact(*res,i);     //we pass 3 values at time (that is why the for increments i+3)
-          flatteningProcessing(*res,i);
         }else{
             res->at(i)=0;
         }//if not stationary
@@ -343,9 +369,14 @@ std::vector<double>& Tactile::readData(){
 
         //cout << res->at(i) << " " << res->at(i+1) << " " << res->at(i+2) << " ";
     }
-   // cout << endl ;
+    //cout << endl ;
+    //we can flatten the torque only for an initialised sensor
+    if(isSensorInit())
+    {
+        flatteningProcessing(*res);
 
-    calculateTorquePerc(*res);  //fills in the torque perc vector
+        calculateTorquePerc(*res);  //fills in the torque perc vector
+    }
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
         res->at(i)= res->at(i)*((divider[i])/MAX_PROX); //calibartion curve maximum is accounted
@@ -408,15 +439,7 @@ void Tactile::convertTact(vector<double>& num,int idx){
 
 }
 
-//flatten torque values using the number initialised at startup
-void Tactile::flattenTorque(vector<double>& num,int idx)
-{
-    double flattening_t1= m_accumulator_t1/m_divider;
-    double flattening_t2= m_accumulator_t2/m_divider;
 
-    num.at(idx+1)-=flattening_t1;    //first torque
-    num.at(idx+2)-=flattening_t2;    //second torque
-}
 
 //convert volts into distance
 double Tactile::convertProx(const double num){
@@ -442,7 +465,7 @@ void Tactile::calculateTorquePerc(vector<double>& num)
   }
 
 
-for(int i=0;i<torque_perc.size();++i)
+  for(int i=0;i<torque_perc.size();++i)
   {
       torque_perc[i]=(torque_perc.at(i)/maximumTorque.at(i))*100;
   }

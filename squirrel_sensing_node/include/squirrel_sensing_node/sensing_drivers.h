@@ -79,18 +79,21 @@ class Tactile : public Driver{
     std::vector<std::vector<double> > mean; //first 10 values used for calculating the bias
     std::vector<double> maximumTorque;  //vector containing the maximum toque values for tactile sensor
     std::vector<double> torque_perc;    //pecrentages of torque values
+	std::vector<double> m_accumulator_fing;	//numerators of the mean
 
-    double m_accumulator_t1;    //accumulator to calculate the average flattening number for torque 1
-    double m_accumulator_t2;    //as above for torque 2
     int m_divider;              //counts the number of samples read for flattening the torque
+    //those three guys are used to discriminate which components of the driver are initialised
+    bool m_isBiased;
+    bool m_hasHistoryTact;
+    bool m_hasHistoryProx;
 
     double bias(const int idx,const double val);
     void convertTact(std::vector<double>& num,int idx);
     double convertProx(const double num);
     bool isStationaryTact(const double val,const int idx);
     bool isStationaryProx(const double val,const int idx);
-    void flatteningProcessing(std::vector<double>& num,const int idx);    //caluclates accumulator and dividers to flatten the torques
-    void flattenTorque(std::vector<double>& num,int idx);
+    void flatteningProcessing(std::vector<double>& num);    //calculates accumulator and dividers to flatten the torques
+    void flattenTorque(std::vector<double>& num);
     void calculateTorquePerc(std::vector<double>& num);
 
 public:
@@ -98,7 +101,7 @@ public:
     ~Tactile();
     virtual std::vector<double>& readData();
     std::vector<double>& readTorquePerc();
-
+    bool isSensorInit() const;  //returns true if all the components of the sensor are initialised
 };
 
 
