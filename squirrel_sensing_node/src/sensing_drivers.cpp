@@ -373,9 +373,10 @@ std::vector<double>& Tactile::readData(){
     //we can flatten the torque only for an initialised sensor
     if(isSensorInit())
     {
-        flatteningProcessing(*res);
+    	std::vector<double> valuesCopy(*res);
+        flatteningProcessing(valuesCopy);
 
-        calculateTorquePerc(*res);  //fills in the torque perc vector
+        calculateTorquePerc(valuesCopy);  //fills in the torque perc vector
     }
 
     for(int i=NUM_TACT;i<NUM_VALS;i++){//biasing to calibration distance
