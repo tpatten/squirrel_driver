@@ -374,6 +374,7 @@ std::vector<double>& Tactile::readData(){
     if(isSensorInit())
     {
     	std::vector<double> valuesCopy(*res);
+
         flatteningProcessing(valuesCopy);
 
         calculateTorquePerc(valuesCopy);  //fills in the torque perc vector
