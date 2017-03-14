@@ -17,6 +17,7 @@
 #include <squirrel_view_controller_msgs/FixateOnPoseAction.h>
 #include "std_msgs/Float64.h"
 #include <dynamixel_controllers/SetSpeed.h>
+#include <dynamixel_controllers/SetRelativePosition.h>
 #include <geometry_msgs/PointStamped.h>
 #include <tf/transform_listener.h>
 
@@ -33,6 +34,8 @@ ViewController::ViewController(std::string name)
   as_.start();
   pan_speed_client_ = nh_.serviceClient<dynamixel_controllers::SetSpeed>("/pan_controller/set_speed", true);
   tilt_speed_client_ = nh_.serviceClient<dynamixel_controllers::SetSpeed>("/tilt_controller/set_speed", true);
+  rel_tilt_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/tilt_controller/set_relative_position", true);
+  rel_pan_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/pan_controller/set_relative_position", true);
   rel_pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/relative_command", 0, false);
   rel_tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/relative_command", 0, false);
   look_image_srv_ = nh_.advertiseService("/view_controller/look_at_image_position", &ViewController::lookAtImagePosition, this);
@@ -244,14 +247,34 @@ bool ViewController::lookAtImagePosition(squirrel_view_controller_msgs::LookAtIm
   }
 }
 
+bool ViewController::callServoService(ros::ServiceClient *client, dynamixel_controllers::SetRelativePosition srv)
+{
+  if (client->call(srv))
+  {
+    ROS_INFO("goal reached: %d", srv.response.goal_reached);
+    ROS_INFO("min_max_limit reached: %d", srv.response.min_max_limit_reached);
+    if (srv.response.goal_reached)
+      return true;
+  }
+  else
+  {
+    ROS_ERROR("Failed to call service set_relative_position");
+    return false;
+  }
+}
+
 bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPosition::Request &req,
                                     squirrel_view_controller_msgs::LookAtPosition::Response &res)
 {
   std::vector<double> v;
   v = pose2PanTilt(req.target);
+  //moveRelativePanTilt(v[0], v[1]);
+  dynamixel_controllers::SetRelativePosition srv;
+  srv.request.position = v[0];
+  callServoService(&rel_pan_client_, srv);
+  srv.request.position = v[1];
+  callServoService(&rel_tilt_client_, srv);
 
-  
-  return false;
 }
 
 int main(int argc, char **argv)

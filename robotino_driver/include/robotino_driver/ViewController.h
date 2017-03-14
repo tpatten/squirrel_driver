@@ -57,6 +57,8 @@ protected:
 
   ros::ServiceClient pan_speed_client_;
   ros::ServiceClient tilt_speed_client_;
+  ros::ServiceClient rel_pan_client_;
+  ros::ServiceClient rel_tilt_client_;
 
   float default_pan_, default_tilt_;
   float pan_, tilt_;
@@ -77,6 +79,7 @@ protected:
 public:
   void executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal);
   void init();
+  bool callServoService(ros::ServiceClient *client, dynamixel_controllers::SetRelativePosition srv);
 
   ViewController(std::string name);
   ~ViewController();
