@@ -33,8 +33,43 @@ ViewController::ViewController(std::string name)
   as_.start();
   pan_speed_client_ = nh_.serviceClient<dynamixel_controllers::SetSpeed>("/pan_controller/set_speed", true);
   tilt_speed_client_ = nh_.serviceClient<dynamixel_controllers::SetSpeed>("/tilt_controller/set_speed", true);
-  pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/relative_command", 0, false);
-  tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/relative_command", 0, false);
+  rel_pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/relative_command", 0, false);
+  rel_tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/relative_command", 0, false);
+  look_image_srv_ = nh_.advertiseService("/view_controller/look_at_image_position", &ViewController::lookAtImagePosition, this);
+  look_srv_ = nh_.advertiseService("/view_controller/look_at_position", &ViewController::lookAtPosition, this);
+  fixate_pantilt_srv_ =  nh_.advertiseService("/view_controller/fixate_pantilt", &ViewController::fixatePanTilt, this);
+  clear_srv_ = nh_.advertiseService("/view_controller/clear_fixation", &ViewController::clearFixation, this);
+  reset_srv_ = nh_.advertiseService("/view_controller/reset", &ViewController::resetPosition, this);
+}
+
+std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose)
+{
+   std::vector<double> v;
+   geometry_msgs::PointStamped point, pan, tilt;
+   
+   point.header.stamp = ros::Time::now();
+   point.header.frame_id = pose.header.frame_id;
+   point.point.x = pose.pose.position.x;
+   point.point.y = pose.pose.position.y;
+   point.point.z = pose.pose.position.z;
+
+  try
+  {
+    ros::Time now = ros::Time(0);
+    listener_.waitForTransform("/pan_link", point.header.frame_id, now, ros::Duration(3.0));
+    listener_.waitForTransform("/tilt_link", point.header.frame_id, now, ros::Duration(3.0));
+    listener_.transformPoint("/pan_link", now, point, point.header.frame_id, pan);
+    listener_.transformPoint("/tilt_link", now, point, point.header.frame_id, tilt);
+  }
+  catch (tf::TransformException ex)
+  {
+    ROS_ERROR("%s", ex.what());
+    ros::Duration(1.0).sleep();
+  }
+  v.push_back(atan2(pan.point.y, pan.point.x));
+  v.push_back(-atan2(tilt.point.y, tilt.point.x));
+
+   return v;
 }
 
 void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal)
@@ -42,57 +77,24 @@ void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPose
   // helper variables
   ros::Rate r(25);
   bool success = true;
+  std::vector<double> v;
 
-  if (as_.isPreemptRequested() || !ros::ok() || !goal->enable)
+  while (true)
   {
-    ROS_INFO("%s: Preempted", action_name_.c_str());
-    // set the action state to preempted
-    as_.setPreempted();
-    success = false;
-    return;
-  }
 
-  point.header.stamp = ros::Time::now();
-  point.header.frame_id = goal->pose.header.frame_id;
-  point.point.x = goal->pose.pose.position.x;
-  point.point.y = goal->pose.pose.position.y;
-  point.point.z = goal->pose.pose.position.z;
+    if (as_.isPreemptRequested() || !ros::ok() || !goal->enable)
+    {
+      ROS_INFO("%s: Preempted", action_name_.c_str());
+      // set the action state to preempted
+      as_.setPreempted();
+      success = false;
+      return;
+    }
 
-  try
-  {
-    ros::Time now = ros::Time(0);
-    listener.waitForTransform("/pan_link", point.header.frame_id, now, ros::Duration(3.0));
-    listener.waitForTransform("/tilt_link", point.header.frame_id, now, ros::Duration(3.0));
-    listener.transformPoint("/pan_link", now, point, point.header.frame_id, pan);
-    listener.transformPoint("/tilt_link", now, point, point.header.frame_id, tilt);
+    v = pose2PanTilt(goal->pose);
+    moveRelativePanTilt(v[0], v[1]);
+    r.sleep();
   }
-  catch (tf::TransformException ex)
-  {
-    ROS_ERROR("%s", ex.what());
-    ros::Duration(1.0).sleep();
-  }
-
-  panMsg.data = atan2(pan.point.y, pan.point.x);
-  tiltMsg.data = -atan2(tilt.point.y, tilt.point.x);
-
-  if (fabs(panMsg.data) > 0.001)
-  {
-    pan_pub_.publish(panMsg);
-  }
-  else
-  {
-    ROS_DEBUG("Relative pan angle: %f (rad)", panMsg.data);
-  }
-  if (fabs(tiltMsg.data) > 0.001)
-  {
-    tilt_pub_.publish(tiltMsg);
-  }
-  else
-  {
-    ROS_DEBUG("Relative tilt angle: %f (rad)", tiltMsg.data);
-  }
-
-  r.sleep();
 }
 
 void ViewController::movePanTilt(float pan, float tilt)
@@ -105,6 +107,26 @@ void ViewController::movePanTilt(float pan, float tilt)
     pan_pub_.publish(panMsg);
     tilt_pub_.publish(tiltMsg);
   }
+}
+
+void ViewController::moveRelativePanTilt(float pan, float tilt)
+{
+  std_msgs::Float64 panMsg, tiltMsg;
+  panMsg.data = pan;
+  tiltMsg.data = tilt;
+  if (std::isfinite(panMsg.data) && std::isfinite(tiltMsg.data))
+  {
+    if (fabs(panMsg.data) > 0.001)
+      pan_pub_.publish(panMsg);
+    else
+      ROS_DEBUG("Relative pan angle: %f (rad)", panMsg.data);
+    
+    if (fabs(tiltMsg.data) > 0.001)
+      tilt_pub_.publish(tiltMsg);
+    else
+      ROS_DEBUG("Relative tilt angle: %f (rad)", tiltMsg.data);
+  }
+  return;
 }
 
 void ViewController::panStateCallback(const dynamixel_msgs::JointState::ConstPtr &panStateMsg)
@@ -157,16 +179,16 @@ bool ViewController::resetPosition(std_srvs::Empty::Request &req, std_srvs::Empt
   return true;
 }
 
-bool ViewController::fixatePanTilt(robotino_msgs::FixatePanTilt::Request &req,
-                                   robotino_msgs::FixatePanTilt::Response &res)
+bool ViewController::fixatePanTilt(squirrel_view_controller_msgs::FixatePanTilt::Request &req,
+                                   squirrel_view_controller_msgs::FixatePanTilt::Response &res)
 {
   if (who_fixed_it.empty())
   {
     joint_mutex_.lock();
     movePanTilt(req.pan, req.tilt);
     joint_mutex_.unlock();
-    if (!req.why.empty())
-      who_fixed_it = req.why;
+    if (!req.reason.empty())
+      who_fixed_it = req.reason;
     else
       who_fixed_it = "*";
     return true;
@@ -178,22 +200,22 @@ bool ViewController::fixatePanTilt(robotino_msgs::FixatePanTilt::Request &req,
   }
 }
 
-bool ViewController::clearFixation(robotino_msgs::ClearFixation::Request &req,
-                                   robotino_msgs::ClearFixation::Response &res)
+bool ViewController::clearFixation(squirrel_view_controller_msgs::ClearFixation::Request &req,
+                                   squirrel_view_controller_msgs::ClearFixation::Response &res)
 {
   if (!who_fixed_it.empty())
   {
-    std::string why = req.why;
-    if (why.empty())
-      why = "*";
-    if (who_fixed_it == req.why)
+    std::string reason = req.reason;
+    if (reason.empty())
+      reason = "*";
+    if (who_fixed_it == req.reason)
     {
       who_fixed_it = "";
       return true;
     }
     else
     {
-      ROS_INFO("view was fixed by '%s', but you are '%s', ignoring", who_fixed_it.c_str(), req.why.c_str());
+      ROS_INFO("view was fixed by '%s', but you are '%s', ignoring", who_fixed_it.c_str(), req.reason.c_str());
       return false;
     }
   }
@@ -202,6 +224,34 @@ bool ViewController::clearFixation(robotino_msgs::ClearFixation::Request &req,
     ROS_INFO("view was not fixed, ignoring");
     return false;
   }
+}
+
+bool ViewController::lookAtImagePosition(squirrel_view_controller_msgs::LookAtImagePosition::Request &req,
+                                             squirrel_view_controller_msgs::LookAtImagePosition::Response &res)
+{
+  if(who_fixed_it.empty())
+  {
+    joint_mutex_.lock();
+    // HACK: the focal length is hardcoded for the Kinect/Asus
+    movePanTilt(pan_ - atan2(req.x, 525), tilt_ + atan2(req.y, 525));
+    //ROS_INFO("pan/tilt relative move move (deg): %.f %.f", -atan2(req.x, 525)*180./M_PI, atan2(req.y, 525*180./M_PI));
+    joint_mutex_.unlock();
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPosition::Request &req,
+                                    squirrel_view_controller_msgs::LookAtPosition::Response &res)
+{
+  std::vector<double> v;
+  v = pose2PanTilt(req.target);
+
+  
+  return false;
 }
 
 int main(int argc, char **argv)

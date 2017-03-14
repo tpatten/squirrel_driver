@@ -24,11 +24,12 @@
 #include <dynamixel_msgs/JointState.h>
 #include <geometry_msgs/PointStamped.h>
 #include <tf/transform_listener.h>
-#include <robotino_msgs/LookAtImagePosition.h>
-#include <robotino_msgs/LookAtPosition.h>
-#include <robotino_msgs/FixatePosition.h>
-#include <robotino_msgs/FixatePanTilt.h>
-#include <robotino_msgs/ClearFixation.h>
+#include <squirrel_view_controller_msgs/LookAtImagePosition.h>
+#include <squirrel_view_controller_msgs/LookAtPosition.h>
+#include <squirrel_view_controller_msgs/FixatePosition.h>
+#include <squirrel_view_controller_msgs/FixatePanTilt.h>
+#include <squirrel_view_controller_msgs/ClearFixation.h>
+#include <vector>
 
 class ViewController
 {
@@ -43,16 +44,16 @@ protected:
   squirrel_view_controller_msgs::FixateOnPoseFeedback feedback_;
   squirrel_view_controller_msgs::FixateOnPoseResult result_;
 
-  ros::Publisher pan_pub_, tilt_pub_;
+  ros::Publisher pan_pub_, tilt_pub_, rel_pan_pub_, rel_tilt_pub_;
   ros::Subscriber pan_state_sub_, tilt_state_sub_;
   ros::ServiceServer look_image_srv_, look_srv_, fixate_srv_, fixate_pantilt_srv_, clear_srv_, reset_srv_;
   std::string pan_command_topic_, pan_status_topic_, tilt_command_topic_, tilt_status_topic_;
   boost::mutex joint_mutex_;
 
-  geometry_msgs::PointStamped point, pan, tilt;
-  std_msgs::Float64 panMsg, tiltMsg;
-  tf::StampedTransform transform;
-  tf::TransformListener listener;
+  geometry_msgs::PointStamped point_;
+  std_msgs::Float64 panMsg_, tiltMsg_;
+  tf::StampedTransform transform_;
+  tf::TransformListener listener_;
 
   ros::ServiceClient pan_speed_client_;
   ros::ServiceClient tilt_speed_client_;
@@ -62,15 +63,16 @@ protected:
   std::string who_fixed_it;
 
   void movePanTilt(float pan, float tilt);
-  bool lookAtImagePosition(robotino_msgs::LookAtImagePosition::Request &req,
-                           robotino_msgs::LookAtImagePosition::Response &res);
-  bool lookAtPosition(robotino_msgs::LookAtPosition::Request &req, robotino_msgs::LookAtPosition::Response &res);
-  bool fixatePosition(robotino_msgs::FixatePosition::Request &req, robotino_msgs::FixatePosition::Response &res);
-  bool fixatePanTilt(robotino_msgs::FixatePanTilt::Request &req, robotino_msgs::FixatePanTilt::Response &res);
-  bool clearFixation(robotino_msgs::ClearFixation::Request &req, robotino_msgs::ClearFixation::Response &res);
+  void moveRelativePanTilt(float pan, float tilt);
+  bool lookAtImagePosition(squirrel_view_controller_msgs::LookAtImagePosition::Request &req,
+                           squirrel_view_controller_msgs::LookAtImagePosition::Response &res);
+  bool lookAtPosition(squirrel_view_controller_msgs::LookAtPosition::Request &req, squirrel_view_controller_msgs::LookAtPosition::Response &res);
+  bool fixatePanTilt(squirrel_view_controller_msgs::FixatePanTilt::Request &req, squirrel_view_controller_msgs::FixatePanTilt::Response &res);
+  bool clearFixation(squirrel_view_controller_msgs::ClearFixation::Request &req, squirrel_view_controller_msgs::ClearFixation::Response &res);
   bool resetPosition(std_srvs::Empty::Request &, std_srvs::Empty::Response &);
   void panStateCallback(const dynamixel_msgs::JointState::ConstPtr &panStateMsg);
   void tiltStateCallback(const dynamixel_msgs::JointState::ConstPtr &tiltStateMsg);
+  std::vector<double> pose2PanTilt(geometry_msgs::PoseStamped pose);
 
 public:
   void executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal);
