@@ -134,16 +134,14 @@ void ViewController::moveRelativePanTilt(float pan, float tilt)
 
 void ViewController::panStateCallback(const dynamixel_msgs::JointState::ConstPtr &panStateMsg)
 {
-  joint_mutex_.lock();
+  boost::mutex::scoped_lock lock(joint_mutex_);
   pan_ = panStateMsg->current_pos;
-  joint_mutex_.unlock();
 }
 
 void ViewController::tiltStateCallback(const dynamixel_msgs::JointState::ConstPtr &tiltStateMsg)
 {
-  joint_mutex_.lock();
+  boost::mutex::scoped_lock lock(joint_mutex_);
   tilt_ = tiltStateMsg->current_pos;
-  joint_mutex_.unlock();
 }
 
 void ViewController::init()
@@ -161,10 +159,9 @@ void ViewController::init()
   }
   if (have_all)
   {
-    joint_mutex_.lock();
+    boost::mutex::scoped_lock lock(joint_mutex_);
     ROS_INFO("moving to default pan/tilt position: %f / %f [rad])", default_pan_, default_tilt_);
     movePanTilt(default_pan_, default_tilt_);
-    joint_mutex_.unlock();
   }
   else
   {
@@ -174,11 +171,10 @@ void ViewController::init()
 
 bool ViewController::resetPosition(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
 {
-  joint_mutex_.lock();
+  boost::mutex::scoped_lock lock(joint_mutex_);
   ROS_INFO("moving to default pan/tilt position: %f / %f [rad])", default_pan_, default_tilt_);
   movePanTilt(default_pan_, default_tilt_);
   who_fixed_it = "";
-  joint_mutex_.unlock();
   return true;
 }
 
@@ -187,9 +183,8 @@ bool ViewController::fixatePanTilt(squirrel_view_controller_msgs::FixatePanTilt:
 {
   if (who_fixed_it.empty())
   {
-    joint_mutex_.lock();
+    boost::mutex::scoped_lock lock(joint_mutex_);
     movePanTilt(req.pan, req.tilt);
-    joint_mutex_.unlock();
     if (!req.reason.empty())
       who_fixed_it = req.reason;
     else
@@ -208,6 +203,7 @@ bool ViewController::clearFixation(squirrel_view_controller_msgs::ClearFixation:
 {
   if (!who_fixed_it.empty())
   {
+    boost::mutex::scoped_lock lock(joint_mutex_);
     std::string reason = req.reason;
     if (reason.empty())
       reason = "*";
@@ -234,11 +230,10 @@ bool ViewController::lookAtImagePosition(squirrel_view_controller_msgs::LookAtIm
 {
   if(who_fixed_it.empty())
   {
-    joint_mutex_.lock();
+    boost::mutex::scoped_lock lock(joint_mutex_);
     // HACK: the focal length is hardcoded for the Kinect/Asus
     movePanTilt(pan_ - atan2(req.x, 525), tilt_ + atan2(req.y, 525));
     //ROS_INFO("pan/tilt relative move move (deg): %.f %.f", -atan2(req.x, 525)*180./M_PI, atan2(req.y, 525*180./M_PI));
-    joint_mutex_.unlock();
     return true;
   }
   else
@@ -268,13 +263,13 @@ bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPositio
 {
   std::vector<double> v;
   v = pose2PanTilt(req.target);
+  // commented out when using services
   //moveRelativePanTilt(v[0], v[1]);
   dynamixel_controllers::SetRelativePosition srv;
   srv.request.position = v[0];
   callServoService(&rel_pan_client_, srv);
   srv.request.position = v[1];
   callServoService(&rel_tilt_client_, srv);
-
 }
 
 int main(int argc, char **argv)
