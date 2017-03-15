@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <iostream>
-
+#include <cmath>
 
 
 #define SENSOR_TOPIC "/wrist"
@@ -14,6 +14,7 @@ using namespace std;
 
 std_msgs::Bool detector(std::vector<double>  wrist_sensor_values_);
 std::vector<double>  wrist_sensor_values_(6,0.0);
+std::vector<double>  f_mags;
 void sensorReadCallbackWrist(std_msgs::Float64MultiArray msg);
 
 int main(int argc, char** args) {
@@ -55,7 +56,28 @@ void sensorReadCallbackWrist(std_msgs::Float64MultiArray msg){
 
 std_msgs::Bool detector(std::vector<double>  wrist_sensor_values_){
     std_msgs::Bool detected_ ;
-    detected_.data = false;
+	detected_.data = false;
+	
+	//calculate force magnitude from x,z,y values
+	double force_mag=sqrt(pow(wrist_sensor_values_.at(0),2)+pow(wrist_sensor_values_.at(1),2)+pow(wrist_sensor_values_.at(2),2));
+	if(f_mags.size()<3)
+	{
+		f_mags.push_back(force_mag);
+		return detected_ ;	//if we have less than 3 points we don't do anything
+	}
+
+			//if we have three points swap
+	f_mags[0]=f_mags[1];
+	f_mags[1]=f_mags[2];
+	f_mags[2]=force_mag;
+	
+	double f_diff=f_mags[0]-f_mags[2];
+	
+	if(abs(f_diff)>1.8)	//threashold from experimental data
+	{
+		detected_.data = true;
+	}
+	
     return detected_ ;
 }
 
