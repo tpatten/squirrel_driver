@@ -38,11 +38,11 @@ ViewController::ViewController(std::string name)
   rel_pan_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/pan_controller/set_relative_position", true);
   rel_pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/relative_command", 0, false);
   rel_tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/relative_command", 0, false);
-  look_image_srv_ = nh_.advertiseService("/view_controller/look_at_image_position", &ViewController::lookAtImagePosition, this);
-  look_srv_ = nh_.advertiseService("/view_controller/look_at_position", &ViewController::lookAtPosition, this);
-  fixate_pantilt_srv_ =  nh_.advertiseService("/view_controller/fixate_pantilt", &ViewController::fixatePanTilt, this);
-  clear_srv_ = nh_.advertiseService("/view_controller/clear_fixation", &ViewController::clearFixation, this);
-  reset_srv_ = nh_.advertiseService("/view_controller/reset", &ViewController::resetPosition, this);
+  look_image_srv_ = nh_.advertiseService("/squirrel_view_controller/look_at_image_position", &ViewController::lookAtImagePosition, this);
+  look_srv_ = nh_.advertiseService("/squirrel_view_controller/look_at_position", &ViewController::lookAtPosition, this);
+  fixate_pantilt_srv_ =  nh_.advertiseService("/squirrel_view_controller/fixate_pantilt", &ViewController::fixatePanTilt, this);
+  clear_srv_ = nh_.advertiseService("/squirrel_view_controller/clear_fixation", &ViewController::clearFixation, this);
+  reset_srv_ = nh_.advertiseService("/squirrel_view_controller/reset", &ViewController::resetPosition, this);
 }
 
 std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose)
