@@ -15,11 +15,15 @@ class RobotController {
 private:
 
     void skinCallback(const std_msgs::Bool &skinReply);
+    void wristCallback(const std_msgs::Bool &wristReply);
 
     TicToc skinTic;
+    TicToc wristTic;
     std::mutex skinMutex;
+    std::mutex wristMutex;
 	
     bool receivedFirstSkinPacket;
+    bool receivedFirstWristPacket;
 	std::shared_ptr<BaseController> myBase;
 	std::shared_ptr<Arm> myArm;
 	std::shared_ptr<std::thread> myArmThread;
@@ -30,6 +34,7 @@ private:
     double protocolVersion;
     int baudRate;
     ros::Subscriber skinBumper;
+    ros::Subscriber wristBumper;
 
 public:
 

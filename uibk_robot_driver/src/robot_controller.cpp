@@ -31,6 +31,7 @@ void RobotController::initArm(std::vector<int> ids, std::vector<motor_type> type
    receivedFirstSkinPacket = false;
 
    skinBumper = myNode.subscribe("/airskin/arm_bumper", 2, &RobotController::skinCallback, this);
+   wristBumper = myNode.subscribe("/wrist/wrist_bumper", 2, &RobotController::wristCallback, this);
    
 }
 
@@ -42,6 +43,17 @@ void RobotController::skinCallback(const std_msgs::Bool& skinReply) {
         skinMutex.lock();
             skinTic.tic("skin");
         skinMutex.unlock();
+    }
+
+}
+
+void RobotController::wristCallback(const std_msgs::Bool& wristReply) {
+
+    receivedFirstSkinPacket = true;
+    if(!wristReply.data) {
+        wristMutex.lock();
+            wristTic.tic("wrist");
+        wristMutex.unlock();
     }
 
 }
@@ -76,7 +88,8 @@ void RobotController::moveAll(vector<double> targetStates) {
 
     if(receivedFirstSkinPacket) {
         double timeSinceLastOk = skinTic.toc("skin");
-        if(timeSinceLastOk < 0.2) {
+        double timeSinceLastOkWrist = wristTic.toc("wrist");
+        if((timeSinceLastOk < 0.2)&&(timeSinceLastOkWrist < 0.2)) {
             if(baseExists)
                 myBase->moveBase(targetStates.at(0), targetStates.at(1), targetStates.at(2)) ;
             if(armExists){
