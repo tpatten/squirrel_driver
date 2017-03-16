@@ -20,6 +20,7 @@
 #include <dynamixel_controllers/SetRelativePosition.h>
 #include <geometry_msgs/PointStamped.h>
 #include <tf/transform_listener.h>
+#include <visualization_msgs/Marker.h>
 
 #include "ViewController.h"
 
@@ -36,6 +37,8 @@ ViewController::ViewController(std::string name)
   tilt_speed_client_ = nh_.serviceClient<dynamixel_controllers::SetSpeed>("/tilt_controller/set_speed", true);
   rel_tilt_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/tilt_controller/set_relative_position", true);
   rel_pan_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/pan_controller/set_relative_position", true);
+  pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/command", 0, false);
+  tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/command", 0, false);
   rel_pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/relative_command", 0, false);
   rel_tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/relative_command", 0, false);
   look_image_srv_ = nh_.advertiseService("/squirrel_view_controller/look_at_image_position", &ViewController::lookAtImagePosition, this);
@@ -43,6 +46,8 @@ ViewController::ViewController(std::string name)
   fixate_pantilt_srv_ =  nh_.advertiseService("/squirrel_view_controller/fixate_pantilt", &ViewController::fixatePanTilt, this);
   clear_srv_ = nh_.advertiseService("/squirrel_view_controller/clear_fixation", &ViewController::clearFixation, this);
   reset_srv_ = nh_.advertiseService("/squirrel_view_controller/reset", &ViewController::resetPosition, this);
+  vis_pub_ = nh_.advertise<visualization_msgs::Marker>( "visualization_marker", 0 );
+  ROS_INFO("ViewController ready...");
 }
 
 std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose)
@@ -78,10 +83,11 @@ std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose
 void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal)
 {
   // helper variables
-  ros::Rate r(25);
+  ros::Rate r(100);
   bool success = true;
   std::vector<double> v;
 
+  ROS_INFO("Received goal: ");
   while (true)
   {
 
@@ -95,9 +101,39 @@ void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPose
     }
 
     v = pose2PanTilt(goal->pose);
+    publishPoseMarker(goal->pose);
+    ROS_DEBUG("Moving camera relative to x: %f, y: %f ", v[0], v[1]);
     moveRelativePanTilt(v[0], v[1]);
     r.sleep();
   }
+}
+
+
+void ViewController::publishPoseMarker(geometry_msgs::PoseStamped pose)
+{
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = pose.header.frame_id;
+    marker.header.stamp = pose.header.stamp;
+    marker.ns = "fixation point";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.position.x = pose.pose.position.x;
+    marker.pose.position.y = pose.pose.position.y;
+    marker.pose.position.z = pose.pose.position.z;
+    marker.pose.orientation.x = pose.pose.orientation.x;
+    marker.pose.orientation.y = pose.pose.orientation.y;
+    marker.pose.orientation.z = pose.pose.orientation.z;
+    marker.pose.orientation.w = pose.pose.orientation.w;
+    marker.scale.x = 0.3;
+    marker.scale.y = 0.3;
+    marker.scale.z = 0.3;
+    marker.color.a = 1.0; // Don't forget to set the alpha!
+    marker.color.r = 1.0;
+    marker.color.g = 0.0;
+    marker.color.b = 0.0; 
+    vis_pub_.publish(marker);
+
 }
 
 void ViewController::movePanTilt(float pan, float tilt)
@@ -120,14 +156,18 @@ void ViewController::moveRelativePanTilt(float pan, float tilt)
   if (std::isfinite(panMsg.data) && std::isfinite(tiltMsg.data))
   {
     if (fabs(panMsg.data) > 0.001)
-      pan_pub_.publish(panMsg);
+      rel_pan_pub_.publish(panMsg);
     else
-      ROS_DEBUG("Relative pan angle: %f (rad)", panMsg.data);
+      ROS_INFO("Relative pan angle: %f (rad)", panMsg.data);
     
     if (fabs(tiltMsg.data) > 0.001)
-      tilt_pub_.publish(tiltMsg);
+      rel_tilt_pub_.publish(tiltMsg);
     else
-      ROS_DEBUG("Relative tilt angle: %f (rad)", tiltMsg.data);
+      ROS_INFO("Relative tilt angle: %f (rad)", tiltMsg.data);
+  }
+  else
+  {
+    ROS_DEBUG("Infinity check failed");
   }
   return;
 }
@@ -267,9 +307,10 @@ bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPositio
   //moveRelativePanTilt(v[0], v[1]);
   dynamixel_controllers::SetRelativePosition srv;
   srv.request.position = v[0];
-  callServoService(&rel_pan_client_, srv);
+  bool pan_success = callServoService(&rel_pan_client_, srv);
   srv.request.position = v[1];
-  callServoService(&rel_tilt_client_, srv);
+  bool tilt_success = callServoService(&rel_tilt_client_, srv);
+  return pan_success && tilt_success;
 }
 
 int main(int argc, char **argv)

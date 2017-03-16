@@ -44,7 +44,7 @@ protected:
   squirrel_view_controller_msgs::FixateOnPoseFeedback feedback_;
   squirrel_view_controller_msgs::FixateOnPoseResult result_;
 
-  ros::Publisher pan_pub_, tilt_pub_, rel_pan_pub_, rel_tilt_pub_;
+  ros::Publisher pan_pub_, tilt_pub_, rel_pan_pub_, rel_tilt_pub_, vis_pub_;
   ros::Subscriber pan_state_sub_, tilt_state_sub_;
   ros::ServiceServer look_image_srv_, look_srv_, fixate_srv_, fixate_pantilt_srv_, clear_srv_, reset_srv_;
   std::string pan_command_topic_, pan_status_topic_, tilt_command_topic_, tilt_status_topic_;
@@ -74,6 +74,7 @@ protected:
   bool resetPosition(std_srvs::Empty::Request &, std_srvs::Empty::Response &);
   void panStateCallback(const dynamixel_msgs::JointState::ConstPtr &panStateMsg);
   void tiltStateCallback(const dynamixel_msgs::JointState::ConstPtr &tiltStateMsg);
+  void publishPoseMarker(geometry_msgs::PoseStamped pose);
   std::vector<double> pose2PanTilt(geometry_msgs::PoseStamped pose);
 
 public:
