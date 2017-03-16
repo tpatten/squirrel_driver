@@ -16,6 +16,8 @@
   <run_depend>squirrel_sensing_node</run_depend>
   <run_depend>squirrel_softhand</run_depend>
   <run_depend>uibk_robot_driver</run_depend>
+  <run_depend>wrist_safety</run_depend>
+  
 
   <export>
 	<metapackage/>
