@@ -23,7 +23,7 @@ int main(int argc, char** args) {
     ros::NodeHandle node;
     ros::Rate lrate(50.0);
 
-    ros::Publisher safety_pub_  = node.advertise<std_msgs::Bool>("wrist_bumper", 1);
+    ros::Publisher safety_pub_  = node.advertise<std_msgs::Bool>("/wrist/wrist_bumper", 1);
 
     sleep(1);
     std_msgs::Bool detected_ ;
