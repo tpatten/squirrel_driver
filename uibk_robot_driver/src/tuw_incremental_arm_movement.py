@@ -32,9 +32,10 @@ def show_help():
            0: base platform x-axis\n\
            1: base platform y-axis\n\
            2: base platform rotation\n\
-           3-8: axis counted from bottom to top")
+           3-7: axis counted from bottom to top")
     print("Second, move the axis with '+' or '-' keys.")
     print("Press 'h' for help.")
+    print("Press 'r' to reset after a collision with the airskin.")
     print("Press 'q' to quit.")
     print("*"*80)
 
@@ -69,6 +70,8 @@ def main():
                 sys.exit()
             elif c.lower() == 'h':
                 show_help()
+            elif c.lower() == 'r':
+                mode_pub.publish(data=10)
             elif c == '+' and joint is not None:
                 rospy.loginfo("joint #{}: plus".format(joint))
                 if len(joint_values) < DOF:

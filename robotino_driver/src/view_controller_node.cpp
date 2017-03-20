@@ -49,8 +49,6 @@
 
 // Code:
 
-#include "ViewControllerNode.h"
-
 int main( int argc, char *argv[] )
 {
   ros::init(argc, argv, "robotino_view_controller_node");
