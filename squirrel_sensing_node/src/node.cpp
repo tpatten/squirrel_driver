@@ -86,13 +86,21 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
             msg.data[i]=vals.at(i);
         }
 
+        vector<double> padProxs;
+        padProxs.push_back(vals[10]);
+        padProxs.push_back(vals[12]);
+        padProxs.push_back(vals[14]);
+
         //torque percs
         std_msgs::Float64MultiArray msgTorq;
-        msgTorq.data.resize(dominantTorques.size());
+        msgTorq.data.resize(dominantTorques.size()+padProxs.size());
 
         //fill in msg
         for(int i=0;i<dominantTorques.size();i++){
             msgTorq.data[i]=dominantTorques.at(i);
+        }
+        for(int i=dominantTorques.size(), j=0;j<padProxs.size();i++,j++){
+            msgTorq.data[i]=padProxs.at(j);
         }
 
 #ifdef _FT17_AVAIL
@@ -142,3 +150,4 @@ void SensingNode::pickDominants(vector<double> &torqPerc)
 string& SensingNode::getName(){
     return name;
 }
+
