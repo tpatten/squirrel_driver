@@ -24,7 +24,7 @@ int main(int argc, char** args) {
     ros::Rate lrate(50.0);
 
     ros::Publisher safety_pub_  = node.advertise<std_msgs::Bool>("/wrist/wrist_bumper", 1);
-
+    ros::Subscriber safety_sub_ = node.subscribe(SENSOR_TOPIC, 1, sensorReadCallbackWrist);
     sleep(1);
     std_msgs::Bool detected_ ;
     detected_.data = false;
@@ -33,7 +33,7 @@ int main(int argc, char** args) {
 
         detected_ = detector(wrist_sensor_values_);
         safety_pub_.publish(detected_);
-
+        if(detected_.data) cout<< " (Wrist safety) Colission detected"<<endl;
         ros::spinOnce();
         lrate.sleep();
     }
@@ -60,7 +60,8 @@ std_msgs::Bool detector(std::vector<double>  wrist_sensor_values_){
 	
 	//calculate force magnitude from x,z,y values
 	double force_mag=sqrt(pow(wrist_sensor_values_.at(0),2)+pow(wrist_sensor_values_.at(1),2)+pow(wrist_sensor_values_.at(2),2));
-	if(f_mags.size()<3)
+	//cout<<"mag "<< force_mag<<endl;
+        if(f_mags.size()<3)
 	{
 		f_mags.push_back(force_mag);
 		return detected_ ;	//if we have less than 3 points we don't do anything
@@ -75,8 +76,10 @@ std_msgs::Bool detector(std::vector<double>  wrist_sensor_values_){
 	
 	if(abs(f_diff)>1.8)	//threashold from experimental data
 	{
+      //                cout<< " abs diff "<< f_diff<<endl;
 		detected_.data = true;
 	}
+        cout<<f_diff<<endl;
 	
     return detected_ ;
 }
