@@ -3,7 +3,7 @@
   <name>raspberry_screen</name>
   <version>0.0.1</version>
   <description>Raspberry screen service</description>
-  <maintainer email="mcorberan@idmind.pt">Miguel Corberán Ruiz</maintainer>
+  <maintainer email="dgameiro@idmind.pt">Duarte Lopes Gameiro</maintainer>
   <license>BSD</license>
 
   <build_depend>message_generation</build_depend>
