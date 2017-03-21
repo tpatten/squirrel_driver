@@ -289,6 +289,9 @@ bool ViewController::lookAtImagePosition(squirrel_view_controller_msgs::LookAtIm
 
 bool ViewController::callServoService(ros::ServiceClient *client, dynamixel_controllers::SetRelativePosition srv)
 {
+  ROS_INFO("service data is: %f", srv.request.position);
+  if (!(ros::service::waitForService(client->getService(), ros::Duration(5.0))))
+            return false;
   if (client->call(srv))
   {
     ROS_INFO("goal reached: %d", srv.response.goal_reached);
@@ -298,7 +301,7 @@ bool ViewController::callServoService(ros::ServiceClient *client, dynamixel_cont
   }
   else
   {
-    ROS_ERROR("Failed to call service set_relative_position");
+    ROS_ERROR("Failed to call service %s", client->getService().c_str());
     return false;
   }
 }
