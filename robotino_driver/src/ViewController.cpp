@@ -77,13 +77,17 @@ std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose
   float rel_pan = atan2(pan.point.y,pan.point.x);
   v.push_back(rel_pan);
   float rel_tilt = -atan2(tilt.point.y,tilt.point.x);
+  if (rel_tilt < -M_PI/2)
+  {
+    rel_tilt += 0.0;
+  }
   v.push_back(rel_tilt);
 
-  ROS_INFO("Pan: x: %f, y: %f", pan.point.x, pan.point.y);
-  ROS_INFO("Tilt: x: %f, y: %f", tilt.point.x, tilt.point.y);
-  ROS_INFO("Moving camera relative to pan: %f, tilt: %f ", rel_pan, rel_tilt);
+  ROS_DEBUG("Pan: x: %f, y: %f", pan.point.x, pan.point.y);
+  ROS_DEBUG("Tilt: x: %f, y: %f", tilt.point.x, tilt.point.y);
+  ROS_DEBUG("Moving camera relative to pan: %f, tilt: %f ", rel_pan, rel_tilt);
 
-   return v;
+  return v;
 }
 
 void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal)
@@ -163,12 +167,12 @@ void ViewController::moveRelativePanTilt(float pan, float tilt)
     if (fabs(panMsg.data) > 0.001)
       rel_pan_pub_.publish(panMsg);
     else
-      ROS_INFO("Relative pan angle: %f (rad)", panMsg.data);
+      ROS_DEBUG("Relative pan angle: %f (rad)", panMsg.data);
     
     if (fabs(tiltMsg.data) > 0.001)
       rel_tilt_pub_.publish(tiltMsg);
     else
-      ROS_INFO("Relative tilt angle: %f (rad)", tiltMsg.data);
+      ROS_DEBUG("Relative tilt angle: %f (rad)", tiltMsg.data);
   }
   else
   {
@@ -316,6 +320,8 @@ bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPositio
   dynamixel_controllers::SetRelativePosition srv;
   srv.request.position = v[0];
   bool pan_success = callServoService(&rel_pan_client_, srv);
+
+  v = pose2PanTilt(req.target);
   srv.request.position = v[1];
   bool tilt_success = callServoService(&rel_tilt_client_, srv);
   return pan_success && tilt_success;
