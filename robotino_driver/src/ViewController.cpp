@@ -93,11 +93,12 @@ std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose
 void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal)
 {
   // helper variables
-  ros::Rate r(100);
+  ros::Rate r(10);
   bool success = true;
   std::vector<double> v;
+  std_msgs::Float64 msg;
 
-  ROS_INFO("Received goal: ");
+  ROS_INFO("Received goal. %s: x: %f ,y: %f", goal->pose.header.frame_id.c_str(), goal->pose.pose.position.x, goal->pose.pose.position.y);
   while (true)
   {
 
@@ -112,8 +113,31 @@ void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPose
 
     v = pose2PanTilt(goal->pose);
     publishPoseMarker(goal->pose);
-    moveRelativePanTilt(v[0], v[1]);
-    r.sleep();
+    //moveRelativePanTilt(v[0], v[1]);
+    //r.sleep();
+    msg.data = v[0];
+    if (std::isfinite(msg.data))
+    {
+      if (fabs(msg.data) > 0.001)
+      {
+        rel_pan_pub_.publish(msg);
+        r.sleep();
+      }
+      else
+        ROS_DEBUG("Relative pan angle: %f (rad)", msg.data);
+    }
+    v = pose2PanTilt(goal->pose);
+    msg.data = v[1];
+    if (std::isfinite(msg.data))
+    {
+      if (fabs(msg.data) > 0.001)
+      {
+        rel_tilt_pub_.publish(msg);
+        r.sleep();
+      }
+      else
+        ROS_DEBUG("Relative tilt angle: %f (rad)", msg.data);
+    }
   }
 }
 
