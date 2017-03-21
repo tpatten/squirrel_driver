@@ -1,0 +1,3 @@
+Startup Applications:
+
+gnome-terminal -e home/idmind/catkin_ws/src/idmind_teleop/launch/start.sh
