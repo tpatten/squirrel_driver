@@ -4,7 +4,7 @@
   <version>0.0.1</version>
   <description>Raspberry screen service</description>
   <maintainer email="mcorberan@idmind.pt">Miguel Corberán Ruiz</maintainer>
-  <license>TODO</license>
+  <license>BSD</license>
 
   <build_depend>message_generation</build_depend>
   <run_depend>message_runtime</run_depend>
