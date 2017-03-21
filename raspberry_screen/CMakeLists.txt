@@ -24,9 +24,6 @@ catkin_package(
   CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
 
 
-
-catkin_python_setup()
-
 #############
 ## Install ##
 #############
