@@ -74,8 +74,14 @@ std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose
     ROS_ERROR("%s", ex.what());
     ros::Duration(1.0).sleep();
   }
-  v.push_back(atan2(pan.point.y, pan.point.x));
-  v.push_back(-atan2(tilt.point.y, tilt.point.x));
+  float rel_pan = atan2(pan.point.y,pan.point.x);
+  v.push_back(rel_pan);
+  float rel_tilt = -atan2(tilt.point.y,tilt.point.x);
+  v.push_back(rel_tilt);
+
+  ROS_INFO("Pan: x: %f, y: %f", pan.point.x, pan.point.y);
+  ROS_INFO("Tilt: x: %f, y: %f", tilt.point.x, tilt.point.y);
+  ROS_INFO("Moving camera relative to pan: %f, tilt: %f ", rel_pan, rel_tilt);
 
    return v;
 }
@@ -102,7 +108,6 @@ void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPose
 
     v = pose2PanTilt(goal->pose);
     publishPoseMarker(goal->pose);
-    ROS_DEBUG("Moving camera relative to x: %f, y: %f ", v[0], v[1]);
     moveRelativePanTilt(v[0], v[1]);
     r.sleep();
   }
