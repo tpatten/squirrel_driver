@@ -3,8 +3,8 @@
   <name>idmind_serial</name>
   <version>0.0.1</version>
   <description>The idmind_serial package.</description>
-  <maintainer email="mcorberan@idmind.pt">Miguel Corberán Ruiz</maintainer>
-  <license>MIT License</license>
+  <maintainer email="dgameiro@idmind.pt">Duarte Lopes Gameiro</maintainer>
+  <license>BSD</license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
