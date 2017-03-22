@@ -13,6 +13,7 @@
 //#include <string.h>
 #include <sstream>
 #include <ros/ros.h>
+#include <std_msgs/Bool.h> 
 #include <std_msgs/Int16MultiArray.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <sensor_msgs/JointState.h>
@@ -302,6 +303,8 @@ KCLHandController::KCLHandController(std::string name)
   impedance_signal_sub_= new ros::Subscriber(nh_.subscribe("impedance_signal_send", 1, &KCLHandController::impedanceSignalCB, this));
   joint_state_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("active_joint_states", 1));
   impedance_motor_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("impedance_motor", 1));
+  impedance_flag_sub_= new ros::Subscriber(nh_.subscribe("impedance_flag", 1, &KCLHandController::impedanceFlagCB, this));
+  
 
 
   as_.start();
@@ -313,6 +316,7 @@ KCLHandController::~KCLHandController()
   delete joint_state_pub_;
   delete move_finger_srv_;
   delete impedance_signal_sub_;
+  delete impedance_flag_sub_;
   closeDevice();
 }
 
@@ -334,7 +338,7 @@ void KCLHandController::actuateHandCB(const kclhand_control::ActuateHandGoalCons
   }
   else if(goal->command == 99)
   {
-    succeeded = handImpedanceController();
+    succeeded = handImpedanceController(goal->force_limit);
   }    
   else if(goal->command == kclhand_control::ActuateHandGoal::CMD_CLOSE)
   {
@@ -363,6 +367,13 @@ void KCLHandController::actuateHandCB(const kclhand_control::ActuateHandGoalCons
   else
     as_.setAborted(result);
 }
+
+
+void KCLHandController::impedanceFlagCB(const std_msgs::Bool::ConstPtr &msg)
+{
+  UpdateHandImpedanceFlag(msg->data);
+}
+
 
 void KCLHandController::jointValueCB(const std_msgs::Int16MultiArray::ConstPtr &msg)
 {
@@ -523,9 +534,27 @@ bool KCLHandController::closeFingers(float rel_current_limit)
   return succeeded;
 }
 
-bool KCLHandController::handImpedanceController()
+bool KCLHandController::handImpedanceController(float rel_current_limit)
 {
+  std::vector<double> impedance_target_positions(NUM_JOINTS);
+  bool all_target_positions_reached = false;
+  ros::Rate rate(CONTROL_LOOP_FREQ_HZ);
+  UpdateHandImpedanceFlag(1);
+
+  while(1)
+  {
+    for(int i = 0; i < NUM_JOINTS; i++)
+    {
+      impedance_target_positions[i] = joints_[i].impedanceTarget();
+    }
+ 
+    bool succeeded = moveFingers(rel_current_limit, impedance_target_positions, all_target_positions_reached);
+    rate.sleep();
   
+    if (!realtimeImpedanceFlag()) break;
+
+  }
+
   return 1;
 }
 

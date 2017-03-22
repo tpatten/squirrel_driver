@@ -373,6 +373,8 @@ private:
   static const int MIDDLE_FINGER = 3;  // node id 7, sensor + is out,  motor + is out
   static const int LEFT_FINGER   = 4;  // node id 9, sensor + is out,  motor + is in
 
+  bool hand_impedance_flag_;
+
   ros::NodeHandle nh_;
   actionlib::SimpleActionServer<kclhand_control::ActuateHandAction> as_; 
   ros::Subscriber *joint_value_sub_;
@@ -380,6 +382,7 @@ private:
   ros::Publisher *joint_state_pub_;
   ros::Publisher *impedance_motor_pub_;
   ros::ServiceServer *move_finger_srv_;
+  ros::Subscriber *impedance_flag_sub_;
 
   /// Stuff below is for connecting to EPOS device
   std::string device_name_;
@@ -414,10 +417,24 @@ public:
    */
   void impedanceSignalCB(const std_msgs::Float64MultiArray::ConstPtr &msg);
 
+  void impedanceFlagCB(const std_msgs::Bool::ConstPtr &msg);
+
+
+  void UpdateHandImpedanceFlag(bool p)
+  {
+    hand_impedance_flag_ = p;
+  }
+
+  bool realtimeImpedanceFlag()
+  {
+    return hand_impedance_flag_;
+  }
+
+
 
 private:
 
-  bool handImpedanceController();
+  bool handImpedanceController(float rel_current_limit);
   /**
    * Open Maxon Motor EPOS device. In our case the CAN controller attached via
    * USB.
