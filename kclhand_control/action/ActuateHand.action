@@ -5,6 +5,9 @@ uint8 CMD_OPEN  = 0
 uint8 CMD_CLOSE = 1
 uint8 CMD_MOVE_FINGER = 2
 uint8 GRASP_TYPE_STANDARD = 0
+uint8 CMD_IMPEDANCE = 99
+
+#unit8 DISABLE_HAND 
 
 # goal definition
 

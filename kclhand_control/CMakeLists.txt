@@ -120,9 +120,12 @@ add_dependencies(ftd2xx build_ftd2xx)
 # add_executable(controller_metahand_review src/metahand_controller_cali_new.cpp)
 # target_link_libraries(controller_metahand_review ${catkin_LIBRARIES} EposCmd)
 
-add_executable(kclhand_controller src/kclhand_controller.cpp)
+add_executable(kclhand_controller src/kclhand_controller_impedance.cpp)
 target_link_libraries(kclhand_controller ${catkin_LIBRARIES} ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}/libEposCmd.so)
 add_dependencies(kclhand_controller kclhand_control_generate_messages_cpp EposCmd)
+
+
+
 
 ### INSTALL ###
 install(TARGETS
