@@ -20,6 +20,7 @@ std::vector<double>  f_mags;
 void sensorReadCallbackWrist(std_msgs::Float64MultiArray msg);
 void resetCallback(std_msgs::Bool msg);
 std_msgs::Bool detected_ ;
+double wrist_safety_threshold_;
 
 int main(int argc, char** args) {
 
@@ -27,10 +28,13 @@ int main(int argc, char** args) {
     ros::NodeHandle node;
     ros::Rate lrate(50.0);
 
+    node.param("/wrist_safety_node/wrist_safety_threshold", wrist_safety_threshold_, 5.0);
+    ROS_INFO("(Wrist safety) threshold set to %f", wrist_safety_threshold_);
+
     ros::Publisher safety_pub_  = node.advertise<std_msgs::Bool>("/wrist/wrist_bumper", 1);
     ros::Publisher diff_pub_  = node.advertise<std_msgs::Float64>("/wrist_diff", 1);
-    ros::Subscriber sensor_sub_ = node.subscribe(SENSOR_TOPIC, 1, sensorReadCallbackWrist);
-    ros::Subscriber safety_sub_ = node.subscribe(RESET_TOPIC, 1, resetCallback);
+    ros::Subscriber sensor_sub_ = node.subscribe(SENSOR_TOPIC, 100, sensorReadCallbackWrist);
+    ros::Subscriber safety_sub_ = node.subscribe(RESET_TOPIC, 100, resetCallback);
     sleep(1);
     detected_.data = false;
     std_msgs::Float64 diff;
@@ -92,7 +96,7 @@ std_msgs::Bool detector(std::vector<double>  wrist_sensor_values_){
 	
 	f_diff=f_mags[0]-f_mags[2];
 	
-	if(abs(f_diff)>2.0)	//threashold from experimental data
+		if(abs(f_diff) > wrist_safety_threshold_)	//threashold from experimental data
 	{
       //                cout<< " abs diff "<< f_diff<<endl;
 		detected_.data = true;
