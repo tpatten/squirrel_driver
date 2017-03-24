@@ -3,9 +3,13 @@ project(raspberry_screen)
 
 find_package(catkin REQUIRED COMPONENTS
   rospy
+  roscpp
   std_msgs
   message_generation
 )
+
+#catkin_python_setup()
+
 
 ## Generate services in the 'srv' folder
  add_service_files(
@@ -25,7 +29,6 @@ catkin_package(
 
 
 
-catkin_python_setup()
 
 #############
 ## Install ##
