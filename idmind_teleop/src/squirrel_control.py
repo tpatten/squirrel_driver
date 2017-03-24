@@ -9,7 +9,7 @@ import numpy as np
 from std_msgs.msg import String
 from idmind_interaction.msg import *
 from raspberry_screen.srv import DisplayScreen
-from play_sound.srv import PlaySound
+from idmind_teleop.srv import PlaySound
 import thread
 
 
