@@ -30,6 +30,7 @@
 #include <squirrel_view_controller_msgs/FixatePanTilt.h>
 #include <squirrel_view_controller_msgs/ClearFixation.h>
 #include <vector>
+#include <cmath>
 
 class ViewController
 {
