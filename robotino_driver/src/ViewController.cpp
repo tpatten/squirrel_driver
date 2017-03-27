@@ -35,6 +35,9 @@ ViewController::ViewController(std::string name)
   as_.start();
 
   bool have_all = true;
+  pan_status_topic_ = "/pan_controller/state";
+  tilt_status_topic_ = "/tilt_controller/state";
+
   if (!ros::topic::waitForMessage<dynamixel_msgs::JointState>(pan_status_topic_, ros::Duration(30.0)))
   {
     ROS_WARN("pan controller not running, shutting down the node");
