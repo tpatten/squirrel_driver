@@ -1,0 +1,8 @@
+prefix=/home/lokalmatador/Work/ROS/squirrel_ws/src/squirrel_driver/squirrel_robot_driver/cmake-build-debug/devel
+
+Name: squirrel_robot_driver
+Description: Description of squirrel_robot_driver
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/lokalmatador/Work/ROS/squirrel_ws/src/squirrel_driver/squirrel_robot_driver/cmake-build-debug/devel/lib 
+Requires: 
