@@ -1,8 +1,0 @@
-prefix=/usr/local
-
-Name: squirrel_robot_driver
-Description: Description of squirrel_robot_driver
-Version: 0.0.0
-Cflags: 
-Libs: -L/usr/local/lib 
-Requires: 
