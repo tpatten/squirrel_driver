@@ -1,8 +1,0 @@
-prefix=/usr/local
-
-Name: squirrel_control
-Description: Description of squirrel_control
-Version: 0.0.0
-Cflags: -I/usr/local/include
-Libs: -L/usr/local/lib -larm_interface
-Requires: roscpp hardware_interface joint_limits_interface controller_manager std_msgs geometry_msgs trajectory_msgs squirrel_safety_msgs

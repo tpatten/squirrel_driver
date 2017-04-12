@@ -1,8 +1,0 @@
-prefix=/home/lokalmatador/Work/ROS/squirrel_ws/src/squirrel_driver/squirrel_control/cmake-build-debug/devel
-
-Name: squirrel_control
-Description: Description of squirrel_control
-Version: 0.0.0
-Cflags: -I/home/lokalmatador/Work/ROS/squirrel_ws/src/squirrel_driver/squirrel_control/include
-Libs: -L/home/lokalmatador/Work/ROS/squirrel_ws/src/squirrel_driver/squirrel_control/cmake-build-debug/devel/lib -larm_interface
-Requires: roscpp hardware_interface joint_limits_interface controller_manager std_msgs geometry_msgs trajectory_msgs squirrel_safety_msgs
