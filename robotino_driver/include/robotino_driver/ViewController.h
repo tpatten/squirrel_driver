@@ -80,6 +80,7 @@ protected:
 
 public:
   void executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal);
+  void init();
   bool callServoService(ros::ServiceClient *client, dynamixel_controllers::SetRelativePosition srv);
 
   ViewController(std::string name);
