@@ -58,7 +58,6 @@ def main():
     joint = None
 
     rospy.loginfo('incremental_arm_movement started')
-    reset_odometry()
     show_welcome() 
     mode_pub.publish(data=10)
   
