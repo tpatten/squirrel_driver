@@ -5,7 +5,7 @@
 
     <!-- GAMEPAD CONTROL -->
     <node name="joystick" pkg="joy" type="joy_node" required="true">
-        <param name="dev" value="/dev/idmind-joystick" />
+        <!-- <param name="dev" value="/dev/idmind-joystick" /> -->
         <param name="coalesce_interval" type="double" value="0.012" />
     </node>
     <node name="teleop_idmind_control" pkg="idmind_teleop" type="teleop_control.py" output="screen" required="true"/>
