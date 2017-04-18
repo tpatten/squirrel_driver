@@ -120,9 +120,10 @@ namespace motor_control {
     }
 
 
-    //TODO limit check (soft limits checked in squirrel hardware interface))
     bool MotorUtilities::write(std::vector<double> commands)
     {
+        throw_control_error(commands.size() != this->motors.size(), "Wrong number of commands! Got " << commands.size() << ", but expected " << motors.size());
+
         int i = 0;
         UINT8_T error;
 
@@ -159,14 +160,14 @@ namespace motor_control {
                                                                                              << ")");
                         UINT32_T real_lower = homing_offset + motor.tool->value_of_min_radian_position_;
                         UINT32_T real_upper = homing_offset + motor.tool->value_of_max_radian_position_;
-                        throw_control_error(goal_position > real_lower && goal_position < real_upper,
+                        throw_control_error(goal_position < real_lower || goal_position > real_upper,
                                             "Motor " << motor.id << " (" << motor.tool->model_name_
                                                      << ") exceeds its limits [" << real_lower << "," << real_upper
                                                      << "] with goal position: " << goal_position);
                         this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id,
                                                             motor.tool->ctrl_table_["goal_position"]->address,
                                                             goal_position, &error);
-                    }
+                        }
                         break;
 
                     case squirrel_control::VELOCITY: {
@@ -176,19 +177,23 @@ namespace motor_control {
                         throw_control_error(error,
                                             "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
                                                                       << ") into velocity mode");
-                        UINT32_T present_velocity;
+                        UINT32_T velocity_limit;
                         this->packetHandler->Read4ByteTxRx(this->portHandler, motor.id,
-                                                           motor.tool->ctrl_table_["present_velocity"]->address,
-                                                           &present_velocity, &error);
-                        throw_control_error(error, "Failed to read present velocity for motor " << motor.id << " ("
-                                                                                                << motor.tool->model_name_
-                                                                                                << ")");
-
+                                                           motor.tool->ctrl_table_["velocity_limit"]->address,
+                                                           &velocity_limit, &error);
+                        throw_control_error(error, "Failed to read velocity limit for motor " << motor.id << " ("
+                                                                                             << motor.tool->model_name_
+                                                                                             << ")");
+                        UINT32_T commanded_velocity = (UINT32_T)commands.at(i);
+                        throw_control_error( commanded_velocity > velocity_limit,
+                                            "Motor " << motor.id << " (" << motor.tool->model_name_
+                                                     << ") exceeds its velocity [" << velocity_limit << "] with commanded velocity: " << commanded_velocity);
                         this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id,
                                                             motor.tool->ctrl_table_["goal_velocity"]->address,
-                                                            commands.at(i), &error);
-                    }
+                                                            commanded_velocity, &error);
+                        }
                         break;
+
                     case squirrel_control::TORQUE: {
                         this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
                                                             motor.tool->ctrl_table_["operating_mode"]->address,
@@ -196,12 +201,23 @@ namespace motor_control {
                         throw_control_error(error,
                                             "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
                                                                       << ") into torque mode");
+                        UINT16_T torque_limit;
+                        this->packetHandler->Read2ByteTxRx(this->portHandler, motor.id,
+                                                           motor.tool->ctrl_table_["torque_limit"]->address,
+                                                           &torque_limit, &error);
+                        throw_control_error(error, "Failed to read torque limit for motor " << motor.id << " ("
+                                                                                              << motor.tool->model_name_
+                                                                                              << ")");
+                        UINT16_T commanded_torque = (UINT16_T)commands.at(i);
+                        throw_control_error( commanded_torque > torque_limit,
+                                             "Motor " << motor.id << " (" << motor.tool->model_name_
+                                                      << ") exceeds its velocity [" << torque_limit << "] with commanded velocity: " << commanded_torque);
                         this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id,
                                                             motor.tool->ctrl_table_["goal_torque"]->address,
-                                                            commands.at(i),
-                                                            &error);
-                    }
+                                                            commanded_torque, &error);
+                        }
                         break;
+
                     default:
                         throw_control_error(true, "Unknown mode: " << this->current_mode);
                 }

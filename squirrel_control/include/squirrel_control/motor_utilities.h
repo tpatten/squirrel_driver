@@ -57,6 +57,14 @@ namespace motor_control
 
         squirrel_control::SquirrelControlMode getMode();
 
+        /**
+            Writes the high level control commands to the motor. this operation supports all three operating modes, i.e.,
+                position mode, velocity mode, and torque mode
+
+            @param commands, a vector of either (i) joint position, (ii) joint velocities, or (iii) joint torques
+                depending on the current operation mode; the length of this vector is expected to be this.motors.size
+            @return true in case of success
+        */
         bool write(std::vector<double>commands);
 
 
