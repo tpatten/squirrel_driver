@@ -120,36 +120,99 @@ namespace motor_control {
     }
 
 
-    //TODO integrate homing offset
     //TODO limit check (soft limits checked in squirrel hardware interface))
-    bool MotorUtilities::write(std::vector<UINT16_T > commands)
+    bool MotorUtilities::write(std::vector<double> commands)
     {
         int i = 0;
         UINT8_T error;
 
         this->motor_lock.lock();
 
-        for(auto const motor : this->motors) {
-            //read homing offset
-            UINT32_T homing_offset;
-            this->packetHandler->Read4ByteTxRx(this->portHandler, motor.id, motor.tool->ctrl_table_["homing_offset"]->address, &homing_offset, &error);
-            throw_control_error(error, "Failed to read homing offset for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
+        //we throw a bunch of own exceptions - let's catch them all and forward them to at all times release the lock
+        try {
 
-            switch (this->current_mode) {
-                case squirrel_control::POSITION:
-                    this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id, motor.tool->ctrl_table_["goal_position"]->address, commands.at(i), &error);
-                    break;
-                case squirrel_control::VELOCITY:
-                    this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id, motor.tool->ctrl_table_["goal_velocity"]->address, commands.at(i), &error);
-                    break;
-                case squirrel_control::TORQUE:
-                    this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id, motor.tool->ctrl_table_["goal_torque"]->address, commands.at(i), &error);
-                    break;
-                default:
-                    throw_control_error(true, "Unknown mode: " <<  this->current_mode);
+            for (auto const motor : this->motors) {
+                switch (this->current_mode) {
+                    case squirrel_control::POSITION: {
+                        this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
+                                                            motor.tool->ctrl_table_["operating_mode"]->address,
+                                                            DYNAMIXEL_POSITION_MODE, &error);
+                        throw_control_error(error,
+                                            "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
+                                                                      << ") into position mode");
+                        UINT32_T present_position;
+                        this->packetHandler->Read4ByteTxRx(this->portHandler, motor.id,
+                                                           motor.tool->ctrl_table_["present_position"]->address,
+                                                           &present_position, &error);
+                        throw_control_error(error, "Failed to read present position for motor " << motor.id << " ("
+                                                                                                << motor.tool->model_name_
+                                                                                                << ")");
+                        double rad_per_tick = motor.tool->max_radian_ / motor.tool->value_of_max_radian_position_;
+                        UINT32_T goal_in_ticks = (UINT32_T) commands.at(i) / rad_per_tick;
+                        UINT32_T goal_position = present_position + goal_in_ticks;
+                        UINT32_T homing_offset;
+                        this->packetHandler->Read4ByteTxRx(this->portHandler, motor.id,
+                                                           motor.tool->ctrl_table_["homing_offset"]->address,
+                                                           &homing_offset, &error);
+                        throw_control_error(error, "Failed to read homing offset for motor " << motor.id << " ("
+                                                                                             << motor.tool->model_name_
+                                                                                             << ")");
+                        UINT32_T real_lower = homing_offset + motor.tool->value_of_min_radian_position_;
+                        UINT32_T real_upper = homing_offset + motor.tool->value_of_max_radian_position_;
+                        throw_control_error(goal_position > real_lower && goal_position < real_upper,
+                                            "Motor " << motor.id << " (" << motor.tool->model_name_
+                                                     << ") exceeds its limits [" << real_lower << "," << real_upper
+                                                     << "] with goal position: " << goal_position);
+                        this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id,
+                                                            motor.tool->ctrl_table_["goal_position"]->address,
+                                                            goal_position, &error);
+                    }
+                        break;
+
+                    case squirrel_control::VELOCITY: {
+                        this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
+                                                            motor.tool->ctrl_table_["operating_mode"]->address,
+                                                            DYNAMIXEL_VELOCITY_MODE, &error);
+                        throw_control_error(error,
+                                            "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
+                                                                      << ") into velocity mode");
+                        UINT32_T present_velocity;
+                        this->packetHandler->Read4ByteTxRx(this->portHandler, motor.id,
+                                                           motor.tool->ctrl_table_["present_velocity"]->address,
+                                                           &present_velocity, &error);
+                        throw_control_error(error, "Failed to read present velocity for motor " << motor.id << " ("
+                                                                                                << motor.tool->model_name_
+                                                                                                << ")");
+
+                        this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id,
+                                                            motor.tool->ctrl_table_["goal_velocity"]->address,
+                                                            commands.at(i), &error);
+                    }
+                        break;
+                    case squirrel_control::TORQUE: {
+                        this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
+                                                            motor.tool->ctrl_table_["operating_mode"]->address,
+                                                            DYNAMIXEL_TORQUE_MODE, &error);
+                        throw_control_error(error,
+                                            "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
+                                                                      << ") into torque mode");
+                        this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id,
+                                                            motor.tool->ctrl_table_["goal_torque"]->address,
+                                                            commands.at(i),
+                                                            &error);
+                    }
+                        break;
+                    default:
+                        throw_control_error(true, "Unknown mode: " << this->current_mode);
+                }
+                throw_control_error(error,
+                                    "Failed to command motor " << motor.id << " (" << motor.tool->model_name_ << ") in "
+                                                               << this->current_mode << " mode");
+                i++;
             }
-            throw_control_error(error, "Failed to command motor " << motor.id << " (" << motor.tool->model_name_ << ") in " << this->current_mode << " mode");
-            i++;
+        }catch(const std::runtime_error & e) {
+            this->motor_lock.unlock();
+            throw e;
         }
 
         this->motor_lock.unlock();

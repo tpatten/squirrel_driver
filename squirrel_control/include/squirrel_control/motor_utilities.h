@@ -16,10 +16,16 @@
 namespace motor_control
 {
 
+#define DYNAMIXEL_POSITION_MODE 3
+#define DYNAMIXEL_VELOCITY_MODE 1
+#define DYNAMIXEL_TORQUE_MODE 0
+
     struct Motor {
         UINT8_T id;
         dynamixel_tool::DynamixelTool *tool;
     };
+
+
 
 
     class MotorUtilities
@@ -51,7 +57,7 @@ namespace motor_control
 
         squirrel_control::SquirrelControlMode getMode();
 
-        bool write(std::vector<UINT16_T>commands);
+        bool write(std::vector<double>commands);
 
 
     private:
