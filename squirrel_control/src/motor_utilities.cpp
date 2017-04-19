@@ -120,6 +120,9 @@ namespace motor_control {
     }
 
 
+    //PID control should actually already be done in the motor
+    //this only consider low level (HW) limits
+    //conversion from joint pos to velocity/torque done in squirell_hardware_interface or here?
     bool MotorUtilities::write(std::vector<double> commands)
     {
         throw_control_error(commands.size() != this->motors.size(), "Wrong number of commands! Got " << commands.size() << ", but expected " << motors.size());
@@ -149,8 +152,7 @@ namespace motor_control {
                                                                                                 << motor.tool->model_name_
                                                                                                 << ")");
                         double rad_per_tick = motor.tool->max_radian_ / motor.tool->value_of_max_radian_position_;
-                        UINT32_T goal_in_ticks = (UINT32_T) commands.at(i) / rad_per_tick;
-                        UINT32_T goal_position = present_position + goal_in_ticks;
+                        UINT32_T goal_position = (UINT32_T) commands.at(i) / rad_per_tick;
                         UINT32_T homing_offset;
                         this->packetHandler->Read4ByteTxRx(this->portHandler, motor.id,
                                                            motor.tool->ctrl_table_["homing_offset"]->address,
@@ -158,15 +160,16 @@ namespace motor_control {
                         throw_control_error(error, "Failed to read homing offset for motor " << motor.id << " ("
                                                                                              << motor.tool->model_name_
                                                                                              << ")");
-                        UINT32_T real_lower = homing_offset + motor.tool->value_of_min_radian_position_;
-                        UINT32_T real_upper = homing_offset + motor.tool->value_of_max_radian_position_;
-                        throw_control_error(goal_position < real_lower || goal_position > real_upper,
+                        UINT32_T min_with_offset = homing_offset + motor.tool->value_of_min_radian_position_;
+                        UINT32_T max_with_offset = homing_offset + motor.tool->value_of_max_radian_position_;
+                        UINT32_T goal_position_with_offset = goal_position + homing_offset;
+                        throw_control_error(goal_position_with_offset < min_with_offset || goal_position_with_offset > max_with_offset,
                                             "Motor " << motor.id << " (" << motor.tool->model_name_
-                                                     << ") exceeds its limits [" << real_lower << "," << real_upper
+                                                     << ") exceeds its limits [" << min_with_offset << "," << max_with_offset
                                                      << "] with goal position: " << goal_position);
                         this->packetHandler->Write2ByteTxRx(this->portHandler, motor.id,
                                                             motor.tool->ctrl_table_["goal_position"]->address,
-                                                            goal_position, &error);
+                                                            goal_position_with_offset, &error);
                         }
                         break;
 
