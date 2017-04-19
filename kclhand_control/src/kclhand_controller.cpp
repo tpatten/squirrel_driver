@@ -475,7 +475,7 @@ bool KCLHandController::closeFingers(float rel_current_limit)
   target_positions[RIGHT_PALM] = deg_to_rad(30.);
   target_positions[LEFT_PALM] = deg_to_rad(30.);
   target_positions[RIGHT_FINGER] = deg_to_rad(-15.);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(10.);
+  target_positions[MIDDLE_FINGER] = deg_to_rad(20.);
   target_positions[LEFT_FINGER] = deg_to_rad(-15.);
   bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
   // if targets not reached, then some joints ran into their current limit, i.e. we are probably

@@ -26,9 +26,9 @@ void BaseController::initialize(ros::NodeHandle& node){
 //    private_nh.param("baseControl/integral_y_max", i_y_max_, 0.8);
 //    private_nh.param("baseControl/integral_y_min", i_y_min_, -0.8);
 
-    private_nh.param("baseControl/vel_ang_max", vel_ang_max_, 0.2);
-    private_nh.param("baseControl/vel_x_max", vel_x_max_, 0.2);
-    private_nh.param("baseControl/vel_y_max", vel_y_max_, 0.2);
+    private_nh.param("baseControl/vel_ang_max", vel_ang_max_, 0.5);
+    private_nh.param("baseControl/vel_x_max", vel_x_max_, 0.5);
+    private_nh.param("baseControl/vel_y_max", vel_y_max_, 0.5);
 
     pid_theta_.initPid(p_theta_, 0.0,0.0,0.0,0.0);
     pid_x_.initPid(p_x_, 0.0,0.0,0.0,0.0);
@@ -148,8 +148,10 @@ void BaseController::moveBaseThread(){
                 if(fabs(current_base_vel_.angular.z) > vel_ang_max_) {
                     if(gotoCommand)
                         current_base_vel_.angular.z = (current_base_vel_.angular.z > 0 ? vel_ang_max_ : - vel_ang_max_);
-                    else
+                    else{
                         velExceeded=true;
+                        cout << "vel_ang_max_ (" << vel_ang_max_ << ") exceeded; current velocity: " << fabs(current_base_vel_.angular.z) << endl;
+                    }
                 }
 
 
@@ -166,8 +168,10 @@ void BaseController::moveBaseThread(){
             if(fabs(current_base_vel_.linear.x) > vel_x_max_) {
                 if (gotoCommand)
                         current_base_vel_.linear.x= (current_base_vel_.linear.x > 0 ? vel_x_max_ : - vel_x_max_);
-                else
+                else {
                     velExceeded=true;
+                    cout << "vel_x_max_ (" << vel_x_max_ << ") exceeded; current velocity: " << fabs(current_base_vel_.linear.x) << endl;
+                }
             }
 
 
@@ -176,8 +180,10 @@ void BaseController::moveBaseThread(){
             if(fabs(current_base_vel_.linear.y) > vel_y_max_) {
                 if(gotoCommand)
                     current_base_vel_.linear.y = (current_base_vel_.linear.y > 0 ? vel_y_max_ : - vel_y_max_);
-                else
+                else{
                     velExceeded=true;
+                    cout << "vel_y_max_ (" << vel_y_max_ << ") exceeded; current velocity: " << fabs(current_base_vel_.linear.y) << endl;
+                }
 
             }
 

@@ -163,6 +163,7 @@ bool Arm::checkDistance(std::vector<double>& current, std::vector<double>& targe
 		if(fabs(current.at(i) - target.at(i)) > motors.at(i)->getMaxVelLimit()) {
 			exceededDist = fabs(current.at(i) - target.at(i));
 			maxDist = motors.at(i )->getMaxVelLimit();
+			std::cerr << "Motor " << i << " exceeded its limit by " << exceededDist << " (maxDist: " << maxDist << ")" <<  std::endl;
 			return false;
 		}
 	}
