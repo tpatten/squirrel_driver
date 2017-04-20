@@ -15,7 +15,8 @@ find_package(catkin REQUIRED
         std_msgs
         geometry_msgs
         trajectory_msgs
-        squirrel_safety_msgs)
+        squirrel_safety_msgs
+        squirrel_control_msgs)
 
 find_package(Boost REQUIRED COMPONENTS system)
 
@@ -36,6 +37,7 @@ catkin_package(
          geometry_msgs
          trajectory_msgs
          squirrel_safety_msgs
+         squirrel_control_msgs
 )
 
 ###########

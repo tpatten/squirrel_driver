@@ -46,6 +46,9 @@ namespace squirrel_control
         // Name of this arm
         std::string arm_name_;
 
+        // Track current hardware interface mode we are in
+        int* joint_mode_;
+
     public:
 
         /**
@@ -67,26 +70,21 @@ namespace squirrel_control
                 hardware_interface::JointStateInterface&    js_interface,
                 hardware_interface::VelocityJointInterface& vj_interface,
                 hardware_interface::PositionJointInterface& pj_interface,
+                hardware_interface::EffortJointInterface&   ej_interface,
                 int* joint_mode,
                 sensor_msgs::JointStateConstPtr state_msg
         )
         { return true; };
 
-        /**
-         * \brief Copy the joint state message into our hardware interface datastructures
-         */
+
         virtual void read( sensor_msgs::JointStateConstPtr &state_msg )
         {};
 
-        /**
-         * \brief Publish our hardware interface datastructures commands to Baxter hardware
-         */
+
         virtual void write(ros::Duration elapsed_time)
         {};
 
-        /**
-         * \brief This is called when Baxter is disabled, so that we can update the desired positions
-         */
+
         virtual void robotDisabledCallback()
         {};
 

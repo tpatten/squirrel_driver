@@ -18,6 +18,7 @@
   <build_depend>geometry_msgs</build_depend>
   <build_depend>trajectory_msgs</build_depend>
   <build_depend>squirrel_safety_msgs</build_depend>
+  <build_depend>squirrel_control_msgs</build_depend>
 
   <run_depend>roscpp</run_depend>
   <run_depend>geometry_msgs</run_depend>
@@ -27,6 +28,7 @@
   <run_depend>joint_limits_interface</run_depend>
   <run_depend>controller_manager</run_depend>
   <run_depend>std_msgs</run_depend>
+  <run_depend>squirrel_control_msgs</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

@@ -144,13 +144,6 @@ namespace motor_control {
                         throw_control_error(error,
                                             "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
                                                                       << ") into position mode");
-                        UINT32_T present_position;
-                        this->packetHandler->Read4ByteTxRx(this->portHandler, motor.id,
-                                                           motor.tool->ctrl_table_["present_position"]->address,
-                                                           &present_position, &error);
-                        throw_control_error(error, "Failed to read present position for motor " << motor.id << " ("
-                                                                                                << motor.tool->model_name_
-                                                                                                << ")");
                         double rad_per_tick = motor.tool->max_radian_ / motor.tool->value_of_max_radian_position_;
                         UINT32_T goal_position = (UINT32_T) commands.at(i) / rad_per_tick;
                         UINT32_T homing_offset;

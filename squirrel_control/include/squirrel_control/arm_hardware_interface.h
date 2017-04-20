@@ -8,6 +8,9 @@
 // ROS
 #include <trajectory_msgs/JointTrajectory.h>
 
+#include <squirrel_control_msgs/JointCommand.h>
+#include <squirrel_safety_msgs/Safety.h>
+
 // Parent class
 #include <squirrel_control/arm_interface.h>
 
@@ -24,7 +27,17 @@ namespace squirrel_control
         ros::Publisher pub_joint_command_;
         ros::Publisher pub_trajectory_command_;
 
+        // Subscriber
+        ros::Subscriber e_squeezed_sub_;
+
+        // Track button status
+        bool e_squeezed_previous;
+
+        // Convert a joint states message to our ids
+        std::vector<int> joint_id_to_joint_states_id_;
+
         // Messages to send
+        squirrel_control_msgs::JointCommand output_msg_;
         trajectory_msgs::JointTrajectory trajectory_command_msg_;
 
     public:
@@ -41,35 +54,24 @@ namespace squirrel_control
          */
         bool init(
                 hardware_interface::JointStateInterface&    js_interface,
+                hardware_interface::VelocityJointInterface& vj_interface,
                 hardware_interface::PositionJointInterface& pj_interface,
+                hardware_interface::EffortJointInterface&   ej_interface,
                 int* joint_mode,
                 sensor_msgs::JointStateConstPtr state_msg
         );
 
-        /**
-         * \brief Buffers joint state info from Baxter ROS topic
-         * \param
-         */
+
         void stateCallback(const sensor_msgs::JointStateConstPtr& msg);
 
-        /**
-         * \brief Copy the joint state message into our hardware interface datastructures
-         */
-        void read( sensor_msgs::JointStateConstPtr &state_msg );
+        void eSqueezedCallback(const squirrel_safety_msgs::SafetyConstPtr& msg);
 
-        /**
-         * \brief Publish our hardware interface datastructures commands to Baxter hardware
-         */
+        void read(sensor_msgs::JointStateConstPtr &state_msg );
+
         void write(ros::Duration elapsed_time);
 
-        /**
-         * \brief This is called when Baxter is disabled, so that we can update the desired positions
-         */
         void robotDisabledCallback();
 
-        /**
-         * \brief inform the trajectory controller to update its setpoint
-         */
         void publishCurrentLocation();
     };
 
