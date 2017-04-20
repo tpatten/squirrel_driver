@@ -8,16 +8,23 @@ if(COMPILER_SUPPORTS_CXX11)
 endif()
 
 find_package(catkin REQUIRED
-        roscpp
+        cmake_modules
         hardware_interface
-        joint_limits_interface
         controller_manager
-        std_msgs
-        geometry_msgs
+        roscpp
+        control_msgs
         trajectory_msgs
+        actionlib
+        urdf
+        joint_limits_interface
+        transmission_interface
+        control_toolbox
+        std_msgs
+        sensor_msgs
         squirrel_safety_msgs
-        squirrel_control_msgs)
+        rosparam_shortcuts)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Boost REQUIRED COMPONENTS system)
 
 ###################################
@@ -25,19 +32,25 @@ find_package(Boost REQUIRED COMPONENTS system)
 ###################################
 
 catkin_package(
-        INCLUDE_DIRS include
-        LIBRARIES
-         arm_interface
+        INCLUDE_DIRS
+          include
         CATKIN_DEPENDS
-         roscpp
-         hardware_interface
-         joint_limits_interface
-         controller_manager
-         std_msgs
-         geometry_msgs
-         trajectory_msgs
-         squirrel_safety_msgs
-         squirrel_control_msgs
+          hardware_interface
+          controller_manager
+          roscpp
+          control_msgs
+          trajectory_msgs
+          urdf
+          joint_limits_interface
+          transmission_interface
+          control_toolbox
+          std_msgs
+          sensor_msgs
+          rosparam_shortcuts
+        LIBRARIES
+          squirrel_hw_control_loop
+          squirrel_hw_interface
+          squirrel_sim_hw_interface
 )
 
 ###########
@@ -61,38 +74,74 @@ add_library(dynamixel_lib
         src/dynamixel_sdk/Protocol2PacketHandler.cpp
         src/dynamixel_sdk/PortHandlerLinux.cpp)
 
-add_library(motor_utils src/motor_utilities.cpp)
-target_link_libraries(motor_utils ${catkin_LIBRARIES} ${Boost_LIBRARIES} dynamixel_lib)
-add_dependencies(motor_utils ${catkin_EXPORTED_TARGETS})
-
-add_library(arm_interface src/arm_hardware_interface.cpp)
-target_link_libraries(arm_interface ${catkin_LIBRARIES} ${Boost_LIBRARIES} motor_utils)
-add_dependencies(arm_interface ${catkin_EXPORTED_TARGETS})
-
-add_executable(squirrel_hardware_interface src/squirrel_hardware_interface.cpp)
-target_link_libraries(squirrel_hardware_interface
-        arm_interface
+# Motor utils
+add_library(motor_utilities src/motor_utilities.cpp)
+target_link_libraries(motor_utilities
+        dynamixel_lib
         ${catkin_LIBRARIES}
-        ${Boost_LIBRARIES}
         )
 
-add_dependencies(squirrel_hardware_interface ${catkin_EXPORTED_TARGETS})
+# Control loop
+add_library(squirrel_hw_control_loop
+        src/squirrel_hw_control_loop.cpp)
+target_link_libraries(squirrel_hw_control_loop
+        ${catkin_LIBRARIES}
+        )
+
+# Hardware Interface
+add_library(squirrel_hw_interface
+        src/squirrel_hw_interface.cpp
+        )
+target_link_libraries(squirrel_hw_interface
+        motor_utilities
+        ${catkin_LIBRARIES}
+        )
+
+# Simulation Hardware Interface
+add_library(squirrel_sim_hw_interface
+        src/squirrel_sim_hw_interface.cpp
+        )
+target_link_libraries(squirrel_sim_hw_interface
+        squirrel_hw_interface
+        ${catkin_LIBRARIES}
+        )
+
+# Main control executables
+add_executable(${PROJECT_NAME}_sim_hw_main src/squirrel_sim_hw_main.cpp)
+set_target_properties(${PROJECT_NAME}_sim_hw_main PROPERTIES OUTPUT_NAME squirrel_sim_hw_main PREFIX "")
+target_link_libraries(${PROJECT_NAME}_sim_hw_main
+        squirrel_sim_hw_interface
+        squirrel_hw_control_loop
+        ${catkin_LIBRARIES}
+        )
+
+add_executable(${PROJECT_NAME}_hw_main src/squirrel_hw_main.cpp)
+set_target_properties(${PROJECT_NAME}_hw_main PROPERTIES OUTPUT_NAME squirrel_hw_main PREFIX "")
+target_link_libraries(${PROJECT_NAME}_hw_main
+        squirrel_hw_interface
+        squirrel_hw_control_loop
+        ${catkin_LIBRARIES}
+        )
 
 #############
 ## Install ##
 #############
 
-FILE(GLOB_RECURSE LibFiles "*.h*")
-add_custom_target(headers SOURCES ${LibFiles})
-
-install(DIRECTORY include/${PROJECT_NAME}
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-        FILES_MATCHING PATTERN "*.hpp"
-        PATTERN ".git" EXCLUDE
-)
-
 install(TARGETS
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  squirrel_hw_control_loop
+  squirrel_hw_interface
+  squirrel_sim_hw_interface
+  LIBRARY DESTINATION
+  ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
+
+# Install executables
+install(TARGETS
+  ${PROJECT_NAME}_hw_main
+  ${PROJECT_NAME}_sim_hw_main
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+# Install header files
+install(DIRECTORY include/${PROJECT_NAME}/   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})

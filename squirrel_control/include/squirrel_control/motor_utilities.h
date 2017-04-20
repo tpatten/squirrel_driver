@@ -8,7 +8,7 @@
 #include <mutex>
 #include <error/throwControlError.h>
 
-#include <squirrel_control/squirrel_hardware_interface.h>
+#include <squirrel_control/squirrel_hw_interface.h>
 #include <dynamixel_sdk/PortHandler.h>
 #include <dynamixel_sdk/Protocol2PacketHandler.h>
 #include <dynamixel_sdk/dynamixel_tool.h>
