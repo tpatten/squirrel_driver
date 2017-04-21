@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(squirrel_control)
 
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-if(COMPILER_SUPPORTS_CXX11)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
 find_package(catkin REQUIRED
         cmake_modules
@@ -72,7 +68,8 @@ add_library(dynamixel_lib
         src/dynamixel_sdk/PortHandler.cpp
         src/dynamixel_sdk/Protocol1PacketHandler.cpp
         src/dynamixel_sdk/Protocol2PacketHandler.cpp
-        src/dynamixel_sdk/PortHandlerLinux.cpp)
+        src/dynamixel_sdk/PortHandlerLinux.cpp
+        src/dynamixel_sdk/dynamixel_tool.cpp)
 
 # Motor utils
 add_library(motor_utilities src/motor_utilities.cpp)

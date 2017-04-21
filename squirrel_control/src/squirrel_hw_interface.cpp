@@ -3,27 +3,32 @@
 //
 
 #include "squirrel_control/squirrel_hw_interface.h"
-#include <limits>
 
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 
+//TODO safety
+//TODO modes
 namespace squirrel_control {
     SquirrelHWInterface::SquirrelHWInterface(ros::NodeHandle &nh, urdf::Model *urdf_model)
         : name_("squirrel_hw_interface")
                 , nh_(nh)
                 , use_rosparam_joint_limits_(false)
                 , use_soft_limits_if_available_(false) {
-            // Check if the URDF model needs to be loaded
-            if (urdf_model == NULL)
-                loadURDF(nh, "robot_description");
-            else
-                urdf_model_ = urdf_model;
+	    // Check if the URDF model needs to be loaded
+        if (urdf_model == NULL)
+            loadURDF(nh, "robot_description");
+        else
+            urdf_model_ = urdf_model;
 
-            // Load rosparams
-            ros::NodeHandle rpnh(nh_, "squirrel_hw_interface"); // TODO(davetcoleman): change the namespace to "generic_hw_interface" aka name_
-            std::size_t error = 0;
-            error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
-            rosparam_shortcuts::shutdownIfError(name_, error);
+        // Load rosparams
+        ros::NodeHandle rpnh(nh_, "squirrel_hw_interface"); // TODO(davetcoleman): change the namespace to "generic_hw_interface" aka name_
+        std::size_t error = 0;
+	    std::string motor_port;
+        error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
+        rosparam_shortcuts::shutdownIfError(name_, error);
+	    error += !rosparam_shortcuts::get(name_, rpnh, "motor_port", motor_port_);
+	    rosparam_shortcuts::shutdownIfError(name_, error);
+	    motor_interface_ = new motor_control::MotorUtilities();
     }
 
 
@@ -82,6 +87,9 @@ namespace squirrel_control {
         registerInterface(&position_joint_interface_);  // From RobotHW base class.
         registerInterface(&velocity_joint_interface_);  // From RobotHW base class.
         registerInterface(&effort_joint_interface_);    // From RobotHW base class.
+
+	    motor_interface_->initMotors(motor_port_, {1,2,3,4,5});
+	    motor_interface_->startMotors();
 
         ROS_INFO_STREAM_NAMED(name_, "SquirrelHWInterface ready.");
     }
@@ -253,6 +261,7 @@ namespace squirrel_control {
         return ss.str();
     }
 
+
     std::string SquirrelHWInterface::printCommandHelper() {
         std::stringstream ss;
         std::cout.precision(15);
@@ -266,6 +275,7 @@ namespace squirrel_control {
         return ss.str();
     }
 
+
     void SquirrelHWInterface::loadURDF(ros::NodeHandle &nh, std::string param_name) {
         std::string urdf_string;
         urdf_model_ = new urdf::Model();
@@ -273,14 +283,12 @@ namespace squirrel_control {
         // search and wait for robot_description on param server
         while (urdf_string.empty() && ros::ok()) {
             std::string search_param_name;
-            if (nh.searchParam(param_name, search_param_name))
-            {
+            if (nh.searchParam(param_name, search_param_name)) {
                 ROS_INFO_STREAM_NAMED(name_, "Waiting for model URDF on the ROS param server at location: " <<
                                                                                                             nh.getNamespace() << search_param_name);
                 nh.getParam(search_param_name, urdf_string);
             }
-            else
-            {
+            else {
                 ROS_INFO_STREAM_NAMED(name_, "Waiting for model URDF on the ROS param server at location: " <<
                                                                                                             nh.getNamespace() << param_name);
                 nh.getParam(param_name, urdf_string);
@@ -297,17 +305,20 @@ namespace squirrel_control {
 
 
     void SquirrelHWInterface::read(ros::Duration &elapsed_time) {
-
+		motor_interface_->read();
     }
 
 
     void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
-
+		motor_interface_->write({1,2,3,4,5});
     }
 
 
     void SquirrelHWInterface::enforceLimits(ros::Duration &period) {
-
+	    // Enforces position and velocity
+	    pos_jnt_sat_interface_.enforceLimits(period);
+	    vel_jnt_sat_interface_.enforceLimits(period);
+	    eff_jnt_sat_interface_.enforceLimits(period);
     }
 }
 

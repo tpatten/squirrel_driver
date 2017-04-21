@@ -20,12 +20,12 @@ namespace motor_control {
     }
 
 
-    void MotorUtilities::setMode(squirrel_control::SquirrelControlMode mode) {
+    void MotorUtilities::setMode(control_modes::ControlMode mode) {
         this->current_mode = mode;
     }
 
 
-    squirrel_control::SquirrelControlMode MotorUtilities::getMode() {
+	control_modes::ControlMode MotorUtilities::getMode() {
         return this->current_mode;
     }
 
@@ -122,7 +122,7 @@ namespace motor_control {
 
     //PID control should actually already be done in the motor
     //this only consider low level (HW) limits
-    //conversion from joint pos to velocity/torque done in squirell_hardware_interface or here?
+    //conversion from joint pos to velocity/torque done in squirrel_hw_interface or here?
     bool MotorUtilities::write(std::vector<double> commands)
     {
         throw_control_error(commands.size() != this->motors.size(), "Wrong number of commands! Got " << commands.size() << ", but expected " << motors.size());
@@ -137,10 +137,10 @@ namespace motor_control {
 
             for (auto const motor : this->motors) {
                 switch (this->current_mode) {
-                    case squirrel_control::POSITION: {
+	                case control_modes::ControlMode::POSITION_MODE: {
                         this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
                                                             motor.tool->ctrl_table_["operating_mode"]->address,
-                                                            DYNAMIXEL_POSITION_MODE, &error);
+                                                            control_modes::ControlMode::POSITION_MODE, &error);
                         throw_control_error(error,
                                             "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
                                                                       << ") into position mode");
@@ -166,10 +166,10 @@ namespace motor_control {
                         }
                         break;
 
-                    case squirrel_control::VELOCITY: {
+	                case control_modes::ControlMode::VELOCITY_MODE: {
                         this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
                                                             motor.tool->ctrl_table_["operating_mode"]->address,
-                                                            DYNAMIXEL_VELOCITY_MODE, &error);
+                                                            control_modes::ControlMode::VELOCITY_MODE, &error);
                         throw_control_error(error,
                                             "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
                                                                       << ") into velocity mode");
@@ -190,10 +190,10 @@ namespace motor_control {
                         }
                         break;
 
-                    case squirrel_control::TORQUE: {
+                    case control_modes::ControlMode::TORQUE_MODE: {
                         this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
                                                             motor.tool->ctrl_table_["operating_mode"]->address,
-                                                            DYNAMIXEL_TORQUE_MODE, &error);
+                                                            control_modes::ControlMode::TORQUE_MODE, &error);
                         throw_control_error(error,
                                             "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
                                                                       << ") into torque mode");
@@ -230,4 +230,25 @@ namespace motor_control {
         this->motor_lock.unlock();
         return true;
     }
+
+
+    std::vector<UINT32_T> MotorUtilities::read() {
+        switch(this->current_mode) {
+            case control_modes::ControlMode::POSITION_MODE:
+                {
+                    return{};
+                }
+            case control_modes::ControlMode::VELOCITY_MODE:
+                {
+                    return{};
+                }
+            case control_modes::ControlMode::TORQUE_MODE:
+                {
+                    return{};
+                }
+            default:
+                throw_control_error(true, "Unknown mode: " << this->current_mode);
+        }
+    }
+
 }

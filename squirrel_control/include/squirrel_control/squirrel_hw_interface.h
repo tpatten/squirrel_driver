@@ -22,9 +22,9 @@
 #include <joint_limits_interface/joint_limits_rosparam.h>
 #include <joint_limits_interface/joint_limits_urdf.h>
 
-namespace squirrel_control {
+#include "squirrel_control/motor_utilities.h"
 
-    enum SquirrelControlMode {POSITION, VELOCITY, TORQUE};
+namespace squirrel_control {
 
     class SquirrelHWInterface : public hardware_interface::RobotHW {
 
@@ -141,6 +141,9 @@ namespace squirrel_control {
         std::vector<double> joint_effort_limits_;
 
 
+
+		motor_control::MotorUtilities* motor_interface_;
+	    std::string motor_port_;
     };
 
 }

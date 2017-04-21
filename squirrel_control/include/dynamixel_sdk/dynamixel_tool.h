@@ -37,6 +37,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fstream>
+#include <map>
+#include <vector>
+#include <functional>
+#include <algorithm>
 
 namespace dynamixel_tool {
     enum ACCESS_TYPE {

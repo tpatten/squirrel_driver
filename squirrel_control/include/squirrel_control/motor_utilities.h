@@ -8,24 +8,19 @@
 #include <mutex>
 #include <error/throwControlError.h>
 
-#include <squirrel_control/squirrel_hw_interface.h>
+#include "squirrel_control/control_modes.h"
+
 #include <dynamixel_sdk/PortHandler.h>
 #include <dynamixel_sdk/Protocol2PacketHandler.h>
 #include <dynamixel_sdk/dynamixel_tool.h>
 
+
 namespace motor_control
 {
-
-#define DYNAMIXEL_POSITION_MODE 3
-#define DYNAMIXEL_VELOCITY_MODE 1
-#define DYNAMIXEL_TORQUE_MODE 0
-
     struct Motor {
         UINT8_T id;
         dynamixel_tool::DynamixelTool *tool;
     };
-
-
 
 
     class MotorUtilities
@@ -53,9 +48,9 @@ namespace motor_control
 
         std::vector<Motor> getMotors();
 
-        void setMode(squirrel_control::SquirrelControlMode mode);
+        void setMode(control_modes::ControlMode mode);
 
-        squirrel_control::SquirrelControlMode getMode();
+        control_modes::ControlMode getMode();
 
         /**
             Writes the high level control commands to the motor. this operation supports all three operating modes, i.e.,
@@ -66,6 +61,8 @@ namespace motor_control
             @return true in case of success
         */
         bool write(std::vector<double>commands);
+
+        std::vector<UINT32_T> read();
 
 
     private:
@@ -78,7 +75,7 @@ namespace motor_control
 
         std::vector<Motor> motors;
 
-        squirrel_control::SquirrelControlMode current_mode;
+        control_modes::ControlMode current_mode;
 
         ROBOTIS::PortHandler* portHandler;
 

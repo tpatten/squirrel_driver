@@ -6,6 +6,8 @@
 
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 
+//TODO safety
+//TODO modes
 namespace squirrel_control {
     SquirrelSimHWInterface::SquirrelSimHWInterface(ros::NodeHandle &nh, urdf::Model *urdf_model)
             : SquirrelHWInterface(nh, urdf_model)
@@ -93,6 +95,8 @@ namespace squirrel_control {
     {
         // Enforces position and velocity
         pos_jnt_sat_interface_.enforceLimits(period);
+	    vel_jnt_sat_interface_.enforceLimits(period);
+	    eff_jnt_sat_interface_.enforceLimits(period);
     }
 
 
