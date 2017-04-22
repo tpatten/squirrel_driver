@@ -6,6 +6,7 @@
 #define SQUIRREL_CONTROL_MOTOR_UTILITIES_H
 
 #include <mutex>
+#include <cmath>
 #include <error/throwControlError.h>
 
 #include "squirrel_control/control_modes.h"
@@ -26,7 +27,9 @@ namespace motor_control
     class MotorUtilities
     {
     public:
-        static constexpr int BAUD_RATE = 3000000;
+        static constexpr int BAUD_RATE_ = 3000000;
+
+	    static constexpr double CURRENT_TO_TORQUE_RATIO_ = 3.4167;
 
         MotorUtilities();
 
@@ -62,24 +65,24 @@ namespace motor_control
         */
         bool write(std::vector<double>commands);
 
-        std::vector<UINT16_T> read();
+        std::vector<double> read();
 
 
     private:
 
-        bool motors_ready;
+        bool motorsReady_;
 
-        bool torque_enabled;
+        bool torqueEnabled_;
 
-        std::mutex motor_lock;
+        std::mutex motorLock_;
 
-        std::vector<Motor> motors;
+        std::vector<Motor> motors_;
 
-        control_modes::ControlMode current_mode;
+        control_modes::ControlMode currentMode_;
 
-        ROBOTIS::PortHandler* portHandler;
+        ROBOTIS::PortHandler* portHandler_;
 
-        ROBOTIS::Protocol2PacketHandler* packetHandler;
+        ROBOTIS::Protocol2PacketHandler* packetHandler_;
     };
 
 }
