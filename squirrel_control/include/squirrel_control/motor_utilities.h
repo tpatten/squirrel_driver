@@ -70,19 +70,19 @@ namespace motor_control
 
     private:
 
-        bool motorsReady_;
+        bool motors_ready_;
 
-        bool torqueEnabled_;
+        bool torque_enabled_;
 
-        std::mutex motorLock_;
+        std::mutex motor_lock_;
 
         std::vector<Motor> motors_;
 
-        control_modes::ControlMode currentMode_;
+        control_modes::ControlMode current_mode_;
 
-        ROBOTIS::PortHandler* portHandler_;
+        ROBOTIS::PortHandler* port_handler_;
 
-        ROBOTIS::Protocol2PacketHandler* packetHandler_;
+        ROBOTIS::Protocol2PacketHandler* packet_handler_;
     };
 
 }
