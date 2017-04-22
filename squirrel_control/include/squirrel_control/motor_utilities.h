@@ -62,7 +62,7 @@ namespace motor_control
         */
         bool write(std::vector<double>commands);
 
-        std::vector<UINT32_T> read();
+        std::vector<UINT16_T> read();
 
 
     private:

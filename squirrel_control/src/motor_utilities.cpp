@@ -21,7 +21,22 @@ namespace motor_control {
 
 
     void MotorUtilities::setMode(control_modes::ControlMode mode) {
-        this->current_mode = mode;
+	    UINT8_T error;
+	    try {
+		    motor_lock.lock();
+		    this->current_mode = mode;
+		    for(const auto motor : motors){
+			    this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
+			                                        motor.tool->ctrl_table_["operating_mode"]->address,
+			                                        mode, &error);
+			    throw_control_error(error,
+			                        "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
+			                                                  << ") into mode " << mode);
+		    }
+		    motor_lock.unlock();
+	    } catch (std::exception &ex) {
+		    throw ex;
+	    }
     }
 
 
@@ -138,12 +153,6 @@ namespace motor_control {
             for (auto const motor : this->motors) {
                 switch (this->current_mode) {
 	                case control_modes::ControlMode::POSITION_MODE: {
-                        this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
-                                                            motor.tool->ctrl_table_["operating_mode"]->address,
-                                                            control_modes::ControlMode::POSITION_MODE, &error);
-                        throw_control_error(error,
-                                            "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
-                                                                      << ") into position mode");
                         double rad_per_tick = motor.tool->max_radian_ / motor.tool->value_of_max_radian_position_;
                         UINT32_T goal_position = (UINT32_T) commands.at(i) / rad_per_tick;
                         UINT32_T homing_offset;
@@ -167,12 +176,6 @@ namespace motor_control {
                         break;
 
 	                case control_modes::ControlMode::VELOCITY_MODE: {
-                        this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
-                                                            motor.tool->ctrl_table_["operating_mode"]->address,
-                                                            control_modes::ControlMode::VELOCITY_MODE, &error);
-                        throw_control_error(error,
-                                            "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
-                                                                      << ") into velocity mode");
                         UINT32_T velocity_limit;
                         this->packetHandler->Read4ByteTxRx(this->portHandler, motor.id,
                                                            motor.tool->ctrl_table_["velocity_limit"]->address,
@@ -191,12 +194,6 @@ namespace motor_control {
                         break;
 
                     case control_modes::ControlMode::TORQUE_MODE: {
-                        this->packetHandler->Write1ByteTxRx(this->portHandler, motor.id,
-                                                            motor.tool->ctrl_table_["operating_mode"]->address,
-                                                            control_modes::ControlMode::TORQUE_MODE, &error);
-                        throw_control_error(error,
-                                            "Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
-                                                                      << ") into torque mode");
                         UINT16_T torque_limit;
                         this->packetHandler->Read2ByteTxRx(this->portHandler, motor.id,
                                                            motor.tool->ctrl_table_["torque_limit"]->address,
@@ -222,9 +219,9 @@ namespace motor_control {
                                                                << this->current_mode << " mode");
                 i++;
             }
-        }catch(const std::runtime_error & e) {
+        }catch(const std::exception &ex) {
             this->motor_lock.unlock();
-            throw e;
+            throw ex;
         }
 
         this->motor_lock.unlock();
@@ -232,19 +229,39 @@ namespace motor_control {
     }
 
 
-    std::vector<UINT32_T> MotorUtilities::read() {
+    std::vector<UINT16_T> MotorUtilities::read() {
+	    UINT8_T error;
         switch(this->current_mode) {
             case control_modes::ControlMode::POSITION_MODE:
                 {
-                    return{};
+	                std::vector<UINT16_T> positions = {};
+					UINT16_T value;
+	                for (auto const motor : this->motors) {
+		                this->packetHandler->Read2ByteTxRx(this->portHandler, motor.id,
+		                                                   motor.tool->ctrl_table_["present_position"]->address,
+		                                                   &value, &error);
+		                throw_control_error(error, "Error reading position for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
+		                positions.push_back(value);
+	                }
+                    return positions;
                 }
             case control_modes::ControlMode::VELOCITY_MODE:
                 {
-                    return{};
+	                std::vector<UINT16_T> velocities = {};
+	                UINT16_T value;
+	                for (auto const motor : this->motors) {
+		                this->packetHandler->Read2ByteTxRx(this->portHandler, motor.id,
+		                                                   motor.tool->ctrl_table_["present_velocity"]->address,
+		                                                   &value, &error);
+		                throw_control_error(error, "Error reading velocity for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
+		                velocities.push_back(value);
+	                }
+	                return velocities;
                 }
             case control_modes::ControlMode::TORQUE_MODE:
                 {
-                    return{};
+	                //TODO read torque
+                    throw_control_error(true, "Not available in TORQUE mode");
                 }
             default:
                 throw_control_error(true, "Unknown mode: " << this->current_mode);

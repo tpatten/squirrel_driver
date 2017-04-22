@@ -7,6 +7,7 @@
 
 // C++
 #include <boost/scoped_ptr.hpp>
+#include <mutex>
 
 // ROS
 #include <ros/ros.h>
@@ -23,6 +24,11 @@
 #include <joint_limits_interface/joint_limits_urdf.h>
 
 #include "squirrel_control/motor_utilities.h"
+#include "control_modes.h"
+#include <squirrel_safety_msgs/Safety.h>
+#include <std_msgs/Int16.h>
+#include <std_msgs/Bool.h>
+
 
 namespace squirrel_control {
 
@@ -83,10 +89,18 @@ namespace squirrel_control {
 
         /** \brief Helper for debugging a joint's state */
         virtual void printState();
+
         std::string printStateHelper();
 
         /** \brief Helper for debugging a joint's command */
         std::string printCommandHelper();
+
+	    /** \brief Callbacks */
+	    virtual void safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg);
+
+	    virtual void safetyResetCallback(const std_msgs::BoolConstPtr &msg);
+
+	    virtual void modeCallback(const std_msgs::Int16ConstPtr &msg);
 
     protected:
 
@@ -98,6 +112,8 @@ namespace squirrel_control {
 
         // Startup and shutdown of the internal node inside a roscpp program
         ros::NodeHandle nh_;
+
+	    control_modes::ControlMode current_mode_;
 
         // Hardware interfaces
         hardware_interface::JointStateInterface joint_state_interface_;
@@ -140,10 +156,15 @@ namespace squirrel_control {
         std::vector<double> joint_velocity_limits_;
         std::vector<double> joint_effort_limits_;
 
-
+	    ros::Subscriber safety_sub_;
+	    ros::Subscriber safety_reset_sub_;
+		bool safety_lock_;
+	    ros::Subscriber mode_sub_;
+	    std::mutex mode_lock_;
 
 		motor_control::MotorUtilities* motor_interface_;
 	    std::string motor_port_;
+
     };
 
 }

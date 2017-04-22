@@ -6,8 +6,7 @@
 
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 
-//TODO safety
-//TODO modes
+
 namespace squirrel_control {
     SquirrelSimHWInterface::SquirrelSimHWInterface(ros::NodeHandle &nh, urdf::Model *urdf_model)
             : SquirrelHWInterface(nh, urdf_model)
@@ -59,35 +58,41 @@ namespace squirrel_control {
         // ros_control controllers take
         // care of PID loops for you. This P-controller is only intended to mimic the delay in real
         // hardware, somewhat like a simulator
-        for (std::size_t joint_id = 0; joint_id < num_joints_; ++joint_id)
-        {
-            switch (sim_control_mode_)
-            {
-                case 0:  // hardware_interface::MODE_POSITION:
-                    positionControlSimulation(elapsed_time, joint_id);
-                    break;
+	    try {
+		    mode_lock_.lock();
+		    for (std::size_t joint_id = 0; joint_id < num_joints_; ++joint_id) {
+			    if (!safety_lock_) {
+				    switch (sim_control_mode_) {
+					    case 0:  // hardware_interface::MODE_POSITION:
+						    positionControlSimulation(elapsed_time, joint_id);
+						    break;
 
-                case 1:  // hardware_interface::MODE_VELOCITY:
+					    case 1:  // hardware_interface::MODE_VELOCITY:
 
-                    // // Move all the states to the commanded set points slowly
-                    // joint_position_[joint_id] += joint_velocity_[joint_id] * elapsed_time.toSec();
+						    // // Move all the states to the commanded set points slowly
+						    // joint_position_[joint_id] += joint_velocity_[joint_id] * elapsed_time.toSec();
 
-                    // v_error_ = joint_velocity_command_[joint_id] - joint_velocity_[joint_id];
+						    // v_error_ = joint_velocity_command_[joint_id] - joint_velocity_[joint_id];
 
-                    // // scale the rate it takes to achieve velocity by a factor that is invariant to the feedback loop
-                    // joint_velocity_[joint_id] += v_error_ * VELOCITY_STEP_FACTOR;
+						    // // scale the rate it takes to achieve velocity by a factor that is invariant to the feedback loop
+						    // joint_velocity_[joint_id] += v_error_ * VELOCITY_STEP_FACTOR;
 
-                    // Naive
-                    joint_velocity_[joint_id] = joint_velocity_command_[joint_id];
-                    joint_position_[joint_id] += joint_velocity_command_[joint_id] * elapsed_time.toSec();
+						    // Naive
+						    joint_velocity_[joint_id] = joint_velocity_command_[joint_id];
+						    joint_position_[joint_id] += joint_velocity_command_[joint_id] * elapsed_time.toSec();
 
-                    break;
+						    break;
 
-                case 2:  // hardware_interface::MODE_EFFORT:
-                    ROS_ERROR_STREAM_NAMED(name_, "Effort not implemented yet");
-                    break;
-            }
-        }
+					    case 2:  // hardware_interface::MODE_EFFORT:
+						    ROS_ERROR_STREAM_NAMED(name_, "Effort not implemented yet");
+						    break;
+				    }
+			    }
+		    }
+	    } catch (std::exception &ex) {
+		    mode_lock_.unlock();
+		    throw_control_error(true, ex.what());
+	    }
     }
 
 

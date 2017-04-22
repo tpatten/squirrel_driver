@@ -5,9 +5,9 @@
 #include "squirrel_control/squirrel_hw_interface.h"
 
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
+#include <armadillo>
 
-//TODO safety
-//TODO modes
+
 namespace squirrel_control {
     SquirrelHWInterface::SquirrelHWInterface(ros::NodeHandle &nh, urdf::Model *urdf_model)
         : name_("squirrel_hw_interface")
@@ -21,7 +21,7 @@ namespace squirrel_control {
             urdf_model_ = urdf_model;
 
         // Load rosparams
-        ros::NodeHandle rpnh(nh_, "squirrel_hw_interface"); // TODO(davetcoleman): change the namespace to "generic_hw_interface" aka name_
+        ros::NodeHandle rpnh(nh_, "squirrel_hw_interface");
         std::size_t error = 0;
 	    std::string motor_port;
         error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
@@ -29,11 +29,14 @@ namespace squirrel_control {
 	    error += !rosparam_shortcuts::get(name_, rpnh, "motor_port", motor_port_);
 	    rosparam_shortcuts::shutdownIfError(name_, error);
 	    motor_interface_ = new motor_control::MotorUtilities();
+	    safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
+	    safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
+	    mode_sub_ = rpnh.subscribe("/squirrel_control/mode", 10, &SquirrelHWInterface::modeCallback, this);
     }
 
 
     SquirrelHWInterface::~SquirrelHWInterface() {
-
+		delete motor_interface_;
     }
 
 
@@ -310,7 +313,18 @@ namespace squirrel_control {
 
 
     void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
-		motor_interface_->write({1,2,3,4,5});
+	    enforceLimits(elapsed_time);
+
+	    try {
+		    mode_lock_.lock();
+		    if (!safety_lock_) {
+			    motor_interface_->write({1, 2, 3, 4, 5});
+		    }
+		    mode_lock_.unlock();
+	    } catch (std::exception &ex) {
+		    mode_lock_.unlock();
+		    throw ex;
+	    }
     }
 
 
@@ -320,5 +334,55 @@ namespace squirrel_control {
 	    vel_jnt_sat_interface_.enforceLimits(period);
 	    eff_jnt_sat_interface_.enforceLimits(period);
     }
+
+
+	void SquirrelHWInterface::safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg){
+		if (msg->emergency_state) {
+			safety_lock_ = true;
+			if (msg->airskin_stop) {
+				ROS_INFO_STREAM_NAMED(name_, "Airksin pressed!");
+			} else if (msg->bumper_stop) {
+				ROS_INFO_STREAM_NAMED(name_, "Bumper pressed!");
+			} else if (msg->wrist_stop) {
+				ROS_INFO_STREAM_NAMED(name_, "Wrist touched!");
+			}
+		}
+	}
+
+
+	void SquirrelHWInterface::safetyResetCallback(const std_msgs::BoolConstPtr &msg) {
+		if (msg->data) {
+			safety_lock_ = false;
+			ROS_INFO_STREAM_NAMED(name_, "Safety released.");
+		}
+	}
+
+
+	void SquirrelHWInterface::modeCallback(const std_msgs::Int16ConstPtr &msg) {
+		try {
+			mode_lock_.lock();
+			switch(msg->data) {
+				case control_modes::POSITION_MODE:
+					current_mode_ = control_modes::POSITION_MODE;
+					ROS_INFO_STREAM_NAMED(name_, "Switching into POSITION mode.");
+					break;
+				case control_modes::VELOCITY_MODE:
+					current_mode_ = control_modes::VELOCITY_MODE;
+					ROS_INFO_STREAM_NAMED(name_, "Switching into VELOCITY mode.");
+					break;
+				case control_modes::TORQUE_MODE:
+					current_mode_ = control_modes::TORQUE_MODE;
+					ROS_INFO_STREAM_NAMED(name_, "Switching into TORQUE mode.");
+					break;
+				default:
+					throw_control_error(true, "Unknown mode " << msg->data);
+			}
+			motor_interface_->setMode(current_mode_);
+			mode_lock_.unlock();
+		} catch (std::exception &ex) {
+			mode_lock_.unlock();
+			throw ex;
+		}
+	}
 }
 
