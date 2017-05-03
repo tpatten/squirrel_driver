@@ -12,6 +12,8 @@
 // ROS
 #include <ros/ros.h>
 #include <urdf/model.h>
+#include <geometry_msgs/Twist.h>
+#include <tf/transform_datatypes.h>
 
 // ROS Controls
 #include <hardware_interface/robot_hw.h>
@@ -22,6 +24,7 @@
 #include <joint_limits_interface/joint_limits_interface.h>
 #include <joint_limits_interface/joint_limits_rosparam.h>
 #include <joint_limits_interface/joint_limits_urdf.h>
+#include <nav_msgs/Odometry.h>
 
 #include "squirrel_control/motor_utilities.h"
 #include "control_modes.h"
@@ -31,6 +34,11 @@
 
 
 namespace squirrel_control {
+
+	#define JOINT_STATE_INTERFACE "hardware_interface::JointStateInterface"
+	#define POSITION_JOINT_INTERFACE "hardware_interface::PositionJointInterface"
+	#define VELOCITY_JOINT_INTERFACE "hardware_interface::VelocityJointInterface"
+	#define EFFORT_JOINT_INTERFACE "hardware_interface::EffortJointInterface"
 
     class SquirrelHWInterface : public hardware_interface::RobotHW {
 
@@ -69,9 +77,7 @@ namespace squirrel_control {
          * Start and stop list are disjoint. The feasability was checked in canSwitch() beforehand.
          */
         virtual void doSwitch(const std::list<hardware_interface::ControllerInfo> &start_list,
-                              const std::list<hardware_interface::ControllerInfo> &stop_list)
-        {
-        }
+                              const std::list<hardware_interface::ControllerInfo> &stop_list);
 
         /**
          * \brief Register the limits of the joint specified by joint_id and joint_handle. The limits
@@ -100,12 +106,14 @@ namespace squirrel_control {
 
 	    virtual void safetyResetCallback(const std_msgs::BoolConstPtr &msg);
 
-	    virtual void modeCallback(const std_msgs::Int16ConstPtr &msg);
+	    virtual void odomCallback(const nav_msgs::OdometryConstPtr &msg);
 
     protected:
 
         /** \brief Get the URDF XML from the parameter server */
         virtual void loadURDF(ros::NodeHandle& nh, std::string param_name);
+
+	    bool enabled_;
 
         // Short name of this class
         std::string name_;
@@ -159,9 +167,14 @@ namespace squirrel_control {
 	    ros::Subscriber safety_sub_;
 	    ros::Subscriber safety_reset_sub_;
 		bool safety_lock_;
-	    ros::Subscriber mode_sub_;
-	    std::mutex mode_lock_;
+	    double posBuffer_[3];
+	    double velBuffer_[3];
 
+	    // Base interface
+	    ros::Publisher base_interface_;
+	    ros::Subscriber base_state_;
+
+	    // Motor interface
 		motor_control::MotorUtilities* motor_interface_;
 	    std::string motor_port_;
 

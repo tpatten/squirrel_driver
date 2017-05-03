@@ -31,7 +31,8 @@ namespace squirrel_control {
 	    motor_interface_ = new motor_control::MotorUtilities();
 	    safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
 	    safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
-	    mode_sub_ = rpnh.subscribe("/squirrel_control/mode", 10, &SquirrelHWInterface::modeCallback, this);
+	    base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 10);
+	    base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
     }
 
 
@@ -69,7 +70,7 @@ namespace squirrel_control {
                     joint_names_[joint_id], &joint_position_[joint_id], &joint_velocity_[joint_id], &joint_effort_[joint_id]));
 
             // Add command interfaces to joints
-            // TODO: decide based on transmissions?
+
             hardware_interface::JointHandle joint_handle_position = hardware_interface::JointHandle(
                     joint_state_interface_.getHandle(joint_names_[joint_id]), &joint_position_command_[joint_id]);
             position_joint_interface_.registerHandle(joint_handle_position);
@@ -307,23 +308,127 @@ namespace squirrel_control {
     }
 
 
-    void SquirrelHWInterface::read(ros::Duration &elapsed_time) {
-		motor_interface_->read();
-    }
+	void SquirrelHWInterface::doSwitch(const std::list<hardware_interface::ControllerInfo> &start_list, const std::list<hardware_interface::ControllerInfo> &stop_list)
+	{
+		std::list<hardware_interface::ControllerInfo>::const_iterator it;
+		for (it = stop_list.begin(); it != stop_list.end(); ++it)
+		{
+			if (it->hardware_interface != JOINT_STATE_INTERFACE) {
+				enabled_ = false;
+			}
+		}
+
+		hardware_interface::RobotHW::doSwitch(start_list, stop_list);
+
+		for (it = start_list.begin(); it != start_list.end(); ++it) {
+			if (it->hardware_interface != JOINT_STATE_INTERFACE) {
+				if (it->hardware_interface == POSITION_JOINT_INTERFACE)	{
+					current_mode_ = control_modes::POSITION_MODE;
+					enabled_ = true;
+				}
+				else if (it->hardware_interface == VELOCITY_JOINT_INTERFACE) {
+					current_mode_ = control_modes::VELOCITY_MODE;
+					enabled_ = true;
+				}
+				else if (it->hardware_interface == EFFORT_JOINT_INTERFACE) {
+					current_mode_ = control_modes::TORQUE_MODE;
+					enabled_ = true;
+				}
+				else {
+					throw_control_error(true, "Unknown control mode " << it->hardware_interface);
+				}
+			}
+		}
+		motor_interface_->setMode(current_mode_);
+	}
+
+
+	void SquirrelHWInterface::read(ros::Duration &elapsed_time) {
+		switch(current_mode_) {
+			case control_modes::POSITION_MODE:
+				{
+					joint_position_[0] = posBuffer_[0];
+					joint_position_[1] = posBuffer_[1];
+					joint_position_[2] = posBuffer_[2];
+					auto positions = motor_interface_->read();
+					for (int i = 0; i < num_joints_; i++) {
+						joint_position_[i + 3] = positions[i];
+					}
+				}
+				break;
+			case control_modes::VELOCITY_MODE:
+				{
+					joint_velocity_[0] = velBuffer_[0];
+					joint_velocity_[1] = velBuffer_[1];
+					joint_velocity_[2] = velBuffer_[2];
+					auto velocities = motor_interface_->read();
+					for (int i = 0; i < num_joints_; i++) {
+						joint_velocity_[i + 3] = velocities[i];
+					}
+				}
+				break;
+			case control_modes::TORQUE_MODE:
+				{
+					//TODO: assumption: no clue - check base torques
+					joint_effort_[0] = velBuffer_[0];
+					joint_effort_[1] = velBuffer_[1];
+					joint_effort_[2] = velBuffer_[2];
+					auto torques = motor_interface_->read();
+					for (int i = 0; i < num_joints_; i++) {
+						joint_effort_[i + 3] = torques[i];
+					}
+				}
+				break;
+			default:
+				throw_control_error(true, "Unknown mode: " << current_mode_);
+		}
+	}
 
 
     void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
 	    enforceLimits(elapsed_time);
+	    std::vector<double> cmds;
+	    geometry_msgs::Twist twist;
+
+	    switch(current_mode_){
+		    case control_modes::POSITION_MODE:
+			    //TODO assumption: linear is for base position control
+			    twist.linear.x = joint_position_command_[0];
+			    twist.linear.y = joint_position_command_[1];
+			    twist.linear.z = joint_position_command_[2];
+		        for(int i = 0; i < num_joints_; i++){
+			        cmds[i] = joint_position_command_[i+3];
+		        }
+			    break;
+		    case control_modes::VELOCITY_MODE:
+			    //TODO assumption: angular is for base velocity control
+			    twist.angular.x = joint_velocity_command_[0];
+			    twist.angular.y = joint_velocity_command_[1];
+			    twist.angular.z = joint_velocity_command_[2];
+			    for(int i = 0; i < num_joints_; i++){
+				    cmds[i] = joint_velocity_command_[i+3];
+			    }
+			    break;
+		    case control_modes::TORQUE_MODE:
+			    //TODO assumption: no clue
+			    twist.angular.x = joint_effort_command_[0];
+			    twist.angular.y = joint_effort_command_[1];
+			    twist.angular.z = joint_effort_command_[2];
+			    for(int i = 0; i < num_joints_; i++){
+				    cmds[i] = joint_effort_command_[i+3];
+			    }
+			    break;
+		    default:
+			    throw_control_error(true, "Unknown mode: " << current_mode_);
+	    }
 
 	    try {
-		    mode_lock_.lock();
 		    if (!safety_lock_) {
-			    motor_interface_->write({1, 2, 3, 4, 5});
+			    motor_interface_->write(cmds);
+			    base_interface_.publish(twist);
 		    }
-		    mode_lock_.unlock();
 	    } catch (std::exception &ex) {
-		    mode_lock_.unlock();
-		    throw ex;
+		    throw_control_error(true, ex.what());
 	    }
     }
 
@@ -334,6 +439,17 @@ namespace squirrel_control {
 	    vel_jnt_sat_interface_.enforceLimits(period);
 	    eff_jnt_sat_interface_.enforceLimits(period);
     }
+
+
+	void SquirrelHWInterface::odomCallback(const nav_msgs::OdometryConstPtr &msg) {
+		posBuffer_[0] = msg->twist.twist.linear.x;
+		posBuffer_[1] = msg->twist.twist.linear.y;
+		posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
+
+		velBuffer_[0] = msg->twist.twist.angular.x;
+		velBuffer_[1] = msg->twist.twist.angular.y;
+		velBuffer_[2] = msg->twist.twist.angular.z;
+	}
 
 
 	void SquirrelHWInterface::safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg){
@@ -354,34 +470,6 @@ namespace squirrel_control {
 		if (msg->data) {
 			safety_lock_ = false;
 			ROS_INFO_STREAM_NAMED(name_, "Safety released.");
-		}
-	}
-
-
-	void SquirrelHWInterface::modeCallback(const std_msgs::Int16ConstPtr &msg) {
-		try {
-			mode_lock_.lock();
-			switch(msg->data) {
-				case control_modes::POSITION_MODE:
-					current_mode_ = control_modes::POSITION_MODE;
-					ROS_INFO_STREAM_NAMED(name_, "Switching into POSITION mode.");
-					break;
-				case control_modes::VELOCITY_MODE:
-					current_mode_ = control_modes::VELOCITY_MODE;
-					ROS_INFO_STREAM_NAMED(name_, "Switching into VELOCITY mode.");
-					break;
-				case control_modes::TORQUE_MODE:
-					current_mode_ = control_modes::TORQUE_MODE;
-					ROS_INFO_STREAM_NAMED(name_, "Switching into TORQUE mode.");
-					break;
-				default:
-					throw_control_error(true, "Unknown mode " << msg->data);
-			}
-			motor_interface_->setMode(current_mode_);
-			mode_lock_.unlock();
-		} catch (std::exception &ex) {
-			mode_lock_.unlock();
-			throw ex;
 		}
 	}
 }

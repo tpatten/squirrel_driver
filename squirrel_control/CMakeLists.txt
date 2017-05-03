@@ -18,7 +18,10 @@ find_package(catkin REQUIRED
         std_msgs
         sensor_msgs
         squirrel_safety_msgs
-        rosparam_shortcuts)
+        rosparam_shortcuts
+        nav_msgs
+        tf
+)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Boost REQUIRED COMPONENTS system)
@@ -43,10 +46,11 @@ catkin_package(
           std_msgs
           sensor_msgs
           rosparam_shortcuts
+          nav_msgs
+          tf
         LIBRARIES
           squirrel_hw_control_loop
           squirrel_hw_interface
-          squirrel_sim_hw_interface
 )
 
 ###########
@@ -94,23 +98,7 @@ target_link_libraries(squirrel_hw_interface
         ${catkin_LIBRARIES}
         )
 
-# Simulation Hardware Interface
-add_library(squirrel_sim_hw_interface
-        src/squirrel_sim_hw_interface.cpp
-        )
-target_link_libraries(squirrel_sim_hw_interface
-        squirrel_hw_interface
-        ${catkin_LIBRARIES}
-        )
-
 # Main control executables
-add_executable(${PROJECT_NAME}_sim_hw_main src/squirrel_sim_hw_main.cpp)
-set_target_properties(${PROJECT_NAME}_sim_hw_main PROPERTIES OUTPUT_NAME squirrel_sim_hw_main PREFIX "")
-target_link_libraries(${PROJECT_NAME}_sim_hw_main
-        squirrel_sim_hw_interface
-        squirrel_hw_control_loop
-        ${catkin_LIBRARIES}
-        )
 
 add_executable(${PROJECT_NAME}_hw_main src/squirrel_hw_main.cpp)
 set_target_properties(${PROJECT_NAME}_hw_main PROPERTIES OUTPUT_NAME squirrel_hw_main PREFIX "")
@@ -127,7 +115,6 @@ target_link_libraries(${PROJECT_NAME}_hw_main
 install(TARGETS
   squirrel_hw_control_loop
   squirrel_hw_interface
-  squirrel_sim_hw_interface
   LIBRARY DESTINATION
   ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
@@ -135,7 +122,6 @@ install(TARGETS
 # Install executables
 install(TARGETS
   ${PROJECT_NAME}_hw_main
-  ${PROJECT_NAME}_sim_hw_main
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

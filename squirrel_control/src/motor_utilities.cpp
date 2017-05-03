@@ -35,7 +35,8 @@ namespace motor_control {
 		    }
 		    motor_lock_.unlock();
 	    } catch (std::exception &ex) {
-		    throw ex;
+		    motor_lock_.unlock();
+		    throw_control_error(true, ex.what());
 	    }
     }
 
@@ -213,17 +214,24 @@ namespace motor_control {
                     default:
                         throw_control_error(true, "Unknown mode: " << current_mode_);
                 }
+	            //this theoretically should never be evaluated, but for sake of completeness...
                 throw_control_error(error,
                                     "Failed to command motor " << motor.id << " (" << motor.tool->model_name_ << ") in "
                                                                << current_mode_ << " mode");
                 i++;
             }
-        }catch(const std::exception &ex) {
+        } catch(const std::exception &ex) {
 	        motor_lock_.unlock();
-            throw ex;
+	        throw_control_error(true, ex.what());
         }
 
-	    motor_lock_.unlock();
+	    try{
+	        motor_lock_.unlock();
+	    } catch(std::exception &ex) {
+		    throw_control_error(true, ex.what());
+		    motor_lock_.unlock();
+		    return false;
+	    }
         return true;
     }
 
@@ -259,8 +267,7 @@ namespace motor_control {
                 }
             case control_modes::ControlMode::TORQUE_MODE:
                 {
-
-	                //TODO correct?
+	                //TODO adapt if necessary
 	                std::vector<double> torques = {};
 	                UINT16_T value;
 	                for (auto const motor : motors_) {
