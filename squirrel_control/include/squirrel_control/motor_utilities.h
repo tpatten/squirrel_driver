@@ -29,8 +29,7 @@ namespace motor_control
     public:
         static constexpr int BAUD_RATE_ = 3000000;
 
-	    //TODO: ratio taken from http://www.robotshop.com/en/h54-100-s500-r-dynamixel-pro-smart-servo-motor.html - does this apply to all motors?
-	    static constexpr double CURRENT_TO_TORQUE_RATIO_ = 3.4167;
+	    static constexpr double CURRENT_TO_TORQUE_RATIO_ = 0.068267;
 
         MotorUtilities();
 
