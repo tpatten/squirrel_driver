@@ -486,6 +486,26 @@ bool KCLHandController::closeFingers(float rel_current_limit)
   return succeeded;
 }
 
+
+bool KCLHandController::impedanceMoveFingers(float rel_current_limit, std::vector<double> &target_positions)
+                                    
+{
+  ROS_INFO("start moving fingers");
+
+  // how many motors are still running
+  int num_motors_running = 0;
+  // count how many joints reached the target (vs. reaching their current limits)
+  int num_targets_reached = 0;
+
+  joint_mutex_.lock();
+  for(int i = 0; i < NUM_JOINTS; i++)
+    if(joints_[i].startMoveToTarget(target_positions[i]))
+      num_motors_running++;
+  joint_mutex_.unlock();
+
+}
+
+
 /**
  * TODO: coordinate finger movment to arrive at same psition simultaneously
  *       (essentially: the slowest finger pauses the others)

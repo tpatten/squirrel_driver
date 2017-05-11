@@ -214,64 +214,6 @@ double JointController::getCurrent()
   return (double)current;
 }
 
-
-bool JointController::moveWithVeloctyProxy(int proxy_direction_flag)
-{
-  static bool first_call = true;  // HACK: only move the palm ONCE with the first move
-
-  if(proxy_direction_flag != 0)
-  {
-    activateVelocityMode();
-    // set motion direction depending on where target is relative to current position
-    velocity_ = motor_velocity_;
-   
-    moveWithVelocity(velocity_);
-    motor_running_ = true;
-    target_reached_ = false;
-
-    ROS_INFO("START      %30s: pos: %5.3lf   vel: %5.0lf",
-             name_.c_str(), position_, velocity_);
-  }
-  
-  else
-  {
-    velocity_ = 0;
-    motor_running_ = false;
-    target_reached_ = true;
-  }
-  return motor_running_;
-}
-
-
-bool JointController::moveWithVelocityImpedance(int impedance_direction_flag)
-{
-  static bool first_call = true;  // HACK: only move the palm ONCE with the first move
-
-  if(impedance_direction_flag != 0)
-  {
-    activateVelocityMode();
-    // set motion direction depending on where target is relative to current position
-    velocity_ = motor_impedance_velocity_;
-   
-    moveWithVelocity(velocity_);
-    motor_running_ = true;
-    target_reached_ = false;
-
-    ROS_INFO("START      %30s: pos: %5.3lf   vel: %5.0lf",
-             name_.c_str(), position_, velocity_);
-  }
-  
-  else
-  {
-    velocity_ = 0;
-    motor_running_ = false;
-    target_reached_ = true;
-  }
-  return motor_running_;
-}
-
-
-
 bool JointController::startMoveToTarget(double target_position)
 {
   static bool first_call = true;  // HACK: only move the palm ONCE with the first move
@@ -295,7 +237,6 @@ bool JointController::startMoveToTarget(double target_position)
     ROS_INFO("START      %30s: pos: %5.3lf  target: %5.3lf  vel: %5.0lf",
              name_.c_str(), position_, target_, velocity_);
   }
-
   else
   {
     velocity_ = 0;
@@ -359,11 +300,13 @@ KCLHandController::KCLHandController(std::string name)
   // TODO: wait for finger sensor topic and openFingers();
 
   joint_value_sub_= new ros::Subscriber(nh_.subscribe("joint_value_arduino", 1, &KCLHandController::jointValueCB, this));
-  impedance_signal_sub_= new ros::Subscriber(nh_.subscribe("impedance_signal_send", 10, &KCLHandController::impedanceSignalCB, this));
+  impedance_signal_sub_= new ros::Subscriber(nh_.subscribe("impedance_signal_send", 1, &KCLHandController::impedanceSignalCB, this));
   joint_state_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("active_joint_states", 1));
-  impedance_motor_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("impedance_motor", 10));
+  impedance_motor_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("impedance_motor", 1));
   impedance_flag_sub_= new ros::Subscriber(nh_.subscribe("impedance_flag", 1, &KCLHandController::impedanceFlagCB, this));
   
+
+
   as_.start();
 }
 
@@ -396,31 +339,7 @@ void KCLHandController::actuateHandCB(const kclhand_control::ActuateHandGoalCons
   else if(goal->command == 99)
   {
     succeeded = handImpedanceController(goal->force_limit);
-  }
-  else if(goal->command == 13)
-  {
-    succeeded = handImpedanceControllerOneFinger(goal->force_limit);
-  }
-  else if(goal->command == 8)
-  {
-    succeeded = upper2LowerController(goal->force_limit);
-  }
-
-  else if(goal->command == 7)
-  {
-    succeeded = lower2UpperController(goal->force_limit);
-  }
-
-  else if(goal->command == 12)
-  {
-    succeeded = handProxyController(goal->force_limit);
-  } 
-
-  else if(goal->command == 11)
-  {
-    succeeded = handProxyControllerOneFinger(goal->force_limit);
-  }
-
+  }    
   else if(goal->command == kclhand_control::ActuateHandGoal::CMD_CLOSE)
   {
     succeeded = closeFingers(goal->force_limit);
@@ -489,93 +408,31 @@ void KCLHandController::jointValueCB(const std_msgs::Int16MultiArray::ConstPtr &
   joint_state_pub_->publish(state);
 }
 
-
-
-
-
 void KCLHandController::impedanceSignalCB(const std_msgs::Float64MultiArray::ConstPtr &msg)
 {
   std::vector<double> impedance_target_init_positions(NUM_JOINTS);
   sensor_msgs::JointState impedance_motor_value;
-  impedance_motor_value.position.assign(NUM_JOINTS+3, 0.);
-  /*
+  impedance_motor_value.position.assign(NUM_JOINTS, 0.);
+
   impedance_target_init_positions[RIGHT_PALM] = deg_to_rad(30.);
   impedance_target_init_positions[LEFT_PALM] = deg_to_rad(30.);
   impedance_target_init_positions[RIGHT_FINGER] = deg_to_rad(-30);
   impedance_target_init_positions[MIDDLE_FINGER] = deg_to_rad(-30);
   impedance_target_init_positions[LEFT_FINGER] = deg_to_rad(-30);
-  */
-  impedance_target_init_positions[RIGHT_PALM] = deg_to_rad(40.);
-  impedance_target_init_positions[LEFT_PALM] = deg_to_rad(55.);
-  impedance_target_init_positions[RIGHT_FINGER] = deg_to_rad(-45.);
-  impedance_target_init_positions[MIDDLE_FINGER] = deg_to_rad(-45.);
-  impedance_target_init_positions[LEFT_FINGER] = deg_to_rad(-45.);
-  
-  //std::vector<int> impedance_direction(NUM_JOINTS);
-  int impedance_direction[5] = {1,1,1,1,1};
 
   //joint_mutex_.lock();
-  for(size_t i = 2; i < NUM_JOINTS; i++)
+  for(size_t i = 0; i < NUM_JOINTS; i++)
   {
-    joints_[i].updateImpedanceTarget(impedance_target_init_positions[i] + impedance_direction[i] * deg_to_rad(msg->data[i]));
-    //joints_[i].updateImpedanceTarget(joints_[i].position() + deg_to_rad(msg->data[i]));    
-  
-    joints_[i].impedance_contorller_.SetPara(4, 5, joints_[i].position(), -20);
-
-    double impedance_velo = joints_[i].impedance_contorller_.PIControllerCalu(joints_[i].impedanceTarget()) * 150;
-    joints_[i].setMotorImpedanceVelocity(-impedance_velo);
+    joints_[i].updateImpedanceTarget(impedance_target_init_positions[i] + deg_to_rad(msg->data[i]));
   }
-
-    // add impedance palm motion
-    //joints_[1].updateImpedanceTarget(impedance_target_init_positions[1] + impedance_direction[1] * deg_to_rad(msg->data[4]));
-    //joints_[0].updateImpedanceTarget(impedance_target_init_positions[0] + impedance_direction[0] * deg_to_rad(msg->data[2]));
-   
-
-  
-
-
-
-
   //joint_mutex_.unlock();
- for (size_t i = 2; i < NUM_JOINTS; i++)
-    {
-      joints_[i].updateProxyData(msg->data[3+i]);
-    }  
-
-   // PI controller
-  for (size_t i = 2; i < NUM_JOINTS; i++)
-    {    
-
-      joints_[i].proxy_PIcontroller.SetPara(1, 4, 1, -20);
-      
-      double value = joints_[i].proxy_PIcontroller.PIControllerCalu(joints_[i].proxyData()) * 10; 
-           
-      if (abs(value) > 1360) 
-      {
-        value = 1260; 
-      } 
-      
-      if (value <= 0 && value > -100)
-     
-      {  
-        value = value * 2;
-      }
-      
-      joints_[i].setMotorVelocity(value);
-    }
-
-
 
 
   for(size_t i = 0; i < NUM_JOINTS; i++)
   {
     impedance_motor_value.position[i] = joints_[i].impedanceTarget() * 57.296;
   }
-
-  impedance_motor_value.position[5] = joints_[2].motorImpedanceVelocity();
-  impedance_motor_value.position[6] = joints_[3].motorImpedanceVelocity();
-  impedance_motor_value.position[7] = joints_[4].motorImpedanceVelocity();
-
+   
   impedance_motor_pub_->publish(impedance_motor_value);
 }
 
@@ -659,85 +516,15 @@ bool KCLHandController::openFingers(float rel_current_limit)
   return succeeded;
 }
 
-bool KCLHandController::upper2LowerController(float rel_current_limit)
-{
-  std::vector<double> target_positions(NUM_JOINTS);
-  bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = deg_to_rad(22.7);
-  target_positions[LEFT_PALM] = deg_to_rad(8.55);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-70.);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(-70.);
-  target_positions[LEFT_FINGER] = deg_to_rad(-70.);
-  bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  // Now slightly close the fingers to pre-tension the tendons
-  if(succeeded)
-  {
-    target_positions[RIGHT_PALM] = deg_to_rad(18.24);
-    target_positions[LEFT_PALM] = deg_to_rad(-66.12);
-    target_positions[RIGHT_FINGER] = deg_to_rad(-60.);
-    target_positions[MIDDLE_FINGER] = deg_to_rad(-60.);
-    target_positions[LEFT_FINGER] = deg_to_rad(-60.);
-    succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  }
-
-  if(succeeded)
-  {
-    target_positions[RIGHT_PALM] = deg_to_rad(-60);
-    target_positions[LEFT_PALM] = deg_to_rad(-60);
-    target_positions[RIGHT_FINGER] = deg_to_rad(-30.);
-    target_positions[MIDDLE_FINGER] = deg_to_rad(-45.);
-    target_positions[LEFT_FINGER] = deg_to_rad(-30.);
-    succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  }
-
-  return succeeded;
-}
-
-
-bool KCLHandController::lower2UpperController(float rel_current_limit)
-{
-  std::vector<double> target_positions(NUM_JOINTS);
-  bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = deg_to_rad(-60);
-  target_positions[LEFT_PALM] = deg_to_rad(-60);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-45);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(-30.);
-  target_positions[LEFT_FINGER] = deg_to_rad(-45.);
-  bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  // Now slightly close the fingers to pre-tension the tendons
-  if(succeeded)
-  {
-    target_positions[RIGHT_PALM] = deg_to_rad(-30.);
-    target_positions[LEFT_PALM] = deg_to_rad(16.302);
-    target_positions[RIGHT_FINGER] = deg_to_rad(-60.);
-    target_positions[MIDDLE_FINGER] = deg_to_rad(-60.);
-    target_positions[LEFT_FINGER] = deg_to_rad(-60.);
-    succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  }
-
-  if(succeeded)
-  {
-    target_positions[RIGHT_PALM] = deg_to_rad(30.);
-    target_positions[LEFT_PALM] = deg_to_rad(30.);
-    target_positions[RIGHT_FINGER] = deg_to_rad(-70);
-    target_positions[MIDDLE_FINGER] = deg_to_rad(-70);
-    target_positions[LEFT_FINGER] = deg_to_rad(-70);
-    succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  }
-
-  return succeeded;
-}
-
-
 bool KCLHandController::closeFingers(float rel_current_limit)
 {
   std::vector<double> target_positions(NUM_JOINTS);
   bool all_target_positions_reached = false;
   target_positions[RIGHT_PALM] = deg_to_rad(30.);
   target_positions[LEFT_PALM] = deg_to_rad(30.);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-25.);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(-60);
-  target_positions[LEFT_FINGER] = deg_to_rad(-25.);
+  target_positions[RIGHT_FINGER] = deg_to_rad(-15.);
+  target_positions[MIDDLE_FINGER] = deg_to_rad(10.);
+  target_positions[LEFT_FINGER] = deg_to_rad(-15.);
   bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
   // if targets not reached, then some joints ran into their current limit, i.e. we are probably
   // holding an object.
@@ -747,107 +534,6 @@ bool KCLHandController::closeFingers(float rel_current_limit)
   return succeeded;
 }
 
-bool KCLHandController::handProxyController(float rel_current_limit)
-{
-  std::vector<double> target_positions(NUM_JOINTS);
-  bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = deg_to_rad(20.);
-  target_positions[LEFT_PALM] = deg_to_rad(20.);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-75.);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(-70.);
-  target_positions[LEFT_FINGER] = deg_to_rad(-75.);
-  bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  // Now slightly close the fingers to pre-tension the tendons
-
-  ros::Rate rate(CONTROL_LOOP_FREQ_HZ);
-  UpdateHandImpedanceFlag(1);
-  
-  if(succeeded)
-  {
-    while(1)
-    {    
-      if(!proxyMoveFingers(rel_current_limit, all_target_positions_reached))
-      {
-        for(int i = 0; i < NUM_JOINTS; i++)
-        {
-            joints_[i].stopMoveToTarget();
-        }     
-        
-        rate.sleep();
-        break;
-      }
-      else
-      {
-        rate.sleep();
-      }
-
-      if (!realtimeImpedanceFlag()) 
-      {
-        for(int i = 0; i < NUM_JOINTS; i++)
-        {
-            joints_[i].stopMoveToTarget();
-        }     
-        
-        break; 
-      }
-    }
-  }
-
-  return 1;
-}
-
-
-bool KCLHandController::handProxyControllerOneFinger(float rel_current_limit)
-{
-  std::vector<double> target_positions(NUM_JOINTS);
-  bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = deg_to_rad(20.);
-  target_positions[LEFT_PALM] = deg_to_rad(20.);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-75.);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(-70.);
-  target_positions[LEFT_FINGER] = deg_to_rad(-75.);
-  bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  // Now slightly close the fingers to pre-tension the tendons
-
-  ros::Rate rate(CONTROL_LOOP_FREQ_HZ);
-  UpdateHandImpedanceFlag(1);
-  
-  if(succeeded)
-  {
-    while(1)
-    {    
-      if(!proxyMoveOneFinger(rel_current_limit, all_target_positions_reached))
-      {
-        for(int i = 0; i < NUM_JOINTS; i++)
-        {
-            joints_[i].stopMoveToTarget();
-        }     
-        
-        rate.sleep();
-        break;
-      }
-      else
-      {
-        rate.sleep();
-      }
-
-      if (!realtimeImpedanceFlag()) 
-      {
-        for(int i = 0; i < NUM_JOINTS; i++)
-        {
-            joints_[i].stopMoveToTarget();
-        }     
-        
-        break; 
-      }
-    }
-  }
-
-  return 1;
-}
-
-
-
 bool KCLHandController::handImpedanceController(float rel_current_limit)
 {
   std::vector<double> impedance_target_positions(NUM_JOINTS);
@@ -856,229 +542,20 @@ bool KCLHandController::handImpedanceController(float rel_current_limit)
   UpdateHandImpedanceFlag(1);
 
   while(1)
-  {    
-    bool succeeded = impedanceMoveFingersVelocity(rel_current_limit, all_target_positions_reached);
-    rate.sleep();  
-    if (!realtimeImpedanceFlag()) 
-    {
-      for(int i = 0; i < NUM_JOINTS; i++)
-      {
-          joints_[i].stopMoveToTarget();
-      }     
-      break; 
-    }
-  }
-  return 1;
-}
-
-bool KCLHandController::handImpedanceControllerOneFinger(float rel_current_limit)
-{
-  std::vector<double> impedance_target_positions(NUM_JOINTS);
-  bool all_target_positions_reached = false;
-  ros::Rate rate(CONTROL_LOOP_FREQ_HZ);
-  UpdateHandImpedanceFlag(1);
-
-  while(1)
-  {    
-    bool succeeded = impedanceMoveFingersVelocityOneFinger(rel_current_limit, all_target_positions_reached);
-    rate.sleep();  
-    if (!realtimeImpedanceFlag()) 
-    {
-      for(int i = 0; i < NUM_JOINTS; i++)
-      {
-          joints_[i].stopMoveToTarget();
-      }     
-      break; 
-    }
-  }
-  return 1;
-}
-
-
-bool KCLHandController::proxyMoveFingers(float rel_current_limit, bool &all_target_positions_reached)
-{
-  ROS_INFO("start moving fingers");
-
-  int num_targets_reached = 0;
-  int speed_scalar[5] = {1000, 1000, 1000, 1000, 1000};
-  double inti_conf[5] = {1, 1, -0.8, -0.8, -0.8};
-  
-  double prox_target = deg_to_rad(5);
-  int proxy_direction = 0;
-
-  bool ifMotorRuning = false;
-
-  int num_finger_conf_invalid = 0;
-
-  //joint_mutex_.lock();
-  for(int i = 2; i < 5; i++)
-  {
-   
-    if (joints_[i].position() > deg_to_rad(HAND_UPPER_LIMIT[i]))
-    {        
-      joints_[i].setMotorVelocity(0); 
-      num_finger_conf_invalid++;
-    }
-    
-    if (joints_[i].position() < deg_to_rad(HAND_LOWER_LIMIT[i]))
-    {
-      joints_[i].setMotorVelocity(0);  
-      num_finger_conf_invalid++;
-    }
-        
-    ifMotorRuning = joints_[i].moveWithVeloctyProxy(1);
-
-  }
-
-    if(num_finger_conf_invalid >= 2)
-    {
-      return false;
-    }
-    else
-    {
-      return true;
-    }
-}
-
-bool KCLHandController::proxyMoveOneFinger(float rel_current_limit, bool &all_target_positions_reached)
-{
-  ROS_INFO("start moving fingers");
-
-  int num_targets_reached = 0;
-  int speed_scalar[5] = {1000, 1000, 1000, 1000, 1000};
-  double inti_conf[5] = {1, 1, -0.8, -0.8, -0.8};
-  
-  double prox_target = deg_to_rad(5);
-  int proxy_direction = 0;
-
-  bool ifMotorRuning = false;
-
-  int num_finger_conf_invalid = 0;
-
-  //joint_mutex_.lock();
-  for(int i = 3; i < 4; i++)
-  {
-   
-    if (joints_[i].position() > deg_to_rad(HAND_UPPER_LIMIT[i]))
-    {        
-      joints_[i].setMotorVelocity(0); 
-      num_finger_conf_invalid++;
-    }
-    
-    if (joints_[i].position() < deg_to_rad(HAND_LOWER_LIMIT[i]))
-    {
-      joints_[i].setMotorVelocity(0);  
-      num_finger_conf_invalid++;
-    }
-        
-    ifMotorRuning = joints_[i].moveWithVeloctyProxy(1);
-
-  }
-
-    if(num_finger_conf_invalid >= 2)
-    {
-      return false;
-    }
-    else
-    {
-      return true;
-    }
-}
-
-
-bool KCLHandController::impedanceMoveFingersVelocityOneFinger(float rel_current_limit, bool &all_target_positions_reached)
-{
-  ROS_INFO("start moving fingers");
-
-  int num_targets_reached = 0;
-  int speed_scalar[5] = {1000, 1000, 1000, 1000, 1000};
-  double inti_conf[5] = {1, 1, -0.8, -0.8, -0.8};
-  bool impedance_motor_running = false;
-
-
-  for(int i = 3; i < 4; i++)
-  {
-        
-    impedance_motor_running = joints_[i].moveWithVelocityImpedance(1);
-
-  }
-
-
-   return 1;
-}
-
-bool KCLHandController::impedanceMoveFingersVelocity(float rel_current_limit, bool &all_target_positions_reached)
-{
-  ROS_INFO("start moving fingers");
-
-  int num_targets_reached = 0;
-  int speed_scalar[5] = {1000, 1000, 1000, 1000, 1000};
-  double inti_conf[5] = {1, 1, -0.8, -0.8, -0.8};
-  bool impedance_motor_running = false;
-
-
-  for(int i = 2; i < 5; i++)
-  {
-        
-    impedance_motor_running = joints_[i].moveWithVelocityImpedance(1);
-
-  }
-
-
-   return 1;
-}
-
-
-bool KCLHandController::impedanceMoveFingers(float rel_current_limit, bool &all_target_positions_reached)
-{
-  ROS_INFO("start moving fingers");
-
-  int num_targets_reached = 0;
-  int speed_scalar[5] = {1000, 1000, 1000, 1000, 1000};
-  double inti_conf[5] = {1, 1, -0.8, -0.8, -0.8};
-  
-
-  //joint_mutex_.lock();
-  for(int i = 0; i < 5; i++)
-  {
-
-    joints_[i].setMaxVelocity(500 + abs(joints_[i].impedanceTarget() - inti_conf[i]) * speed_scalar[i]); //+ abs(joints_[i].impedanceTarget() + 0.78) * 300
-
-    if(joints_[i].startMoveToTarget(joints_[i].impedanceTarget()))  //at posiont return false 
-     {
-      if(joints_[i].isRunning())
-      {
-        if(!joints_[i].keepMovingToTarget()) // check if target reache, or current reaches limit, return 0 // one condition reaches
-        {
-          joints_[i].stopMoveToTarget(); // halt velocity mode
-          //num_motors_running--;     // running motor number -1 
-          //if(joints_[i].targetReached())  //if target reached, number +1
-           // num_targets_reached++;
-        }
-      
-      }
-     }
-      else 
-      {
-        joints_[i].stopMoveToTarget();
-      }
-  }
-    //joint_mutex_.unlock();
-    //timeout_cnt--; //time out number -1, set lasting time 
-    //rate.sleep();
-  /*
-  if(timeout_cnt <= 0) // stop motor, and quite 
   {
     for(int i = 0; i < NUM_JOINTS; i++)
-      if(joints_[i].isRunning())
-        joints_[i].stopMoveToTarget();
-    ROS_INFO("timeout");
+    {
+      impedance_target_positions[i] = joints_[i].impedanceTarget();
+    }
+ 
+    bool succeeded = moveFingers(rel_current_limit, impedance_target_positions, all_target_positions_reached);
+    rate.sleep();
+  
+    if (!realtimeImpedanceFlag()) break;
+
   }
-  all_target_positions_reached = (num_targets_reached == (int)target_positions.size());
-  */
-  //ROS_INFO("done moving fingers");
-   return 1;
-  //return timeout_cnt > 0;
+
+  return 1;
 }
 
 /**
@@ -1095,14 +572,14 @@ bool KCLHandController::moveFingers(float rel_current_limit, std::vector<double>
   // count how many joints reached the target (vs. reaching their current limits)
   int num_targets_reached = 0;
 
-  joint_mutex_.lock(); // check if the hand is not at the target position, move hand
+  joint_mutex_.lock();
   for(int i = 0; i < NUM_JOINTS; i++)
     if(joints_[i].startMoveToTarget(target_positions[i]))
       num_motors_running++;
   joint_mutex_.unlock();
 
   ros::Rate rate(CONTROL_LOOP_FREQ_HZ);
-  int timeout_cnt = CONTROL_LOOP_TIMEOUT_S*CONTROL_LOOP_FREQ_HZ; //Define timeout
+  int timeout_cnt = CONTROL_LOOP_TIMEOUT_S*CONTROL_LOOP_FREQ_HZ;
   while(num_motors_running > 0 && timeout_cnt > 0)
   {
     joint_mutex_.lock();

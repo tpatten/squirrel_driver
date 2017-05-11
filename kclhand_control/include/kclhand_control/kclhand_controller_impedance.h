@@ -40,6 +40,101 @@ inline double deg_to_rad(double deg)
   return deg*M_PI/180.;
 }
 
+
+class PIController
+{
+private:
+    double SetValue ;        //target 
+    double An;              //=kp+ki  for e(n)
+    double Bn_1;           // -kp     for e(n-1)
+    double Limit;          //limit
+    double Errorn_1;       //e(n-1)  
+    double DeltaUn;        // delta_u(n);  
+    double Un_output;     //output
+
+public:
+
+  void SetPara(double kp, double ki, double target, double limit)
+  {
+    An = kp + ki;
+    Bn_1 = -kp;
+    Limit = limit;
+    SetValue = target;
+    DeltaUn = 0;
+    Errorn_1 = 0;
+  }
+
+
+  double PIControllerCalu(double NewInput)
+  {
+    
+
+    double Errorn =0;  
+
+    if(NewInput < -20.)
+    {
+      NewInput = -20.;
+    } 
+
+
+    Errorn = SetValue - NewInput;  // e(n)
+    DeltaUn = An * Errorn + Bn_1 * Errorn_1; // delta_u(n)  
+    Errorn_1 = Errorn; 
+    Un_output = Un_output + DeltaUn;
+    
+    return DeltaUn;
+  }
+ 
+};
+
+
+class ImpedancePIController
+{
+private:
+    double SetValue ;        //target 
+    double An;              //=kp+ki  for e(n)
+    double Bn_1;           // -kp     for e(n-1)
+    double Limit;          //limit
+    double Errorn_1;       //e(n-1)  
+    double DeltaUn;        // delta_u(n);  
+    double Un_output;     //output
+
+public:
+
+  void SetPara(double kp, double ki, double target, double limit)
+  {
+    An = kp + ki;
+    Bn_1 = -kp;
+    Limit = limit;
+    SetValue = target;
+    DeltaUn = 0;
+    Errorn_1 = 0;
+  }
+
+
+  double PIControllerCalu(double NewInput)
+  {
+    
+
+    double Errorn =0;  
+
+   // if(NewInput < -20.)
+   // {
+   //   NewInput = -20.;
+   // } 
+
+
+    Errorn = SetValue - NewInput;  // e(n)
+    DeltaUn = An * Errorn + Bn_1 * Errorn_1; // delta_u(n)  
+    Errorn_1 = Errorn; 
+    Un_output = Un_output + DeltaUn;
+    
+    return DeltaUn;
+  }
+ 
+};
+
+
 class RunningAverage
 {
 private:
@@ -163,7 +258,7 @@ private:
   /// time in ms over which we averge motor currents for limit check
   static const int CURRENT_AVERAGING_TIME_MS = 500;
   /// threshold (in rad) below which two joint positions are regarded equal
-  static const double POSITION_REACHED_THRESHOLD = 0.035;
+  static const double POSITION_REACHED_THRESHOLD = 0.08;
 
   /// Handle to the Maxon EPOS library
   void *epos_handle_;
@@ -203,6 +298,14 @@ private:
   //MedianFilter joint_value_filter_;
   double impedance_target_;
 
+  double proxy_data_;
+
+  double motor_velocity_;
+
+  double motor_impedance_velocity_;
+
+  
+
   /**
    * Get motor errors.
    */
@@ -239,6 +342,9 @@ private:
    * Get current in [mA].
    */
   double getCurrent();
+
+
+
  
   /**
    * Check if a joint position has reached the target.
@@ -264,6 +370,11 @@ private:
 public:
   JointController(ros::NodeHandle &nh, void *epos_handle, int num);
   ~JointController();
+
+  PIController proxy_PIcontroller;
+
+  ImpedancePIController impedance_contorller_;
+
   /**
    * Update position in [rad] from raw sensor value.
    */
@@ -300,6 +411,19 @@ public:
   {
     impedance_target_ = p;
   }
+/**
+   * update proxy data from subscribed node
+   */
+  void updateProxyData(double q)
+  {
+    proxy_data_ = q;
+  }
+
+  double proxyData()
+  {
+    return proxy_data_;
+  }
+
     /**
    * return the impedance error 
    */
@@ -337,6 +461,15 @@ public:
   /**
    * Keep moving, until target reached or current limit exceeded.
    */
+
+
+  bool moveWithVeloctyProxy(int proxy_direction_flag);
+
+  bool moveWithVelocityImpedance(int impedance_direction_flag);
+
+
+
+
   bool keepMovingToTarget();
   /**
    * And stop, once reached.
@@ -346,6 +479,34 @@ public:
    * Resets motor
    */
   void reset();
+
+
+  void setMotorImpedanceVelocity(double p)
+  {
+    motor_impedance_velocity_ = (int)p;
+  }
+
+  double motorImpedanceVelocity()
+  {
+    return motor_impedance_velocity_;
+  }
+
+
+  void setMotorVelocity(double p)
+  {
+    motor_velocity_ = (int)p;
+  }
+
+  double motorVelocity()
+  {
+    return motor_velocity_;  
+  }
+
+  void setMaxVelocity(double p)
+  {
+    max_velocity_ = (int)p;
+  }
+  
 };
 
 class KCLHandController
@@ -354,7 +515,7 @@ private:
   /// 3 fingers and 2 palms
   static const int NUM_JOINTS = 5;
   /// default (safe and nice) velocity in rpm when opening and closing fingers
-  static const long FINGER_VELOCITY = 1000;
+  static const long FINGER_VELOCITY = 0;
   /// the palm joints need slower motor rotations, as they are more direct
   static const long PALM_VELOCITY = 300;
   /// frequency of the control loop
@@ -372,6 +533,11 @@ private:
   static const int RIGHT_FINGER  = 2;  // node id 5, sensor + is out,  motor + is out
   static const int MIDDLE_FINGER = 3;  // node id 7, sensor + is out,  motor + is out
   static const int LEFT_FINGER   = 4;  // node id 9, sensor + is out,  motor + is in
+  
+  double HAND_UPPER_LIMIT[5] = {70,70,-20,-10,-20};
+  double HAND_LOWER_LIMIT[5] = {-70,-70,-80,-90,-80};
+
+
 
   bool hand_impedance_flag_;
 
@@ -434,6 +600,10 @@ public:
 
 private:
 
+  bool handProxyController(float rel_current_limit);
+  bool handProxyControllerOneFinger(float rel_current_limit);
+
+  bool handImpedanceControllerOneFinger(float rel_current_limit);
   bool handImpedanceController(float rel_current_limit);
   /**
    * Open Maxon Motor EPOS device. In our case the CAN controller attached via
@@ -466,6 +636,21 @@ private:
    * then we activate current control mode to keep the object squeezed between
    * the fingers.
    */
+  bool impedanceMoveFingers(float rel_current_limit, bool &all_target_positions_reached);
+
+  bool proxyMoveFingers(float rel_current_limit, bool &all_target_positions_reached);
+
+  bool proxyMoveOneFinger(float rel_current_limit, bool &all_target_positions_reached);
+
+
+  bool upper2LowerController(float rel_current_limit);
+  bool lower2UpperController(float rel_current_limit);
+
+  bool impedanceMoveFingersVelocity(float rel_current_limit, bool &all_target_positions_reached);
+
+  bool impedanceMoveFingersVelocityOneFinger(float rel_current_limit, bool &all_target_positions_reached);
+
+
   //void keepTightGrip();
   /**
    * Loosen grip, i.e. set motor corrents to 0.
