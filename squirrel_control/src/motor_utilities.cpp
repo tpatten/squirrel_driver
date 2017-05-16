@@ -267,7 +267,6 @@ namespace motor_control {
                 }
             case control_modes::ControlMode::TORQUE_MODE:
                 {
-	                //TODO adapt if necessary
 	                std::vector<double> torques = {};
 	                UINT16_T value;
 	                for (auto const motor : motors_) {
