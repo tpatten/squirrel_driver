@@ -35,7 +35,7 @@ class SquirrelSafety(object):
 
 
     def wrist_callback(self, msg):
-        self.safety_msg.wrist_stop =  = msg.data
+        self.safety_msg.wrist_stop = msg.data
 
 
     def bumper_callback(self, msg):
