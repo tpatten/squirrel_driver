@@ -15,12 +15,4 @@
   <build_depend>rospy</build_depend>
   <build_depend>squirrel_safety_msgs</build_depend>
 
-  <run_depend> </run_depend>
-
-
-  <!-- The export tag contains other, unspecified, tags -->
-  <export>
-    <!-- Other tools can request additional information be placed here -->
-
-  </export>
 </package>
