@@ -31,21 +31,12 @@ class SquirrelSafety(object):
 
 
     def airskin_callback(self, msg):
-        if msg:
-            self.safety_msg.airskin_stop = True
-        else:
-            self.safety_msg.airskin_stop = False
+        self.safety_msg.airskin_stop = msg.data
 
 
     def wrist_callback(self, msg):
-        if msg:
-            self.safety_msg.wrist_stop = True
-        else:
-            self.safety_msg.wrist_stop = False
+        self.safety_msg.wrist_stop =  = msg.data
 
 
     def bumper_callback(self, msg):
-        if msg:
-            self.safety_msg.bumper_stop = True
-        else:
-            self.safety_msg.bumper_stop = False
+        self.safety_msg.bumper_stop = msg.data
