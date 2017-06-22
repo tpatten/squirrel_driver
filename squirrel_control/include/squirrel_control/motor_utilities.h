@@ -7,6 +7,7 @@
 
 #include <mutex>
 #include <cmath>
+#include <unistd.h>
 #include <error/throwControlError.h>
 
 #include "squirrel_control/control_modes.h"
@@ -82,7 +83,7 @@ namespace motor_control
 
         ROBOTIS::PortHandler* port_handler_;
 
-        ROBOTIS::Protocol2PacketHandler* packet_handler_;
+        ROBOTIS::PacketHandler* packet_handler_;
     };
 
 }

@@ -130,6 +130,11 @@ install(TARGETS
 install(DIRECTORY include/${PROJECT_NAME}/   
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
 
-install(DIRECTORY launch dynamixel 
+install(DIRECTORY launch 
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+#Install device files
+install(DIRECTORY dynamixel/ 
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/dynamixel
 )

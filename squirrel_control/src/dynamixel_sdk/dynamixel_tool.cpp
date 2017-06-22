@@ -23,77 +23,78 @@
 * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+	* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+	* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+	* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+	*******************************************************************************/
 
-/* Author: Taehoon Lim (Darby), zerom */
+	/* Author: Taehoon Lim (Darby), zerom */
 
-#include "dynamixel_sdk/dynamixel_tool.h"
-#include "error/throwControlError.h"
+	#include "dynamixel_sdk/dynamixel_tool.h"
+	#include "error/throwControlError.h"
 
-using namespace dynamixel_tool;
+	using namespace dynamixel_tool;
 
-    static inline std::string &ltrim(std::string &s) {
-      s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-      return s;
-    }
+	    static inline std::string &ltrim(std::string &s) {
+	      s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+	      return s;
+	    }
 
-    static inline std::string &rtrim(std::string &s) {
-      s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-      return s;
-    }
+	    static inline std::string &rtrim(std::string &s) {
+	      s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+	      return s;
+	    }
 
-    static inline std::string &trim(std::string &s) {
-      return ltrim(rtrim(s));
-    }
+	    static inline std::string &trim(std::string &s) {
+	      return ltrim(rtrim(s));
+	    }
 
-    static inline std::vector <std::string> split(const std::string &text, char sep) {
-      std::vector <std::string> tokens;
-      std::size_t start = 0, end = 0;
-      while ((end = text.find(sep, start)) != (std::string::npos)) {
-        tokens.push_back(text.substr(start, end - start));
-        trim(tokens.back());
-        start = end + 1;
-      }
-      tokens.push_back(text.substr(start));
-      trim(tokens.back());
-      return tokens;
-    }
+	    static inline std::vector <std::string> split(const std::string &text, char sep) {
+	      std::vector <std::string> tokens;
+	      std::size_t start = 0, end = 0;
+	      while ((end = text.find(sep, start)) != (std::string::npos)) {
+		tokens.push_back(text.substr(start, end - start));
+		trim(tokens.back());
+		start = end + 1;
+	      }
+	      tokens.push_back(text.substr(start));
+	      trim(tokens.back());
+	      return tokens;
+	    }
 
-    DynamixelTool::DynamixelTool(uint8_t id, uint16_t model_number, float protocol_version)
-            : id_(0),
-              model_number_(0),
-              protocol_version_(0.0),
-              model_name_(""),
-              item_path_(""),
-              dynamixel_name_path_("") {
-      id_ = id;
-      protocol_version_ = protocol_version;
+	    DynamixelTool::DynamixelTool(uint8_t id, uint16_t model_number, float protocol_version)
+		    : id_(0),
+		      model_number_(0),
+		      protocol_version_(0.0),
+		      model_name_(""),
+		      item_path_(""),
+		      dynamixel_name_path_("") {
+	      id_ = id;
+	      protocol_version_ = protocol_version;
 
-      getModelName(model_number);
-      getModelItem();
-    }
+	      getModelName(model_number);
+	      getModelItem();
+	    }
 
-    DynamixelTool::DynamixelTool(uint8_t id, std::string model_name, float protocol_version)
-            : id_(0),
-              model_number_(0),
-              protocol_version_(0.0),
-              model_name_(""),
-              item_path_(""),
-              dynamixel_name_path_("") {
-      id_ = id;
-      model_name_ = model_name;
-      protocol_version_ = protocol_version;
+	    DynamixelTool::DynamixelTool(uint8_t id, std::string model_name, float protocol_version)
+		    : id_(0),
+		      model_number_(0),
+		      protocol_version_(0.0),
+		      model_name_(""),
+		      item_path_(""),
+		      dynamixel_name_path_("") {
+	      id_ = id;
+	      model_name_ = model_name;
+	      protocol_version_ = protocol_version;
 
-      getModelItem();
-    }
+	      getModelItem();
+	    }
 
-    DynamixelTool::~DynamixelTool() {}
+	    DynamixelTool::~DynamixelTool() {}
 
-    bool DynamixelTool::getModelName(uint16_t model_number) {
-      dynamixel_name_path_ = "../../dynamixel/models/model_info.list";
+	    bool DynamixelTool::getModelName(uint16_t model_number) {
+	      //dynamixel_name_path_ = "../../dynamixel/models/model_info.list";
+      dynamixel_name_path_ = "/usr/local/dynamixel/models/model_info.list";
 
       std::ifstream file(dynamixel_name_path_.c_str());
       if (file.is_open()) {
@@ -129,7 +130,8 @@ using namespace dynamixel_tool;
       std::string dynamixel_series = "";
       dynamixel_series = model_name_.substr(0, 2);
 
-      item_path_ = "../../dynamixel";
+      //item_path_ = "../../dynamixel";
+      item_path_ = "/usr/local/dynamixel";
 
       item_path_ = item_path_ + "/models" + "/" + dynamixel_series + "/" + model_name_ + ".device";
     }
