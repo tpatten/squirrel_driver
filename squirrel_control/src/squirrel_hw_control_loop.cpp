@@ -29,7 +29,7 @@ namespace squirrel_control {
         ros::Duration desired_update_freq = ros::Duration(1 / loop_hz_);
         non_realtime_loop_ = nh_.createTimer(desired_update_freq, &SquirrelHWControlLoop::update, this);
 
-	std::cout << "Looping..:" << std::endl;
+	std::cout << "Looping..." << std::endl;
     }
 
 

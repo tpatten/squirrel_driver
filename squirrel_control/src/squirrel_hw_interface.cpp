@@ -14,25 +14,25 @@ namespace squirrel_control {
                 , nh_(nh)
                 , use_rosparam_joint_limits_(false)
                 , use_soft_limits_if_available_(false) {
-	    // Check if the URDF model needs to be loaded
-        if (urdf_model == NULL)
-            loadURDF(nh, "robot_description");
-        else
-            urdf_model_ = urdf_model;
-
-        // Load rosparams
-        ros::NodeHandle rpnh(nh_, "squirrel_hw_interface");
-        std::size_t error = 0;
-	    std::string motor_port;
-        error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
-        rosparam_shortcuts::shutdownIfError(name_, error);
-	    error += !rosparam_shortcuts::get(name_, rpnh, "motor_port", motor_port_);
-	    rosparam_shortcuts::shutdownIfError(name_, error);
-	    motor_interface_ = new motor_control::MotorUtilities();
-	    safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
-	    safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
-	    base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 10);
-	    base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
+      // Check if the URDF model needs to be loaded
+      if (urdf_model == NULL)
+	loadURDF(nh, "robot_description");
+      else
+	urdf_model_ = urdf_model;
+      
+      // Load rosparams
+      ros::NodeHandle rpnh(nh_, "squirrel_hw_interface");
+      std::size_t error = 0;
+      std::string motor_port;
+      error += !rosparam_shortcuts::get(name_, rpnh, "joints", joint_names_);
+      rosparam_shortcuts::shutdownIfError(name_, error);
+      error += !rosparam_shortcuts::get(name_, rpnh, "motor_port", motor_port_);
+      rosparam_shortcuts::shutdownIfError(name_, error);
+      motor_interface_ = new motor_control::MotorUtilities();
+      safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
+      safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
+      base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 10);
+      base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
     }
 
 
@@ -387,7 +387,7 @@ namespace squirrel_control {
 
     void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
 	    enforceLimits(elapsed_time);
-	    std::vector<double> cmds;
+	    std::vector<double> cmds(5);
 	    geometry_msgs::Twist twist;
 
 	    switch(current_mode_){
@@ -396,16 +396,16 @@ namespace squirrel_control {
 			    twist.linear.x = joint_position_command_[0];
 			    twist.linear.y = joint_position_command_[1];
 			    twist.linear.z = joint_position_command_[2];
-		        for(int i = 0; i < num_joints_; i++){
+			    for(int i = 0; i < num_joints_-3; i++){
 			        cmds[i] = joint_position_command_[i+3];
-		        }
+			    }
 			    break;
 		    case control_modes::VELOCITY_MODE:
 			    //TODO assumption: angular is for base velocity control
 			    twist.angular.x = joint_velocity_command_[0];
 			    twist.angular.y = joint_velocity_command_[1];
 			    twist.angular.z = joint_velocity_command_[2];
-			    for(int i = 0; i < num_joints_; i++){
+			    for(int i = 0; i < num_joints_-3; i++){
 				    cmds[i] = joint_velocity_command_[i+3];
 			    }
 			    break;
@@ -414,7 +414,7 @@ namespace squirrel_control {
 			    twist.angular.x = joint_effort_command_[0];
 			    twist.angular.y = joint_effort_command_[1];
 			    twist.angular.z = joint_effort_command_[2];
-			    for(int i = 0; i < num_joints_; i++){
+			    for(int i = 0; i < num_joints_-3; i++){
 				    cmds[i] = joint_effort_command_[i+3];
 			    }
 			    break;

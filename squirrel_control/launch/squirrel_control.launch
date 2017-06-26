@@ -2,13 +2,16 @@
     <arg name="robot" default="uibk-robotino2-sh"/>
     <param name="robot_description" command="$(find xacro)/xacro.py '$(find robotino_bringup)/robots/$(arg robot)/urdf/robotino.urdf.xacro'" /> 
 
-    <rosparam param="squirrel_hw_interface/motor_port">/dev/ttyArm</rosparam>
-    <rosparam param="squirrel_hw_interface/joints">[base_jointx, base_jointy, base_jointz, arm_joint1, arm_joint2, arm_joint3, arm_joint4, arm_joint5]</rosparam>
-
-    <rosparam param="squirrel_hw_control_loop/loop_hz">1000</rosparam>
-    <rosparam param="squirrel_hw_control_loop/cycle_time_error_threshold">0.1</rosparam>
-
-
     <node name="squirrel_control_node" pkg="squirrel_control" type="squirrel_hw_main" output="screen" respawn="true"/>
+    
+    <!-- Load controller settings -->
+    <rosparam file="$(find squirrel_control)/config/controllers.yaml" command="load"/>
+
+    <!-- Load controller manager -->
+    <node name="ros_control_controller_manager" pkg="controller_manager" type="controller_manager" respawn="false"
+      output="screen" args="spawn joint_state_controller joint_trajectory_controller" />
+
+    <!-- Convert joint states to /tf tranforms -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
 </launch>
