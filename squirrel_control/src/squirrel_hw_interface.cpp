@@ -37,31 +37,31 @@ namespace squirrel_control {
 
 
     SquirrelHWInterface::~SquirrelHWInterface() {
-		delete motor_interface_;
+      delete motor_interface_;
     }
 
 
     void SquirrelHWInterface::init() {
-        num_joints_ = joint_names_.size();
-
-        // Status
-        joint_position_.resize(num_joints_, 0.0);
-        joint_velocity_.resize(num_joints_, 0.0);
-        joint_effort_.resize(num_joints_, 0.0);
-
-        // Command
-        joint_position_command_.resize(num_joints_, 0.0);
-        joint_velocity_command_.resize(num_joints_, 0.0);
-        joint_effort_command_.resize(num_joints_, 0.0);
-
-        // Limits
-        joint_position_lower_limits_.resize(num_joints_, 0.0);
-        joint_position_upper_limits_.resize(num_joints_, 0.0);
-        joint_velocity_limits_.resize(num_joints_, 0.0);
-        joint_effort_limits_.resize(num_joints_, 0.0);
-
-        // Initialize interfaces for each joint
-        for (std::size_t joint_id = 0; joint_id < num_joints_; ++joint_id)
+      num_joints_ = joint_names_.size();
+      
+      // Status
+      joint_position_.resize(num_joints_, 0.0);
+      joint_velocity_.resize(num_joints_, 0.0);
+      joint_effort_.resize(num_joints_, 0.0);
+      
+      // Command
+      joint_position_command_.resize(num_joints_, 0.0);
+      joint_velocity_command_.resize(num_joints_, 0.0);
+      joint_effort_command_.resize(num_joints_, 0.0);
+      
+      // Limits
+      joint_position_lower_limits_.resize(num_joints_, 0.0);
+      joint_position_upper_limits_.resize(num_joints_, 0.0);
+      joint_velocity_limits_.resize(num_joints_, 0.0);
+      joint_effort_limits_.resize(num_joints_, 0.0);
+      
+      // Initialize interfaces for each joint
+      for (std::size_t joint_id = 0; joint_id < num_joints_; ++joint_id)
         {
             ROS_DEBUG_STREAM_NAMED(name_, "Loading joint name: " << joint_names_[joint_id]);
 
@@ -92,8 +92,8 @@ namespace squirrel_control {
         registerInterface(&velocity_joint_interface_);  // From RobotHW base class.
         registerInterface(&effort_joint_interface_);    // From RobotHW base class.
 
-	    motor_interface_->initMotors(motor_port_, {1,2,3,4,5});
-	    motor_interface_->startMotors();
+	motor_interface_->initMotors(motor_port_, {1,2,3,4,5});
+	motor_interface_->startMotors();
 
         ROS_INFO_STREAM_NAMED(name_, "SquirrelHWInterface ready.");
     }
@@ -266,211 +266,213 @@ namespace squirrel_control {
     }
 
 
-    std::string SquirrelHWInterface::printCommandHelper() {
-        std::stringstream ss;
-        std::cout.precision(15);
-        ss << "    position     velocity         effort  \n";
-        for (std::size_t i = 0; i < num_joints_; ++i)
-        {
-            ss << "j" << i << ": " << std::fixed << joint_position_command_[i] << "\t ";
-            ss << std::fixed << joint_velocity_command_[i] << "\t ";
-            ss << std::fixed << joint_effort_command_[i] << std::endl;
-        }
-        return ss.str();
+  std::string SquirrelHWInterface::printCommandHelper() {
+    std::stringstream ss;
+    std::cout.precision(15);
+    ss << "    position     velocity         effort  \n";
+    for (std::size_t i = 0; i < num_joints_; ++i)
+      {
+	ss << "j" << i << ": " << std::fixed << joint_position_command_[i] << "\t ";
+	ss << std::fixed << joint_velocity_command_[i] << "\t ";
+	ss << std::fixed << joint_effort_command_[i] << std::endl;
+      }
+    return ss.str();
+  }
+  
+  
+  void SquirrelHWInterface::loadURDF(ros::NodeHandle &nh, std::string param_name) {
+    std::string urdf_string;
+    urdf_model_ = new urdf::Model();
+    
+    // search and wait for robot_description on param server
+    while (urdf_string.empty() && ros::ok()) {
+      std::string search_param_name;
+      if (nh.searchParam(param_name, search_param_name)) {
+	ROS_INFO_STREAM_NAMED(name_, "Waiting for model URDF on the ROS param server at location: " <<
+			      nh.getNamespace() << search_param_name);
+	nh.getParam(search_param_name, urdf_string);
+      }
+      else {
+	ROS_INFO_STREAM_NAMED(name_, "Waiting for model URDF on the ROS param server at location: " <<
+			      nh.getNamespace() << param_name);
+	nh.getParam(param_name, urdf_string);
+      }
+      
+      usleep(100000);
     }
+    
+    if (!urdf_model_->initString(urdf_string))
+      ROS_ERROR_STREAM_NAMED(name_, "Unable to load URDF model");
+    else
+      ROS_DEBUG_STREAM_NAMED(name_, "Received URDF from param server");
+  }
+  
 
-
-    void SquirrelHWInterface::loadURDF(ros::NodeHandle &nh, std::string param_name) {
-        std::string urdf_string;
-        urdf_model_ = new urdf::Model();
-
-        // search and wait for robot_description on param server
-        while (urdf_string.empty() && ros::ok()) {
-            std::string search_param_name;
-            if (nh.searchParam(param_name, search_param_name)) {
-                ROS_INFO_STREAM_NAMED(name_, "Waiting for model URDF on the ROS param server at location: " <<
-                                                                                                            nh.getNamespace() << search_param_name);
-                nh.getParam(search_param_name, urdf_string);
-            }
-            else {
-                ROS_INFO_STREAM_NAMED(name_, "Waiting for model URDF on the ROS param server at location: " <<
-                                                                                                            nh.getNamespace() << param_name);
-                nh.getParam(param_name, urdf_string);
-            }
-
-            usleep(100000);
-        }
-
-        if (!urdf_model_->initString(urdf_string))
-            ROS_ERROR_STREAM_NAMED(name_, "Unable to load URDF model");
-        else
-            ROS_DEBUG_STREAM_NAMED(name_, "Received URDF from param server");
+  void SquirrelHWInterface::doSwitch(const std::list<hardware_interface::ControllerInfo> &start_list, const std::list<hardware_interface::ControllerInfo> &stop_list)
+  {
+    std::list<hardware_interface::ControllerInfo>::const_iterator it;
+    for (it = stop_list.begin(); it != stop_list.end(); ++it)
+      {
+	if (it->hardware_interface != JOINT_STATE_INTERFACE) {
+	  enabled_ = false;
+	}
+      }
+    
+    hardware_interface::RobotHW::doSwitch(start_list, stop_list);
+    
+    for (it = start_list.begin(); it != start_list.end(); ++it) {
+      if (it->hardware_interface != JOINT_STATE_INTERFACE) {
+	if (it->hardware_interface == POSITION_JOINT_INTERFACE)	{
+	  current_mode_ = control_modes::POSITION_MODE;
+	  enabled_ = true;
+	}
+	else if (it->hardware_interface == VELOCITY_JOINT_INTERFACE) {
+	  current_mode_ = control_modes::VELOCITY_MODE;
+	  enabled_ = true;
+	}
+	else if (it->hardware_interface == EFFORT_JOINT_INTERFACE) {
+	  current_mode_ = control_modes::TORQUE_MODE;
+	  enabled_ = true;
+	}
+	else {
+	  throw_control_error(true, "Unknown control mode " << it->hardware_interface);
+	}
+      }
     }
+    // as for now we can't change mode always reset it to position control
+    current_mode_ = control_modes::POSITION_MODE;
+    //motor_interface_->setMode(current_mode_);
+  }
 
 
-	void SquirrelHWInterface::doSwitch(const std::list<hardware_interface::ControllerInfo> &start_list, const std::list<hardware_interface::ControllerInfo> &stop_list)
-	{
-		std::list<hardware_interface::ControllerInfo>::const_iterator it;
-		for (it = stop_list.begin(); it != stop_list.end(); ++it)
-		{
-			if (it->hardware_interface != JOINT_STATE_INTERFACE) {
-				enabled_ = false;
-			}
-		}
-
-		hardware_interface::RobotHW::doSwitch(start_list, stop_list);
-
-		for (it = start_list.begin(); it != start_list.end(); ++it) {
-			if (it->hardware_interface != JOINT_STATE_INTERFACE) {
-				if (it->hardware_interface == POSITION_JOINT_INTERFACE)	{
-					current_mode_ = control_modes::POSITION_MODE;
-					enabled_ = true;
-				}
-				else if (it->hardware_interface == VELOCITY_JOINT_INTERFACE) {
-					current_mode_ = control_modes::VELOCITY_MODE;
-					enabled_ = true;
-				}
-				else if (it->hardware_interface == EFFORT_JOINT_INTERFACE) {
-					current_mode_ = control_modes::TORQUE_MODE;
-					enabled_ = true;
-				}
-				else {
-					throw_control_error(true, "Unknown control mode " << it->hardware_interface);
-				}
-			}
-		}
-		motor_interface_->setMode(current_mode_);
+  void SquirrelHWInterface::read(ros::Duration &elapsed_time) {
+    switch(current_mode_) {
+    case control_modes::POSITION_MODE:
+      {
+	joint_position_[0] = posBuffer_[0];
+	joint_position_[1] = posBuffer_[1];
+	joint_position_[2] = posBuffer_[2];
+	auto positions = motor_interface_->read();
+	for (int i = 0; i < num_joints_-3; i++) {
+	  joint_position_[i + 3] = positions[i];
 	}
-
-
-	void SquirrelHWInterface::read(ros::Duration &elapsed_time) {
-		switch(current_mode_) {
-			case control_modes::POSITION_MODE:
-				{
-					joint_position_[0] = posBuffer_[0];
-					joint_position_[1] = posBuffer_[1];
-					joint_position_[2] = posBuffer_[2];
-					auto positions = motor_interface_->read();
-					for (int i = 0; i < num_joints_; i++) {
-						joint_position_[i + 3] = positions[i];
-					}
-				}
-				break;
-			case control_modes::VELOCITY_MODE:
-				{
-					joint_velocity_[0] = velBuffer_[0];
-					joint_velocity_[1] = velBuffer_[1];
-					joint_velocity_[2] = velBuffer_[2];
-					auto velocities = motor_interface_->read();
-					for (int i = 0; i < num_joints_; i++) {
-						joint_velocity_[i + 3] = velocities[i];
-					}
-				}
-				break;
-			case control_modes::TORQUE_MODE:
-				{
-					//TODO: assumption: no clue - check base torques
-					joint_effort_[0] = velBuffer_[0];
-					joint_effort_[1] = velBuffer_[1];
-					joint_effort_[2] = velBuffer_[2];
-					auto torques = motor_interface_->read();
-					for (int i = 0; i < num_joints_; i++) {
-						joint_effort_[i + 3] = torques[i];
-					}
-				}
-				break;
-			default:
-				throw_control_error(true, "Unknown mode: " << current_mode_);
-		}
+      }
+      break;
+    case control_modes::VELOCITY_MODE:
+      {
+	joint_velocity_[0] = velBuffer_[0];
+	joint_velocity_[1] = velBuffer_[1];
+	joint_velocity_[2] = velBuffer_[2];
+	auto velocities = motor_interface_->read();
+	for (int i = 0; i < num_joints_-3; i++) {
+	  joint_velocity_[i + 3] = velocities[i];
 	}
-
-
-    void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
-	    enforceLimits(elapsed_time);
-	    std::vector<double> cmds(5);
-	    geometry_msgs::Twist twist;
-
-	    switch(current_mode_){
-		    case control_modes::POSITION_MODE:
-			    //TODO assumption: linear is for base position control
-			    twist.linear.x = joint_position_command_[0];
-			    twist.linear.y = joint_position_command_[1];
-			    twist.linear.z = joint_position_command_[2];
-			    for(int i = 0; i < num_joints_-3; i++){
-			        cmds[i] = joint_position_command_[i+3];
-			    }
-			    break;
-		    case control_modes::VELOCITY_MODE:
-			    //TODO assumption: angular is for base velocity control
-			    twist.angular.x = joint_velocity_command_[0];
-			    twist.angular.y = joint_velocity_command_[1];
-			    twist.angular.z = joint_velocity_command_[2];
-			    for(int i = 0; i < num_joints_-3; i++){
-				    cmds[i] = joint_velocity_command_[i+3];
-			    }
-			    break;
-		    case control_modes::TORQUE_MODE:
-			    //TODO assumption: no clue
-			    twist.angular.x = joint_effort_command_[0];
-			    twist.angular.y = joint_effort_command_[1];
-			    twist.angular.z = joint_effort_command_[2];
-			    for(int i = 0; i < num_joints_-3; i++){
-				    cmds[i] = joint_effort_command_[i+3];
-			    }
-			    break;
-		    default:
-			    throw_control_error(true, "Unknown mode: " << current_mode_);
-	    }
-
-	    try {
-		    if (!safety_lock_) {
-			    motor_interface_->write(cmds);
-			    base_interface_.publish(twist);
-		    }
-	    } catch (std::exception &ex) {
-		    throw_control_error(true, ex.what());
-	    }
+      }
+      break;
+    case control_modes::TORQUE_MODE:
+      {
+	//TODO: assumption: no clue - check base torques
+	joint_effort_[0] = velBuffer_[0];
+	joint_effort_[1] = velBuffer_[1];
+	joint_effort_[2] = velBuffer_[2];
+	auto torques = motor_interface_->read();
+	for (int i = 0; i < num_joints_-3; i++) {
+	  joint_effort_[i + 3] = torques[i];
+	}
+      }
+      break;
+    default:
+      throw_control_error(true, "Unknown mode: " << current_mode_);
     }
+  }
 
 
-    void SquirrelHWInterface::enforceLimits(ros::Duration &period) {
-	    // Enforces position and velocity
-	    pos_jnt_sat_interface_.enforceLimits(period);
-	    vel_jnt_sat_interface_.enforceLimits(period);
-	    eff_jnt_sat_interface_.enforceLimits(period);
+  void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
+    enforceLimits(elapsed_time);
+    std::vector<double> cmds(5);
+    geometry_msgs::Twist twist;
+    
+    switch(current_mode_){
+    case control_modes::POSITION_MODE:
+      //TODO assumption: linear is for base position control
+      twist.linear.x = joint_position_command_[0];
+      twist.linear.y = joint_position_command_[1];
+      twist.linear.z = joint_position_command_[2];
+      for(int i = 0; i < num_joints_-3; i++){
+	cmds[i] = joint_position_command_[i+3];
+      }
+      break;
+    case control_modes::VELOCITY_MODE:
+      //TODO assumption: angular is for base velocity control
+      twist.angular.x = joint_velocity_command_[0];
+      twist.angular.y = joint_velocity_command_[1];
+      twist.angular.z = joint_velocity_command_[2];
+      for(int i = 0; i < num_joints_-3; i++){
+	cmds[i] = joint_velocity_command_[i+3];
+      }
+      break;
+    case control_modes::TORQUE_MODE:
+      //TODO assumption: no clue
+      twist.angular.x = joint_effort_command_[0];
+      twist.angular.y = joint_effort_command_[1];
+      twist.angular.z = joint_effort_command_[2];
+      for(int i = 0; i < num_joints_-3; i++){
+	cmds[i] = joint_effort_command_[i+3];
+      }
+      break;
+    default:
+      throw_control_error(true, "Unknown mode: " << current_mode_);
     }
+    
+    try {
+      if (!safety_lock_) {
+	motor_interface_->write(cmds);
+	base_interface_.publish(twist);
+      }
+    } catch (std::exception &ex) {
+      throw_control_error(true, ex.what());
+    }
+  }
 
 
-	void SquirrelHWInterface::odomCallback(const nav_msgs::OdometryConstPtr &msg) {
-		posBuffer_[0] = msg->twist.twist.linear.x;
-		posBuffer_[1] = msg->twist.twist.linear.y;
-		posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
-
-		velBuffer_[0] = msg->twist.twist.angular.x;
-		velBuffer_[1] = msg->twist.twist.angular.y;
-		velBuffer_[2] = msg->twist.twist.angular.z;
-	}
-
-
-	void SquirrelHWInterface::safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg){
-		if (msg->emergency_state) {
-			safety_lock_ = true;
-			if (msg->airskin_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Airksin pressed!");
-			} else if (msg->bumper_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Bumper pressed!");
-			} else if (msg->wrist_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Wrist touched!");
-			}
-		}
-	}
-
-
-	void SquirrelHWInterface::safetyResetCallback(const std_msgs::BoolConstPtr &msg) {
-		if (msg->data) {
-			safety_lock_ = false;
-			ROS_INFO_STREAM_NAMED(name_, "Safety released.");
-		}
-	}
+  void SquirrelHWInterface::enforceLimits(ros::Duration &period) {
+    // Enforces position and velocity
+    pos_jnt_sat_interface_.enforceLimits(period);
+    vel_jnt_sat_interface_.enforceLimits(period);
+    eff_jnt_sat_interface_.enforceLimits(period);
+  }
+  
+  
+  void SquirrelHWInterface::odomCallback(const nav_msgs::OdometryConstPtr &msg) {
+    posBuffer_[0] = msg->twist.twist.linear.x;
+    posBuffer_[1] = msg->twist.twist.linear.y;
+    posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
+    
+    velBuffer_[0] = msg->twist.twist.angular.x;
+    velBuffer_[1] = msg->twist.twist.angular.y;
+    velBuffer_[2] = msg->twist.twist.angular.z;
+  }
+  
+  
+  void SquirrelHWInterface::safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg){
+    if (msg->emergency_state) {
+      safety_lock_ = true;
+      if (msg->airskin_stop) {
+	ROS_INFO_STREAM_NAMED(name_, "Airksin pressed!");
+      } else if (msg->bumper_stop) {
+	ROS_INFO_STREAM_NAMED(name_, "Bumper pressed!");
+      } else if (msg->wrist_stop) {
+	ROS_INFO_STREAM_NAMED(name_, "Wrist touched!");
+      }
+    }
+  }
+  
+  
+  void SquirrelHWInterface::safetyResetCallback(const std_msgs::BoolConstPtr &msg) {
+    if (msg->data) {
+      safety_lock_ = false;
+      ROS_INFO_STREAM_NAMED(name_, "Safety released.");
+    }
+  }
 }
 

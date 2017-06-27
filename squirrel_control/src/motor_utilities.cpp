@@ -6,182 +6,183 @@
 
 
 namespace motor_control {
-
-	MotorUtilities::MotorUtilities() {
-	}
-
-	MotorUtilities::~MotorUtilities() {
-		stopMotors();
-		for(auto const& motor : motors_) {
-			delete motor.tool;
-		}
-		delete port_handler_;
-		delete packet_handler_;
-	}
-
-
-	void MotorUtilities::setMode(control_modes::ControlMode mode) {
-		UINT8_T error;
-		try {
-			motor_lock_.lock();
-			current_mode_ = mode;
-			for(const auto motor : motors_){
-				packet_handler_->Write1ByteTxRx(port_handler_, motor.id,
-						motor.tool->ctrl_table_["operating_mode"]->address,
-						current_mode_, &error);
-				throw_control_error(error,
-						"Failed to switch motor " << motor.id << " (" << motor.tool->model_name_
-						<< ") into mode " << mode);
-			}
-			motor_lock_.unlock();
-		} catch (std::exception &ex) {
-			motor_lock_.unlock();
-			throw_control_error(true, ex.what());
-		}
-	}
-
-
-	control_modes::ControlMode MotorUtilities::getMode() {
-		return current_mode_;
-	}
-
-
-	std::vector<Motor> MotorUtilities::getMotors() {
-		return motors_;
-	}
-
-
-	bool MotorUtilities::motorsReady() {
-		return motors_ready_;
-	}
-
-
-	bool MotorUtilities::torqueEnabled() {
-		return torque_enabled_;
-	}
-
-
-	bool MotorUtilities::initMotors(std::string motor_port, std::vector<int> motors) {
-		port_handler_ = ROBOTIS::PortHandler::GetPortHandler(motor_port.c_str());
-		if (!port_handler_->OpenPort()) {
-			throw_control_error(true, "Failed to open motor port!");
-		}		
-		if (!port_handler_->SetBaudRate(BAUD_RATE_)) {
-			throw_control_error(true, "Failed to set baud rate!");
-		}
-
-		//do we find the whole gang?
-		packet_handler_ = ROBOTIS::PacketHandler::GetPacketHandler(2.0);
-		UINT8_T error = 0;
-		for(auto const& motor: motors) {
-			packet_handler_->Ping(port_handler_, motor, &error);
-			throw_control_error(error, "Failed to ping motor: " << motor);
-		}
-
-		//initialize them
-		motors_ = std::vector<Motor>();
-
-		uint8_t dynamixel_error = 0;
-		int dynamixel_id = 0;
-		uint16_t dynamixel_num = 0;
-		
- 		for(dynamixel_id = 1; dynamixel_id < 253; dynamixel_id++) {
-			if (packet_handler_->Ping(port_handler_, dynamixel_id, &dynamixel_num, &dynamixel_error) == 0) {
-				std::cout << "Found model: " << dynamixel_num << " with id " << dynamixel_id << std::endl;
-				dynamixel_tool::DynamixelTool* tool = new dynamixel_tool::DynamixelTool(dynamixel_id, dynamixel_num, 2.0);
-				Motor motor_;
-				motor_.id = dynamixel_id;
-				motor_.tool = tool;
-				motors_.push_back(motor_);
-			} 
-		}	
-		std::cout << "Found " << motors_.size() << " motors" << std::endl;
-		return true;
-	}
-
-
-	bool MotorUtilities::startMotors() {
-		UINT8_T error;
-		for(auto const& motor: motors_) {
-		  std::cout << "Starting motor " << static_cast<int>(motor.id)<< std::endl;
-			packet_handler_->Write2ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["external_port_data_1"]->address, 4095, &error);
-			throw_control_error(error, "Failed to loosen brakes for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
-		}
-		motors_ready_ = true;
-		std::cout << "Motors started." << std::endl;
-		return true;
-	}
-
-
-	bool MotorUtilities::stopMotors() {
-		UINT8_T error;
-		for(auto const& motor: motors_) {
-			packet_handler_->Write2ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["external_port_data_1"]->address, 0, &error);
-			throw_control_error(error, "Failed to set brakes for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
-		}
-		motors_ready_ = false;
-		return true;
-	}
-
-
-	bool MotorUtilities::enableTorque() {
-		UINT8_T error;
-		for(auto const& motor: motors_) {
-			packet_handler_->Write1ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["torque_enable"]->address, 1, &error);
-			throw_control_error(error, "Failed to enable torque for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
-		}
-		torque_enabled_ = true;
-		return true;
-	}
-
-
-	bool MotorUtilities::disableTorque() {
-		UINT8_T error;
-		for(auto const& motor: motors_) {
-			packet_handler_->Write1ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["torque_enable"]->address, 0, &error);
-			throw_control_error(error, "Failed to enable torque for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
-		}
-		torque_enabled_ = false;
-		return true;
-	}
-
-
-	//PID control should actually already be done in the motor
-	//this only consider low level (HW) limits
-	//conversion from joint pos to velocity/torque done in squirrel_hw_interface or here?
+  
+  MotorUtilities::MotorUtilities() {
+  }
+  
+  MotorUtilities::~MotorUtilities() {
+    stopMotors();
+    for(auto const& motor : motors_) {
+      delete motor.tool;
+    }
+    delete port_handler_;
+    delete packet_handler_;
+  }
+  
+  
+  void MotorUtilities::setMode(control_modes::ControlMode mode) {
+    //remove once it is supported
+    throw_control_error(true, "setMode not yet supported");
+    
+    UINT8_T error = 0;
+    try {
+      motor_lock_.lock();
+      current_mode_ = mode;
+      for(const auto motor : motors_){
+	packet_handler_->Write1ByteTxRx(port_handler_, motor.id,
+					motor.tool->ctrl_table_["operating_mode"]->address,
+					(UINT8_T)current_mode_, &error);
+	std::cout << "Error: " << error << std::endl;
+	throw_control_error(error,
+			    "Failed to switch motor " << static_cast<int>(motor.id) << " (" << motor.tool->model_name_
+			    << ") into mode " << mode);
+      }
+      motor_lock_.unlock();
+    } catch (std::exception &ex) {
+      motor_lock_.unlock();
+      throw_control_error(true, ex.what());
+    }
+  }
+  
+  
+  control_modes::ControlMode MotorUtilities::getMode() {
+    return current_mode_;
+  }
+  
+  
+  std::vector<Motor> MotorUtilities::getMotors() {
+    return motors_;
+  }
+  
+  
+  bool MotorUtilities::motorsReady() {
+    return motors_ready_;
+  }
+  
+  
+  bool MotorUtilities::torqueEnabled() {
+    return torque_enabled_;
+  }
+  
+  
+  bool MotorUtilities::initMotors(std::string motor_port, std::vector<int> motors) {
+    port_handler_ = ROBOTIS::PortHandler::GetPortHandler(motor_port.c_str());
+    if (!port_handler_->OpenPort()) {
+      throw_control_error(true, "Failed to open motor port!");
+    }		
+    if (!port_handler_->SetBaudRate(BAUD_RATE_)) {
+      throw_control_error(true, "Failed to set baud rate!");
+    }
+    
+    //do we find the whole gang?
+    packet_handler_ = ROBOTIS::PacketHandler::GetPacketHandler(2.0);
+    UINT8_T error = 0;
+    for(auto const& motor: motors) {
+      packet_handler_->Ping(port_handler_, motor, &error);
+      throw_control_error(error, "Failed to ping motor: " << motor);
+    }
+    
+    //initialize them
+    motors_ = std::vector<Motor>();
+    
+    uint8_t dynamixel_error = 0;
+    int dynamixel_id = 0;
+    uint16_t dynamixel_num = 0;
+    
+    for(dynamixel_id = 1; dynamixel_id < 253; dynamixel_id++) {
+      if (packet_handler_->Ping(port_handler_, dynamixel_id, &dynamixel_num, &dynamixel_error) == 0) {
+	std::cout << "Found model: " << dynamixel_num << " with id " << dynamixel_id << std::endl;
+	dynamixel_tool::DynamixelTool* tool = new dynamixel_tool::DynamixelTool(dynamixel_id, dynamixel_num, 2.0);
+	Motor motor_;
+	motor_.id = dynamixel_id;
+	motor_.tool = tool;
+	motors_.push_back(motor_);
+      } 
+    }	
+    std::cout << "Found " << motors_.size() << " motors" << std::endl;
+    return true;
+  }
+  
+  
+  bool MotorUtilities::startMotors() {
+    UINT8_T error = 0;
+    for(auto const& motor: motors_) {
+      current_mode_ = control_modes::ControlMode::POSITION_MODE;
+      std::cout << "Starting motor " << static_cast<int>(motor.id)<< std::endl;
+      packet_handler_->Write1ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["torque_enable"]->address, 1, &error);
+      throw_control_error(error, "Failed to enable torque for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
+      packet_handler_->Write2ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["external_port_data_1"]->address, 4095, &error);
+      throw_control_error(error, "Failed to loosen brakes for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
+    }
+    motors_ready_ = true;
+    std::cout << "Motors started." << std::endl;
+    return true;
+  }
+  
+  
+  bool MotorUtilities::stopMotors() {
+    UINT8_T error = 0;
+    for(auto const& motor: motors_) {
+      packet_handler_->Write2ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["external_port_data_1"]->address, 0, &error);
+      throw_control_error(error, "Failed to set brakes for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
+    }
+    motors_ready_ = false;
+    return true;
+  }
+  
+  
+  bool MotorUtilities::enableTorque() {
+    UINT8_T error = 0;
+    for(auto const& motor: motors_) {
+      packet_handler_->Write1ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["torque_enable"]->address, 1, &error);
+      throw_control_error(error, "Failed to enable torque for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
+    }
+    torque_enabled_ = true;
+    return true;
+  }
+  
+  
+  bool MotorUtilities::disableTorque() {
+    UINT8_T error = 0;
+    for(auto const& motor: motors_) {
+      packet_handler_->Write1ByteTxRx(port_handler_, motor.id, motor.tool->ctrl_table_["torque_enable"]->address, 0, &error);
+      throw_control_error(error, "Failed to enable torque for motor " << motor.id << " (" << motor.tool->model_name_ << ")");
+    }
+    torque_enabled_ = false;
+    return true;
+  }
+  
+  
   bool MotorUtilities::write(std::vector<double> commands)
   {
     throw_control_error(commands.size() != motors_.size(), "Wrong number of commands! Got " << commands.size() << ", but expected " << motors_.size());
-
+    
     int i = 0;
-    UINT8_T error;
+    UINT8_T error = 0;
     
     motor_lock_.lock();
     
     //we throw a bunch of own exceptions - let's catch them all and forward them to at all times release the lock
+    //Motor 3 has an offset of 228000 ticks - we do not have to treat that one, the dynamiel formware takes care of that
     try {
       for (auto const motor : motors_) {
 	switch (current_mode_) {
 	case control_modes::ControlMode::POSITION_MODE: {
 	  double rad_per_tick = motor.tool->max_radian_ / motor.tool->value_of_max_radian_position_;
-	  int goal_position = static_cast<int>(commands.at(i)) / rad_per_tick;
-	  UINT32_T homing_offset;
-	  packet_handler_->Read4ByteTxRx(port_handler_, motor.id,
-					 motor.tool->ctrl_table_["homing_offset"]->address,
-					 &homing_offset, &error);
-	  throw_control_error(error, "Failed to read homing offset for motor " << static_cast<int>(motor.id) << " ("
-			      << motor.tool->model_name_
-			      << ")");
-	  int min_with_offset = homing_offset + motor.tool->value_of_min_radian_position_;
-	  int max_with_offset = homing_offset + motor.tool->value_of_max_radian_position_;
-	  int goal_position_with_offset = goal_position + homing_offset;
-	  throw_control_error(goal_position_with_offset < min_with_offset || goal_position_with_offset > max_with_offset,
+	  int goal_position =  static_cast<int>(commands.at(i) / rad_per_tick);
+	  int min_ = motor.tool->value_of_min_radian_position_;
+	  int max_ = motor.tool->value_of_max_radian_position_;
+	  throw_control_error(goal_position < min_ || goal_position > max_,
 			      "Motor " << static_cast<int>(motor.id) << " (" << motor.tool->model_name_
-			      << ") exceeds its limits [" << min_with_offset << "," << max_with_offset
+			      << ") exceeds its limits [" << min_ << "," << max_
 			      << "] with goal position: " << goal_position);
+
+	  std::cout << "Commanded position for motor " << static_cast<int>(motor.id) << ": " << goal_position << 
+	    " with address " <<  static_cast<int>(motor.tool->ctrl_table_["goal_position"]->address) << std::endl;
+
 	  packet_handler_->Write4ByteTxRx(port_handler_, motor.id,
 					  motor.tool->ctrl_table_["goal_position"]->address,
-					  goal_position_with_offset, &error);	  
+					  goal_position, &error);	  
 	}
 	  break;
 	  
@@ -247,7 +248,7 @@ namespace motor_control {
   
   
   std::vector<double> MotorUtilities::read() {
-    UINT8_T error;    
+    UINT8_T error = 0;    
     switch(current_mode_) {
     case control_modes::ControlMode::POSITION_MODE:
       {
@@ -294,6 +295,5 @@ namespace motor_control {
     default:
       throw_control_error(true, "Unknown mode: " << current_mode_);
     }
-  }
-  
+  }  
 }

@@ -30,7 +30,7 @@ namespace motor_control
     public:
         static constexpr int BAUD_RATE_ = 3000000;
 
-	    static constexpr double CURRENT_TO_TORQUE_RATIO_ = 0.068267;
+	static constexpr double CURRENT_TO_TORQUE_RATIO_ = 0.068267;
 
         MotorUtilities();
 
