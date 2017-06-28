@@ -32,6 +32,8 @@ namespace motor_control
 
 	static constexpr double CURRENT_TO_TORQUE_RATIO_ = 0.068267;
 
+	static constexpr int TEMPERATURE_LIMIT = 65;
+
         MotorUtilities();
 
         ~MotorUtilities();
@@ -69,7 +71,7 @@ namespace motor_control
         std::vector<double> read();
 
 
-    private:
+    private:	
 
         bool motors_ready_;
 
@@ -79,7 +81,7 @@ namespace motor_control
 
         std::vector<Motor> motors_;
 
-        control_modes::ControlMode current_mode_;
+        control_modes::ControlMode current_mode_ = control_modes::ControlMode::POSITION_MODE;
 
         ROBOTIS::PortHandler* port_handler_;
 

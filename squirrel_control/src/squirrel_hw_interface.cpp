@@ -31,7 +31,7 @@ namespace squirrel_control {
       motor_interface_ = new motor_control::MotorUtilities();
       safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
       safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
-      base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 10);
+      base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
       base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
     }
 
@@ -308,7 +308,8 @@ namespace squirrel_control {
   }
   
 
-  void SquirrelHWInterface::doSwitch(const std::list<hardware_interface::ControllerInfo> &start_list, const std::list<hardware_interface::ControllerInfo> &stop_list)
+  void SquirrelHWInterface::doSwitch(const std::list<hardware_interface::ControllerInfo> &start_list, 
+				     const std::list<hardware_interface::ControllerInfo> &stop_list)
   {
     std::list<hardware_interface::ControllerInfo>::const_iterator it;
     for (it = stop_list.begin(); it != stop_list.end(); ++it)
@@ -339,9 +340,7 @@ namespace squirrel_control {
 	}
       }
     }
-    // as for now we can't change mode always reset it to position control
-    current_mode_ = control_modes::POSITION_MODE;
-    //motor_interface_->setMode(current_mode_);
+    motor_interface_->setMode(current_mode_);
   }
 
 
@@ -388,6 +387,27 @@ namespace squirrel_control {
 
 
   void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
+    //This for that the robot keeps its initial pose and does not move back to 0 (deault initialization of C++ for class members)
+    if (hold) {
+      joint_position_command_ = joint_position_;
+      joint_effort_command_ = joint_effort_;
+      joint_velocity_command_ = joint_velocity_;
+
+      joint_position_command_[0] = 0.0;
+      joint_position_command_[1] = 0.0;
+      joint_position_command_[2] = 0.0;
+
+      joint_effort_command_[0] = 0.0;
+      joint_effort_command_[1] = 0.0;
+      joint_effort_command_[2] = 0.0;
+
+      joint_velocity_command_[0] = 0.0;
+      joint_velocity_command_[1] = 0.0;
+      joint_velocity_command_[2] = 0.0;
+
+      hold = false;
+    }
+    
     enforceLimits(elapsed_time);
     std::vector<double> cmds(5);
     geometry_msgs::Twist twist;
@@ -397,15 +417,21 @@ namespace squirrel_control {
       //TODO assumption: linear is for base position control
       twist.linear.x = joint_position_command_[0];
       twist.linear.y = joint_position_command_[1];
-      twist.linear.z = joint_position_command_[2];
+      twist.linear.z = 0.0;
+      twist.angular.x = 0.0;
+      twist.angular.y = 0.0;
+      twist.angular.z = joint_position_command_[2];
       for(int i = 0; i < num_joints_-3; i++){
 	cmds[i] = joint_position_command_[i+3];
       }
       break;
     case control_modes::VELOCITY_MODE:
       //TODO assumption: angular is for base velocity control
-      twist.angular.x = joint_velocity_command_[0];
-      twist.angular.y = joint_velocity_command_[1];
+      twist.linear.x = joint_velocity_command_[0];
+      twist.linear.y = joint_velocity_command_[1];
+      twist.linear.z = 0.0;
+      twist.angular.x = 0.0;
+      twist.angular.y = 0.0;
       twist.angular.z = joint_velocity_command_[2];
       for(int i = 0; i < num_joints_-3; i++){
 	cmds[i] = joint_velocity_command_[i+3];
@@ -413,8 +439,11 @@ namespace squirrel_control {
       break;
     case control_modes::TORQUE_MODE:
       //TODO assumption: no clue
-      twist.angular.x = joint_effort_command_[0];
-      twist.angular.y = joint_effort_command_[1];
+      twist.linear.x = joint_effort_command_[0];
+      twist.linear.y = joint_effort_command_[1];
+      twist.linear.z = 0.0;
+      twist.angular.x = 0.0;
+      twist.angular.y = 0.0;
       twist.angular.z = joint_effort_command_[2];
       for(int i = 0; i < num_joints_-3; i++){
 	cmds[i] = joint_effort_command_[i+3];
@@ -427,6 +456,7 @@ namespace squirrel_control {
     try {
       if (!safety_lock_) {
 	motor_interface_->write(cmds);
+	std::cout << twist << std::endl;
 	base_interface_.publish(twist);
       }
     } catch (std::exception &ex) {

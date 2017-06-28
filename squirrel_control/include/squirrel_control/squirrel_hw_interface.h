@@ -121,7 +121,7 @@ namespace squirrel_control {
         // Startup and shutdown of the internal node inside a roscpp program
         ros::NodeHandle nh_;
 
-	    control_modes::ControlMode current_mode_;
+	control_modes::ControlMode current_mode_ = control_modes::ControlMode::POSITION_MODE;
 
         // Hardware interfaces
         hardware_interface::JointStateInterface joint_state_interface_;
@@ -164,19 +164,21 @@ namespace squirrel_control {
         std::vector<double> joint_velocity_limits_;
         std::vector<double> joint_effort_limits_;
 
-	    ros::Subscriber safety_sub_;
-	    ros::Subscriber safety_reset_sub_;
-		bool safety_lock_;
-	    double posBuffer_[3];
-	    double velBuffer_[3];
+	ros::Subscriber safety_sub_;
+	ros::Subscriber safety_reset_sub_;
+	bool safety_lock_;
+	double posBuffer_[3];
+	double velBuffer_[3];
+	
+	// Base interface
+	ros::Publisher base_interface_;
+	ros::Subscriber base_state_;
+	
+	// Motor interface
+	motor_control::MotorUtilities* motor_interface_;
+	std::string motor_port_;
 
-	    // Base interface
-	    ros::Publisher base_interface_;
-	    ros::Subscriber base_state_;
-
-	    // Motor interface
-		motor_control::MotorUtilities* motor_interface_;
-	    std::string motor_port_;
+	bool hold = true;
 
     };
 
