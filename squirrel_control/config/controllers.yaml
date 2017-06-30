@@ -1,6 +1,6 @@
 # Settings for ros_control control loop
 squirrel_hw_control_loop:
-  loop_hz: 300
+  loop_hz: 100
   cycle_time_error_threshold: 0.1
 
 squirrel_hw_interface:

@@ -5,7 +5,7 @@
 #include "squirrel_control/squirrel_hw_interface.h"
 
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
-#include <armadillo>
+#include <algorithm>
 
 
 namespace squirrel_control {
@@ -408,13 +408,12 @@ namespace squirrel_control {
       hold = false;
     }
     
-    enforceLimits(elapsed_time);
+    enforceLimits(elapsed_time);    
     std::vector<double> cmds(5);
     geometry_msgs::Twist twist;
     
     switch(current_mode_){
     case control_modes::POSITION_MODE:
-      //TODO assumption: linear is for base position control
       twist.linear.x = joint_position_command_[0];
       twist.linear.y = joint_position_command_[1];
       twist.linear.z = 0.0;
@@ -456,7 +455,6 @@ namespace squirrel_control {
     try {
       if (!safety_lock_) {
 	motor_interface_->write(cmds);
-	std::cout << twist << std::endl;
 	base_interface_.publish(twist);
       }
     } catch (std::exception &ex) {

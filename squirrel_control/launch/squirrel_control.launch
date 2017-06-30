@@ -26,17 +26,19 @@
     <arg name="scan_topic" value="/scan" />
   </include>
 
-  <!--node name="robotino_odometry_node" pkg="robotino_driver" type="robotino_odometry_node" output="screen">
+  <node name="robotino_odometry_node" pkg="robotino_driver" type="robotino_odometry_node" output="screen">
     <param name="hostname" value="$(arg hostname)" />
-  </node-->
+  </node>
 
-  <include file="$(find robotino_bringup)/launch/twist_mux.launch" >
+  <!--include file="$(find robotino_bringup)/launch/twist_mux.launch" >
     <arg name="robot" value="$(arg robot)" />
-  </include>
+  </include-->
 
 
-
-    <node name="squirrel_control_node" pkg="squirrel_control" type="squirrel_hw_main" output="screen" respawn="true"/>
+  <group ns="arm">
+    <node name="squirrel_control_node" pkg="squirrel_control" type="squirrel_hw_main" output="screen" respawn="true">
+      <remap from="/cmd_rotatory" to="/cmd_vel"/>
+   </node>
     
     <!-- Load controller settings -->
     <rosparam file="$(find squirrel_control)/config/controllers.yaml" command="load"/>
@@ -48,4 +50,7 @@
     <!-- Convert joint states to /tf tranforms -->
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
+    <node name="joint_states_relay" pkg="topic_tools" type="relay" args="joint_states /joint_states" cwd="node" respawn="true" output="screen"/>
+
+  </group>
 </launch>
