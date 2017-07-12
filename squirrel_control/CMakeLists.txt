@@ -91,6 +91,7 @@ target_link_libraries(squirrel_hw_control_loop
 
 # Hardware Interface
 add_library(squirrel_hw_interface
+        src/base_controller.cpp
         src/squirrel_hw_interface.cpp
         )
 target_link_libraries(squirrel_hw_interface

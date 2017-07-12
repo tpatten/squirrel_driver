@@ -9,17 +9,20 @@
 
 
 namespace squirrel_control {
+
     SquirrelHWInterface::SquirrelHWInterface(ros::NodeHandle &nh, urdf::Model *urdf_model)
         : name_("squirrel_hw_interface")
-                , nh_(nh)
-                , use_rosparam_joint_limits_(false)
-                , use_soft_limits_if_available_(false) {
+        , nh_(nh)
+        , use_rosparam_joint_limits_(false)
+        , use_soft_limits_if_available_(false)
+        , base_controller_(nh, 100.0)
+    {
       // Check if the URDF model needs to be loaded
       if (urdf_model == NULL)
-	loadURDF(nh, "robot_description");
+        loadURDF(nh, "robot_description");
       else
-	urdf_model_ = urdf_model;
-      
+        urdf_model_ = urdf_model;
+
       // Load rosparams
       ros::NodeHandle rpnh(nh_, "squirrel_hw_interface");
       std::size_t error = 0;
@@ -345,6 +348,7 @@ namespace squirrel_control {
 
 
   void SquirrelHWInterface::read(ros::Duration &elapsed_time) {
+    odom_lock_.lock();
     switch(current_mode_) {
     case control_modes::POSITION_MODE:
       {
@@ -381,8 +385,10 @@ namespace squirrel_control {
       }
       break;
     default:
+      odom_lock_.unlock();
       throw_control_error(true, "Unknown mode: " << current_mode_);
     }
+    odom_lock_.unlock();
   }
 
 
@@ -414,12 +420,6 @@ namespace squirrel_control {
     
     switch(current_mode_){
     case control_modes::POSITION_MODE:
-      twist.linear.x = joint_position_command_[0];
-      twist.linear.y = joint_position_command_[1];
-      twist.linear.z = 0.0;
-      twist.angular.x = 0.0;
-      twist.angular.y = 0.0;
-      twist.angular.z = joint_position_command_[2];
       for(int i = 0; i < num_joints_-3; i++){
 	cmds[i] = joint_position_command_[i+3];
       }
@@ -454,8 +454,12 @@ namespace squirrel_control {
     
     try {
       if (!safety_lock_) {
-	motor_interface_->write(cmds);
-	base_interface_.publish(twist);
+        motor_interface_->write(cmds);
+        if (current_mode_ == control_modes::POSITION_MODE) {
+         base_controller_.moveBase(joint_position_command_[0], joint_position_command_[1], joint_position_command_[2]);
+        } else {
+          base_interface_.publish(twist);
+        }
       }
     } catch (std::exception &ex) {
       throw_control_error(true, ex.what());
@@ -472,6 +476,7 @@ namespace squirrel_control {
   
   
   void SquirrelHWInterface::odomCallback(const nav_msgs::OdometryConstPtr &msg) {
+    odom_lock_.lock();
     posBuffer_[0] = msg->pose.pose.position.x;
     posBuffer_[1] = msg->pose.pose.position.y;
     posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
@@ -479,6 +484,7 @@ namespace squirrel_control {
     velBuffer_[0] = msg->twist.twist.angular.x;
     velBuffer_[1] = msg->twist.twist.angular.y;
     velBuffer_[2] = msg->twist.twist.angular.z;
+    odom_lock_.unlock();
   }
   
   

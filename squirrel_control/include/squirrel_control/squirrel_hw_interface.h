@@ -27,6 +27,7 @@
 #include <nav_msgs/Odometry.h>
 
 #include "squirrel_control/motor_utilities.h"
+#include "squirrel_control/base_controller.h"
 #include "control_modes.h"
 #include <squirrel_safety_msgs/Safety.h>
 #include <std_msgs/Int16.h>
@@ -169,11 +170,13 @@ namespace squirrel_control {
 	bool safety_lock_;
 	double posBuffer_[3];
 	double velBuffer_[3];
-	
-	// Base interface
+
+    // Base interface
 	ros::Publisher base_interface_;
 	ros::Subscriber base_state_;
-	
+    BaseController base_controller_;
+    std::mutex odom_lock_;
+
 	// Motor interface
 	motor_control::MotorUtilities* motor_interface_;
 	std::string motor_port_;
