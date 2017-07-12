@@ -472,8 +472,8 @@ namespace squirrel_control {
   
   
   void SquirrelHWInterface::odomCallback(const nav_msgs::OdometryConstPtr &msg) {
-    posBuffer_[0] = msg->twist.twist.linear.x;
-    posBuffer_[1] = msg->twist.twist.linear.y;
+    posBuffer_[0] = msg->pose.pose.position.x;
+    posBuffer_[1] = msg->pose.pose.position.y;
     posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
     
     velBuffer_[0] = msg->twist.twist.angular.x;
