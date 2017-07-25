@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
   INCLUDE_DIRS include
+  LIBRARIES ${PROJECT_NAME}
 )
 
 ###########
@@ -25,3 +26,8 @@ add_library(idmind_serial src/${PROJECT_NAME}/idmind_serial.cpp)
 add_dependencies(idmind_serial ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(idmind_serial ${catkin_LIBRARIES})
+
+install(TARGETS ${PROJECT_NAME}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
+install(DIRECTORY include/${PROJECT_NAME}/
++       DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
