@@ -30,8 +30,13 @@ generate_messages(
 ## catkin specific configuration ##
 ###################################
 
-catkin_package()
-
+catkin_package(
+       INCLUDE_DIRS include
+       CATKIN_DEPENDS
+       std_msgs
+       message_runtime
+       geometry_msgs
+       )
 
 ###########
 ## Build ##
@@ -44,4 +49,4 @@ include_directories(
 
 add_executable(idmind_interaction src/idmind_interaction.cpp)
 add_dependencies(idmind_interaction ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(idmind_interaction idmind_serial ${catkin_LIBRARIES})
+target_link_libraries(idmind_interaction ${catkin_LIBRARIES})
