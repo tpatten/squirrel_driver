@@ -48,5 +48,5 @@ include_directories(
 )
 
 add_executable(idmind_interaction src/idmind_interaction.cpp)
-add_dependencies(idmind_interaction ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(idmind_interaction idmind_serial ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(idmind_interaction ${catkin_LIBRARIES})
