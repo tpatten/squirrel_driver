@@ -42,6 +42,7 @@ catkin_package(
           urdf
           joint_limits_interface
           transmission_interface
+          squirrel_safety_msgs
           control_toolbox
           std_msgs
           sensor_msgs
@@ -98,7 +99,7 @@ target_link_libraries(squirrel_hw_interface
         motor_utilities
         ${catkin_LIBRARIES}
         )
-
+add_dependencies(squirrel_hw_interface squirrel_safety_msgs_gencpp)
 # Main control executables
 
 add_executable(${PROJECT_NAME}_hw_main src/squirrel_hw_main.cpp)
