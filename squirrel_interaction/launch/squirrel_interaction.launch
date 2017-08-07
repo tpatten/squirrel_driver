@@ -1,0 +1,6 @@
+<launch>
+	<node name="screen" pkg="screen" type="raspberry_screen_server.py" />
+	<node name="speakers" pkg="speakers" type="playsound.py" />
+	<node name="board" pkg="board" type="board.py" />
+	<node name="teleop" pkg="board" type="teleop.py" />
+</launch>
