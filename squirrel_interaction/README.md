@@ -22,17 +22,17 @@ The code has been adapted to follow ROS standards, in terms of topics published 
 
 ## ROS API
 
-# Topics [in]
+### Topics [in]
 	/head_controller/joint_group_position_controller/command[std_msgs/Float64]
 	/neck_controller/joint_group_position_controller/command[std_msgs/Float64]
 	/camera_controller/joint_group_position_controller/command[std_msgs/Float64]
 	/door_controller/joint_group_position_controller/command[std_msgs/Float64]
 	/light/command
 
-# Topics [out]
+### Topics [out]
 	/joint_states
 
-# Services
+### Services
 	/sound/say
 	/face/emotion
 
