@@ -9,12 +9,12 @@
 
 import rospy
 import os
-from speakers.srv import PlaySound
+from squirrel_interaction.srv import PlaySound
 import actionlib
 
 def play(data):
     current_dir_name = os.path.dirname(os.path.realpath(__file__))
-    comand='aplay -q ' + current_dir_name + '/../sounds/"'+data.message+'"'
+    comand='aplay -q ' + current_dir_name + '../../../resources/sounds/"'+data.message+'"'
     print comand
     os.system(comand)
     return True

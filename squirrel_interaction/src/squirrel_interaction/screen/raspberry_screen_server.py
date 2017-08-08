@@ -12,11 +12,11 @@ The service /face/emotion is called with the name of the image to be displayed.
 
 import rospy, rospkg
 import os,sys
-from screen.srv import DisplayScreen
+from squirrel_interaction.srv import DisplayScreen
 
 image=None
 rospack = rospkg.RosPack()
-path = rospack.get_path('screen')
+path = rospack.get_path('squirrel_interaction')
 
 
 def handle_display_on_screen(data):
@@ -27,13 +27,13 @@ def handle_display_on_screen(data):
             os.system("kill $(pidof eog) &")
             rospy.signal_shutdown('Bye')
         elif data.message == "blank":
-            to_open = "%s/media/images/blank.png" % path
+            to_open = "%s/resources/media/images/blank.png" % path
             os.system('eog --fullscreen -w \"'+to_open+'\" &')
         #elif data.message == "video":
-        #    to_open = "%s/media/videos/video1.mp4" % path
+        #    to_open = "%s/resources/media/videos/video1.mp4" % path
         #    os.system("vlc --fullscreen --quiet %s &" % to_open)
         else:
-            to_open = "%s/media/images/%s.png" % (path,data.message)
+            to_open = "%s/resources/media/images/%s.png" % (path,data.message)
             if not os.path.isfile(to_open):
                 return {'result':'No such file'}
             elif(image != data.message):
