@@ -10,10 +10,7 @@
   <run_depend>airskin</run_depend>
   <run_depend>ft17_driver</run_depend>
   <run_depend>kclhand_control</run_depend>
-  <run_depend>idmind_interaction</run_depend>
-  <run_depend>idmind_serial</run_depend>
-  <run_depend>idmind_teleop</run_depend>
-  <run_depend>raspberry_screen</run_depend>
+  <run_depend>squirrel_interaction</run_depend>
   <run_depend>robotino_driver</run_depend>
   <run_depend>robotino_safety</run_depend>
   <run_depend>robotino_teleop</run_depend>

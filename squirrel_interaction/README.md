@@ -40,11 +40,11 @@ The code has been adapted to follow ROS standards, in terms of topics published 
 
 1. create a workspace in the raspberry pi following standard conventions.
 
-2. clone/copy this folder into catkin_ws/src
+2. clone this folder into catkin_ws/src
 
-3. copy the autostart/ folder to .config/autostart if you want the nodes to be launched automatically.
+3. copy the resources/autostart/ folder to .config/autostart if you want the nodes to be launched automatically.
 
-4. roslaunch launch squirrel_interaction.launch
+4. roslaunch squirrel_interaction squirrel_interaction.launch
 
 
 ## Note on autostart
