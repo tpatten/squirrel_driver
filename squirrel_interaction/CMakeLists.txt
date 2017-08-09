@@ -3,7 +3,6 @@ project(squirrel_interaction)
 
 find_package(catkin REQUIRED COMPONENTS
   rospy
-  serial
   sensor_msgs
   std_msgs
   geometry_msgs
@@ -13,10 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_python_setup()
 
 add_service_files(FILES
-  display_screen.srv
   DisplayScreen.srv
-  play_sound.srv
   PlaySound.srv
+  DoorController.srv
 )
 
 generate_messages(
@@ -27,7 +25,8 @@ catkin_package(
   CATKIN_DEPENDS message_runtime
 )
 
-catkin_install_python(PROGRAMS src/squirrel_interaction/board/board.py src/squirrel_interaction/board/teleop.py src/squirrel_interaction/screen/raspberry_screen_server.py src/squirrel_interaction/speakers/play_sound.py src/squirrel_interaction/speakers/playsound.py
+catkin_install_python(PROGRAMS 
+    src/squirrel_interaction/board/board.py src/squirrel_interaction/board/teleop.py src/squirrel_interaction/screen/raspberry_screen_server.py src/squirrel_interaction/speakers/play_sound.py src/squirrel_interaction/speakers/playsound.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
