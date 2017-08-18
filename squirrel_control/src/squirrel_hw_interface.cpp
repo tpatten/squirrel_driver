@@ -6,7 +6,9 @@
 
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 #include <algorithm>
+#include <unistd.h>
 
+std::vector<double> base_cmds(3);
 
 namespace squirrel_control {
 
@@ -31,9 +33,12 @@ namespace squirrel_control {
       rosparam_shortcuts::shutdownIfError(name_, error);
       error += !rosparam_shortcuts::get(name_, rpnh, "motor_port", motor_port_);
       rosparam_shortcuts::shutdownIfError(name_, error);
+      error += !rosparam_shortcuts::get(name_, rpnh, "ignore_base", ignore_base);
+      rosparam_shortcuts::shutdownIfError(name_, error);
       motor_interface_ = new motor_control::MotorUtilities();
       safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
       safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
+      ignore_base_sub_ = rpnh.subscribe("/arm/joint_trajectory_controller/command", 10, &SquirrelHWInterface::ignoreBaseCallback, this);
       base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
       base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
     }
@@ -401,10 +406,14 @@ namespace squirrel_control {
       joint_effort_command_ = joint_effort_;
       joint_velocity_command_ = joint_velocity_;
 
-      joint_position_command_[0] = base_state[0];
-      joint_position_command_[1] = base_state[1];
-      joint_position_command_[2] = base_state[2];
-
+      // BASE HACK :(
+      //joint_position_command_[0] = base_state[0];
+      //joint_position_command_[1] = base_state[1];
+      //joint_position_command_[2] = base_state[2];
+      for(int i=0; i < 3; i++) {
+	base_cmds[i] = base_state[i];
+      }      
+      
       joint_effort_command_[0] = 0.0;
       joint_effort_command_[1] = 0.0;
       joint_effort_command_[2] = 0.0;
@@ -418,14 +427,15 @@ namespace squirrel_control {
     //TODO: check base limits in URDF
     //enforceLimits(elapsed_time);    
     std::vector<double> cmds(5);
-    std::vector<double> base_cmds(3);
+    //std::vector<double> base_cmds(3);
     geometry_msgs::Twist twist;
     
     switch(current_mode_){
     case control_modes::POSITION_MODE:
-      for(int i=0; i < 3; i++) {
-	base_cmds[i] = joint_position_command_[i];
-      }
+      //see callback HACK for BASE POSITION
+      // for(int i=0; i < 3; i++) {
+      // base_cmds[i] = joint_position_command_[i];
+      // }      
       for(int i = 0; i < num_joints_-3; i++){
 	cmds[i] = joint_position_command_[i+3];
       }
@@ -460,15 +470,19 @@ namespace squirrel_control {
     try {
       if (!safety_lock_) {
         motor_interface_->write(cmds);
-        if (current_mode_ == control_modes::POSITION_MODE) {
-	  base_controller_.moveBase(base_cmds.at(0), base_cmds.at(1), base_cmds.at(2));
-        } else {
-          base_interface_.publish(twist);
-        }
+	if(!ignore_base) {
+	  // std::cout << "NOT IGNORING BASE" << std::endl;
+	  if (current_mode_ == control_modes::POSITION_MODE) {
+	    base_controller_.moveBase(base_cmds.at(0), base_cmds.at(1), base_cmds.at(2));
+	  } else {
+	    base_interface_.publish(twist);	    
+	  }
+	  ignore_base = true;
+	}
       }
     } catch (std::exception &ex) {
       throw_control_error(true, ex.what());
-    }
+    }    
   }
 
 
@@ -512,6 +526,17 @@ namespace squirrel_control {
       safety_lock_ = false;
       ROS_INFO_STREAM_NAMED(name_, "Safety released.");
     }
+  }
+
+  void SquirrelHWInterface::ignoreBaseCallback(const trajectory_msgs::JointTrajectoryPtr & msg) {
+    // REAL DIRTY HACK FOR NOT USING ROS_CONTROL FOR THE BASE (in position mode) :(
+    // usleep(1000000);	
+    if (control_modes::POSITION_MODE){
+      for(int i=0; i < 3; i++) {
+	base_cmds[i] = msg->points.at(0).positions[i];
+      }      
+    } 
+    ignore_base = false;
   }
 }
 

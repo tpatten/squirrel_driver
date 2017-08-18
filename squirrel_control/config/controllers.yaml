@@ -14,6 +14,7 @@ squirrel_hw_interface:
       - arm_joint4
       - arm_joint5 
    motor_port: /dev/ttyArm
+   ignore_base: false
 
 
 joint_state_controller:
