@@ -41,11 +41,6 @@ inline double deg_to_rad(double deg)
 }
 
 
-/*
-This is the PI controller for the impedance control 
-
-*/
-
 class PIController
 {
 private:
@@ -309,12 +304,8 @@ private:
 
   double motor_impedance_velocity_;
 
-  double sensor_range_min_;
-  double sensor_range_max_;
-
-
-
   
+
   /**
    * Get motor errors.
    */
@@ -470,10 +461,13 @@ public:
   /**
    * Keep moving, until target reached or current limit exceeded.
    */
+
+
   bool moveWithVeloctyProxy(int proxy_direction_flag);
 
-
   bool moveWithVelocityImpedance(int impedance_direction_flag);
+
+
 
 
   bool keepMovingToTarget();
@@ -540,7 +534,7 @@ private:
   static const int MIDDLE_FINGER = 3;  // node id 7, sensor + is out,  motor + is out
   static const int LEFT_FINGER   = 4;  // node id 9, sensor + is out,  motor + is in
   
-  double HAND_UPPER_LIMIT[5] = {70.,70.,-20.,-10.,-20.};
+  double HAND_UPPER_LIMIT[5] = {70,70,-20,-10,-20};
   double HAND_LOWER_LIMIT[5] = {-70,-70,-80,-90,-80};
 
 
@@ -650,7 +644,6 @@ private:
 
 
   bool upper2LowerController(float rel_current_limit);
-
   bool lower2UpperController(float rel_current_limit);
 
   bool impedanceMoveFingersVelocity(float rel_current_limit, bool &all_target_positions_reached);

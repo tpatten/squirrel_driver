@@ -66,16 +66,6 @@ JointController::JointController(ros::NodeHandle &nh, void *epos_handle, int num
   calibration_.setZero(zero);
 
   param_name.str("");
-  param_name << "joint_" << num << "/sensor_range_min";
-  if(!nh.getParam(param_name.str(), sensor_range_min_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/sensor_range_min");
-
-  param_name.str("");
-  param_name << "joint_" << num << "/sensor_range_max";
-  if(!nh.getParam(param_name.str(), sensor_range_max_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/sensor_range_min");
-
-  param_name.str("");
   param_name << "joint_" << num << "/max_velocity";
   if(!nh.getParam(param_name.str(), max_velocity_))
     throw runtime_error("JointController: missing ROS parameter for joint_X/max_velocity");
