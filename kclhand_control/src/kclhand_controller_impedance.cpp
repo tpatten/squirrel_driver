@@ -371,6 +371,7 @@ KCLHandController::KCLHandController(std::string name)
   joint_value_sub_= new ros::Subscriber(nh_.subscribe("joint_value_arduino", 1, &KCLHandController::jointValueCB, this));
   impedance_signal_sub_= new ros::Subscriber(nh_.subscribe("impedance_signal_send", 10, &KCLHandController::impedanceSignalCB, this));
   joint_state_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("active_joint_states", 1));
+  
   impedance_motor_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("impedance_motor", 10));
   impedance_flag_sub_= new ros::Subscriber(nh_.subscribe("impedance_flag", 1, &KCLHandController::impedanceFlagCB, this));
   

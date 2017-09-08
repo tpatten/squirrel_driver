@@ -128,24 +128,33 @@ class JointSensor
 {
 private:
 	std::string joint_name_;
-	double joint_sensor_value_;	
-	bool joint_value_valid_ ;
-	static double Joint_value_max_;
-	static double Joint_value_min_;
-	static int sensor_direction_;
+	double joint_sensor_raw_value_;	
+
+  //get from ros parameter server
+  double joint_value_max_;
+  double joint_sensor_zero_value_;
+  int sensor_direction_;
+  double joint_value_min_;
+
+
+  const double sensor_k = 9./28.;
+  double sensor_b;
+
+  bool joint_value_valid_;
+  double joint_calibrated_value_degrees_;
+
 
 public:
-	double getJointValue()
+	JointSensor(ros::NodeHandle &nh, unsigned int joint_id);
+  
+  double getJointRawValue()
 	{
-		/**
-			code for the judgement
-		*/
-		return joint_sensor_value_;
+		return joint_sensor_raw_value_;
 	}
 
 	bool checkJointValueRange()
 	{
-		if ((joint_sensor_value_ >= Joint_value_min_) && (joint_sensor_value_ <= Joint_value_max_))
+		if ((joint_calibrated_value_degrees_ >= joint_value_min_) && (joint_calibrated_value_degrees_ <= joint_value_max_))
 			return joint_value_valid_;
 		else 
 		{
@@ -162,65 +171,152 @@ public:
 		*/
 	}
 
+  void setJointValueZero(double zero)
+  {
+    sensor_b = -sensor_k * zero;
+  }
+
+  double getSensorCalibratedValue(double raw)
+  {
+    joint_calibrated_value_degrees_ = (sensor_k*raw + sensor_b) * sensor_direction_;    
+    return joint_calibrated_value_degrees_;
+  }
+
+
+  double test()
+  {
+    return sensor_b;
+  }
+
+
 };
+
+
 
 class JointMotor
 {
 private:
-  	void *epos_handle_;
-  	unsigned int node_id_; 
-	static int motor_direction_;
+  
+  void *epos_handle_;
+  
+  // get from ros parameters
+  int motor_node_id_;
+	int motor_direction_;
+
+
 	double motor_position_;
 	double motor_velocity_;
 	double motor_move_current_;
 	double motor_holding_current_;
 	double motor_target_position_;
-	double max_peak_current_;
+	
+  double max_peak_current_;
 	bool motor_running_;
 
+
 	void getErrors();
-  	void startMotor();
-    void stopMotor();
-  	void activateVelocityMode();
-    void moveWithVelocity(double velocity);
- 	void haltVelocityMovement();
-  	void activateCurrentMode();
-    void setCurrent(double current);
-    double getCurrent();
+
+  // enable motors 
+  bool enableMotor();
+
+  // disable motors 
+  bool disableMotor();
+
+  // reset motor
+  void reset();
+
+
+  void stopMotor();
+  
+  // activate motor profile velocity mode
+  void activateVelocityMode();
+
+  //velocity control of the motor, move with a given velocity
+  void moveWithVelocity(double velocity);
+ 	
+  //halt velocity movement
+  void haltVelocityMovement();
+
+
+  void activateCurrentMode();
+
+  void setCurrent(double current);
+
+  double getCurrent();
+
+  
 
 public:
+
+  JointMotor(ros::NodeHandle &nh, void *epos_handle_, unsigned int joint_id);
 	double getPosition()
 	{
 		return motor_position_;
 	}
 
+
 };
+
+
+
 
 
 class KCLHandController
 {
 private:
-	ros::NodeHandle nh_;
-	ros::Subscriber joint_value_sub_;
-	ros::Publisher joint_state_pub_;
+	// Maxon Epos2 controller settings.
+  // should get from parameters 
 
-	std::vector<JointSensor> joints_sensor_;
-  std::vector<JointMotor> joints_motor_;
+  void* M_handle_;
+  unsigned short M_node_id_;
+  unsigned int M_error_code;
+  
+  std::string M_DEVICENAME_NAME_;
+  std::string M_PROTOCAL_NAME_;
+  std::string M_INTERFACE_;
+  std::string M_PORTNAME_;
+  int M_BAUDRATE_;
+  // motor setting done 
+
+  // ros service, topic  defination 
+	ros::Subscriber joint_value_sub_; //subscribe from the arduino board
+	ros::Publisher joint_state_pub_;  // publish to palm solver in python
+  // ros service, topic done 
+
+  // hand related 
+	JointSensor *joints_sensor_;
+  JointMotor *joints_motor_;
+  // hand related done 
 
   bool handIsInitialized_;
   bool hasNewGoal_;
 
+  // hand hardware setting
   static const unsigned int NUM_JOINTS = 5;
-
+  // hand hardware setting done 
 
 
 
 public:
+  ros::NodeHandle nh_;
 	KCLHandController(std::string name);
-  //~KCLHandController();
+  ~KCLHandController();
 
+  // hand joint sensors call back
 	void jointSensorValueCB(const std_msgs::Int16MultiArray::ConstPtr &msg);
+  
+  // hand contorller initialization 
   bool init();
+  
+  // open device (epos2 controller)
+  bool openDevice();
+  
+  // close device (epos2 controller)
+  bool closeDevice();
+
+
+
+
 
 };
 
