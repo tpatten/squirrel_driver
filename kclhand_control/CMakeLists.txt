@@ -22,9 +22,9 @@ add_service_files(
   FILES
     handConfiguration.srv
     getCurrentConfiguration.srv
-    graspPreparation.srv
-    graspCurrent.srv
-    moveFinger.srv
+    HandOperationMode.srv
+    MoveHand.srv
+    MoveFinger.srv
 )
 
 ## Generate action stuff

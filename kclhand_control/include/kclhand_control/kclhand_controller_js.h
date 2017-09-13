@@ -26,6 +26,12 @@
  *
 */
 
+#include <kclhand_control/MoveFinger.h>
+#include <kclhand_control/MoveHand.h>
+#include <kclhand_control/HandOperationMode.h>
+
+#define TH
+
 inline double deg_to_rad(double deg)
 {
   return deg*M_PI/180.;
@@ -152,16 +158,17 @@ public:
 		return joint_sensor_raw_value_;
 	}
 
-	bool checkJointValueRange()
+	void checkJointValueRange()
 	{
+
 		if ((joint_calibrated_value_degrees_ >= joint_value_min_) && (joint_calibrated_value_degrees_ <= joint_value_max_))
-			return joint_value_valid_;
-		else 
-		{
-			joint_value_valid_ = false; // should stop the hand; or go to init fucntion;
-			return joint_value_valid_;
-		}
+			joint_value_valid_ = true;
+		else joint_value_valid_ = false; // should stop the hand; or go to init fucntion;
 	} 
+
+
+
+
 
 	void jointValueFilter()
 	{
@@ -176,16 +183,22 @@ public:
     sensor_b = -sensor_k * zero;
   }
 
-  double getSensorCalibratedValue(double raw)
+  void sensorCalibratedValueUpdate(double raw)
   {
-    joint_calibrated_value_degrees_ = (sensor_k*raw + sensor_b) * sensor_direction_;    
-    return joint_calibrated_value_degrees_;
+
+    joint_calibrated_value_degrees_ = (sensor_k*raw + sensor_b) * sensor_direction_; 
+    checkJointValueRange();
   }
 
 
-  double test()
+  double getSensorCalibratedValueDeg()
   {
-    return sensor_b;
+    return joint_calibrated_value_degrees_;
+  }
+
+  double getSensorCalibratedValueRad()
+  {
+    return deg_to_rad(joint_calibrated_value_degrees_);
   }
 
 
@@ -197,30 +210,37 @@ class JointMotor
 {
 private:
   
+  static const double POSITION_THRESHOLD = 0.1;
+
   void *epos_handle_;
   
   // get from ros parameters
   int motor_node_id_;
 	int motor_direction_;
 
-
-	double motor_position_;
+  // motor current state
+	double current_joint_position_; 
 	double motor_velocity_;
-	double motor_move_current_;
+	double motor_current_;
+  
+  //motor settings 
+  double motor_move_current_;
 	double motor_holding_current_;
-	double motor_target_position_;
+  double motor_moving_velocity_;
+	
+  //motor move target
+  double target_position_;
 	
   double max_peak_current_;
 	bool motor_running_;
 
+  bool is_target_reached;
+
 
 	void getErrors();
 
-  // enable motors 
-  bool enableMotor();
 
-  // disable motors 
-  bool disableMotor();
+
 
   // reset motor
   void reset();
@@ -237,22 +257,39 @@ private:
   //halt velocity movement
   void haltVelocityMovement();
 
-
+  // activate motor current mode
   void activateCurrentMode();
 
+  // set motor current, motor will move with a given current
   void setCurrent(double current);
 
+  // get motor current
   double getCurrent();
 
-  
+
+
+  // judge if motor has reached the position
+  bool isTargetReached()
+  {
+    if(fabs(current_joint_position_ - target_position_) <= POSITION_THRESHOLD)
+      is_target_reached = true;
+    else is_target_reached = false;
+    return is_target_reached;
+  }
+
+
 
 public:
 
   JointMotor(ros::NodeHandle &nh, void *epos_handle_, unsigned int joint_id);
-	double getPosition()
-	{
-		return motor_position_;
-	}
+	
+  // enable motors 
+  bool enableMotor();
+    // disable motors 
+  bool disableMotor();
+
+  // motor move to target position
+  bool moveToTarget(double current_position, double target);
 
 
 };
@@ -279,8 +316,14 @@ private:
   // motor setting done 
 
   // ros service, topic  defination 
-	ros::Subscriber joint_value_sub_; //subscribe from the arduino board
+	ros::Subscriber joint_raw_value_sub_; //subscribe from the arduino board
 	ros::Publisher joint_state_pub_;  // publish to palm solver in python
+  ros::ServiceServer move_finger_srv_server_;
+  ros::ServiceServer move_hand_srv_server_;
+  ros::ServiceServer metahand_init_srv_server_;
+  ros::ServiceServer metahand_mode_srv_server_;
+  
+  
   // ros service, topic done 
 
   // hand related 
@@ -288,8 +331,8 @@ private:
   JointMotor *joints_motor_;
   // hand related done 
 
-  bool handIsInitialized_;
-  bool hasNewGoal_;
+  bool hand_is_initialized_;
+  bool has_new_goal_;
 
   // hand hardware setting
   static const unsigned int NUM_JOINTS = 5;
@@ -313,6 +356,10 @@ public:
   
   // close device (epos2 controller)
   bool closeDevice();
+
+  bool moveFingerSrvCB(kclhand_control::MoveFinger::Request &req, kclhand_control::MoveFinger::Response &res);
+  bool handModeSrvCB(kclhand_control::HandOperationMode::Request &req, kclhand_control::HandOperationMode::Response &res);
+  bool moveHandSrvCB(kclhand_control::MoveHand::Request &req, kclhand_control::MoveHand::Response &res);
 
 
 
