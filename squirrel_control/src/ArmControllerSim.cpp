@@ -50,42 +50,32 @@
  *
  ****************************************************************/
 #include <ros/ros.h>
-#include <std_msgs/Float64MultiArray.h>
-#include <std_msgs/Float64.h>
-#include <geometry_msgs/Twist.h>
-#include <tf/transform_listener.h>
-#include <sensor_msgs/JointState.h>
-#include <control_msgs/FollowJointTrajectoryActionGoal.h>
-#include <chrono>
-#include <thread>
+#include <trajectory_msgs/JointTrajectory.h>
 #include <squirrel_control/base_controller.h>
-
-using namespace std;
 
 
 class ArmController{
 public:
   ros::NodeHandle nh_;
-  void PosCommandSub_cb(const control_msgs::FollowJointTrajectoryActionGoal msg);
-  vector<double> current_pose;
-  vector<double> command;
+  void PosCommandSub_cb(const trajectory_msgs::JointTrajectory msg);
+  std::vector<double> current_pose;
+  std::vector<double> command;
   std::shared_ptr<squirrel_control::BaseController> base_controller_ = std::make_shared<squirrel_control::BaseController>(nh_, 20);
 };
 
-void ArmController::PosCommandSub_cb(const control_msgs::FollowJointTrajectoryActionGoal msg){
+void ArmController::PosCommandSub_cb(const trajectory_msgs::JointTrajectory msg){
   current_pose = base_controller_->getCurrentState();
   double cx = current_pose.at(0);
   double cy = current_pose.at(1);
   double ctheta = current_pose.at(2);
-  command = msg.goal.trajectory.points[0].positions;
+  command = msg.points[0].positions;
   base_controller_->moveBase( cx+command.at(0), cy+command.at(1), ctheta+command.at(2));
 }
 
 int main(int argc, char** argv){
   ros::init(argc, argv, "ArmController");
   ArmController arm_controller = ArmController();
-  //boost::shared_ptr<squirrel_control::BaseController> base_controller_(new squirrel_control::BaseController(nh_));
-  ros::Subscriber PosCommandSub_ = arm_controller.nh_.subscribe("/arm/joint_trajectory_controller/follow_joint_trajectory/goal", 1, &ArmController::PosCommandSub_cb, &arm_controller);
+  ros::Subscriber PosCommandSub_ = arm_controller.nh_.subscribe("joint_trajectory_controller/command", 1, &ArmController::PosCommandSub_cb, &arm_controller);
   ros::spin();
   return 0;
 }
