@@ -41,6 +41,9 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <ros/ros.h>
+#include <ros/package.h>
+
 
 namespace dynamixel_tool {
     enum ACCESS_TYPE {

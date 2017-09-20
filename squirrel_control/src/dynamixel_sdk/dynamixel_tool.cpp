@@ -94,7 +94,7 @@
 
 	    bool DynamixelTool::getModelName(uint16_t model_number) {
 	      //dynamixel_name_path_ = "../../dynamixel/models/model_info.list";
-      dynamixel_name_path_ = "/usr/local/dynamixel/models/model_info.list";
+	      dynamixel_name_path_ = ros::package::getPath("squirrel_control") + "/models/model_info.list";
 
       std::ifstream file(dynamixel_name_path_.c_str());
       if (file.is_open()) {
