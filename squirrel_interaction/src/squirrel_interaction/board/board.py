@@ -45,8 +45,8 @@ class Controller:
         rospy.init_node('squirrel_driver', anonymous=False)
         print 'Started squirrel_driver node'
         rospy.Subscriber('/head_controller/joint_group_position_controller/command', Float64, self.move_head)
-        rospy.Subscriber('/neck_controller/joint_group_position_controller/command', Float64, self.move_neck)
-        rospy.Subscriber('/camera_controller/joint_group_position_controller/command', Float64, self.move_camera)
+        rospy.Subscriber('/neck_pan_controller/joint_group_position_controller/command', Float64, self.move_neck)
+        rospy.Subscriber('/neck_tilt_controller/joint_group_position_controller/command', Float64, self.move_camera)
         rospy.Subscriber('/light/command', ColorRGBA, self.change_base_light)
         rospy.Service('/door_controller/command', DoorController, self.move_door)
         self.position_pub = rospy.Publisher('/joint_states', JointState, queue_size=10)
@@ -54,30 +54,22 @@ class Controller:
     def run(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
-            self._motor.move_to("head", self.head_destination)
-            self._motor.move_to("neck", self.neck_destination)
-            self._motor.move_to("camera", self.camera_destination)
-            self._motor.set_base_led_colors(self.base_lights)
-            door = self._motor.get_door_status()
-            self.door_open = door == 'OPEN'
-            self.door_closed = door == 'CLOSED'
-            if self.should_open_door:
-                self._motor.move_to('door', -20000)
-            if self.should_close_door:
-                self._motor.move_to('door', 30000)
             position = JointState(
-                name=["head"],
+                name=["head_joint"],
                 position=[radians(self._motor.get_position("head"))])
             self.position_pub.publish(position)
             position = JointState(
-                name=["neck"],
+                name=["neck_pan_joint"],
                 position=[radians(self._motor.get_position("neck"))])
             self.position_pub.publish(position)
             position = JointState(
-                name=["camera"],
+                name=["neck_tilt_joint"],
                 position=[radians(self._motor.get_position("camera"))])
             self.position_pub.publish(position)
-
+            position = JointState(
+                name=["door_joint"],
+                position=[radians(self._motor.get_position("door"))])
+            self.position_pub.publish(position)
             rate.sleep()
 
     def _open_devices(self):
@@ -85,28 +77,30 @@ class Controller:
         self._motor = serial_api.Controller(port, 115200)
 
     def move_head(self, message):
-        self.head_destination = int(degrees(message.data))
+        self.head_destination = int(degrees(message.data_degrees))
+        self._motor.move_to("head", self.head_destination)
 
     def move_neck(self, message):
-        self.neck_destination = int(degrees(message.data))
+        self.neck_destination = int(degrees(message.data_degrees))
+        self._motor.move_to("neck", self.neck_destination)
 
     def move_camera(self, message):
-        self.camera_destination = int(degrees(message.data))
+        self.camera_destination = int(degrees(message.data_degrees))
+        self._motor.move_to("camera", self.camera_destination)
 
     def change_base_light(self, message):
         color = [int(message.r), int(message.g), int(message.b)]
         self.base_lights = color * 42   # number of base leds
+        self._motor.set_base_led_colors(self.base_lights)
 
     def move_door(self, req):
         if req.message == 'open':
-            self.should_open_door = True
-            self.should_close_door = False
+            self._motor.move_to('door', -20000)
             while not self.door_open:
                 pass
             return True
         elif req.message == 'close':
-            self.should_open_door = False
-            self.should_close_door = True
+            self._motor.move_to('door', 30000)
             while not self.door_closed:
                 pass
             return True
