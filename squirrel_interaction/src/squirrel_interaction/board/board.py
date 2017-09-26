@@ -54,19 +54,21 @@ class Controller:
     def run(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
-            position = JointState(
+            h = std_msgs.msg.Header()
+            h.stamp = rospy.Time.now()
+            position = JointState(header=h,
                 name=["head_joint"],
                 position=[radians(self._motor.get_position("head"))])
             self.position_pub.publish(position)
-            position = JointState(
+            position = JointState(header=h,
                 name=["neck_pan_joint"],
                 position=[radians(self._motor.get_position("neck"))])
             self.position_pub.publish(position)
-            position = JointState(
+            position = JointState(header=h,
                 name=["neck_tilt_joint"],
                 position=[radians(self._motor.get_position("camera"))])
             self.position_pub.publish(position)
-            position = JointState(
+            position = JointState(header=h,
                 name=["door_joint"],
                 position=[radians(self._motor.get_position("door"))])
             self.position_pub.publish(position)
