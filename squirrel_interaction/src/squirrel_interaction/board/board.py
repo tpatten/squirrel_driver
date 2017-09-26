@@ -38,8 +38,8 @@ class Controller:
             self.base_lights = [0, 0, 0] * 84 # turns off all base leds
             self.door_open = False
             self.door_closed = False
-            self.should_open_door = False
-            self.should_close_door = False
+            #self.should_open_door = False
+            #self.should_close_door = False
         except SerialException:
             rospy.logwarn('Failed to open some devices')
         rospy.init_node('squirrel_driver', anonymous=False)
@@ -54,24 +54,14 @@ class Controller:
     def run(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
-            h = std_msgs.msg.Header()
-            h.stamp = rospy.Time.now()
-            position = JointState(header=h,
-                name=["head_joint"],
-                position=[radians(self._motor.get_position("head"))])
-            self.position_pub.publish(position)
-            position = JointState(header=h,
-                name=["neck_pan_joint"],
-                position=[radians(self._motor.get_position("neck"))])
-            self.position_pub.publish(position)
-            position = JointState(header=h,
-                name=["neck_tilt_joint"],
-                position=[radians(self._motor.get_position("camera"))])
-            self.position_pub.publish(position)
-            position = JointState(header=h,
-                name=["door_joint"],
-                position=[radians(self._motor.get_position("door"))])
-            self.position_pub.publish(position)
+            joint_state_msg = JointState()
+            joint_state_msg.header = Header()
+            joint_state_msg.header.stamp = rospy.Time.now()
+            joint_state_msg.name = ['head_joint', 'neck_pan_joint', 'neck_tilt_joint', 'door_joint']
+            joint_state_msg.position = [radians(self._motor.get_position("head")), radians(self._motor.get_position("neck")), radians(self._motor.get_position("camera")), radians(self._motor.get_position("door"))]
+            joint_state_msg.velocity = []
+            joint_state_msg.effort = []
+            pub.publish(joint_state_msg)
             rate.sleep()
 
     def _open_devices(self):
