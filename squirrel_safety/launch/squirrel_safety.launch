@@ -4,5 +4,5 @@
     <param name="airskin_topic" value="/airskin/arm_bumper" type="string"/>
     <param name="bumper_topic" value="/bumper" type="string"/>
     <param name="wrist_topic" value="/wrist/wrist_bumper" type="string"/>
-  </node>)
+  </node>
 </launch>
