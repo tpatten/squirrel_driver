@@ -22,7 +22,7 @@ import rospy
 import serial_api
 from serial import SerialException
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64, ColorRGBA, String
+from std_msgs.msg import Float64, ColorRGBA, String, Header
 from squirrel_interaction.srv import DoorController
 from math import degrees, radians
 
@@ -61,7 +61,7 @@ class Controller:
             joint_state_msg.position = [radians(self._motor.get_position("head")), radians(self._motor.get_position("neck")), radians(self._motor.get_position("camera")), radians(self._motor.get_position("door"))]
             joint_state_msg.velocity = []
             joint_state_msg.effort = []
-            pub.publish(joint_state_msg)
+            self.position_pub.publish(joint_state_msg)
             rate.sleep()
 
     def _open_devices(self):
@@ -69,15 +69,15 @@ class Controller:
         self._motor = serial_api.Controller(port, 115200)
 
     def move_head(self, message):
-        self.head_destination = int(degrees(message.data_degrees))
+        self.head_destination = int(degrees(message.data))
         self._motor.move_to("head", self.head_destination)
 
     def move_neck(self, message):
-        self.neck_destination = int(degrees(message.data_degrees))
+        self.neck_destination = int(degrees(message.data))
         self._motor.move_to("neck", self.neck_destination)
 
     def move_camera(self, message):
-        self.camera_destination = int(degrees(message.data_degrees))
+        self.camera_destination = int(degrees(message.data))
         self._motor.move_to("camera", self.camera_destination)
 
     def change_base_light(self, message):
