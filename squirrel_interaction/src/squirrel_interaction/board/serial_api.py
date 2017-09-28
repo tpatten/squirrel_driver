@@ -5,13 +5,13 @@
 
 The board controls the following devices:
 
-    - Head Motor (pan) (-180º ~ 180ª)
+    - Head Motor (pan) (-180º ~ 180ª) - head_controller
 
-    - Neck Motor (pan) (-180º ~ 180ª)
+    - Neck Motor (pan) (-180º ~ 180ª) - neck_pan_controller
 
-    - Camera Motor (tilt) (-68º ~ 30ª)
+    - Camera Motor (tilt) (-68º ~ 30ª) - neck_tilt_controller
 
-    - Door Motor (pan) (TODO)
+    - Door Motor (pan) (TODO) - door_controller
 
     - 84 base RGB Led array
 
