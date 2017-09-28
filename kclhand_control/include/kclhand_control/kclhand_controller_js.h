@@ -30,14 +30,10 @@
 #include <kclhand_control/MoveHand.h>
 #include <kclhand_control/HandOperationMode.h>
 
-#define TH
-
 inline double deg_to_rad(double deg)
 {
   return deg*M_PI/180.;
 }
-
-
 
 class PIController
 {
@@ -46,7 +42,7 @@ private:
     double An;              //=kp+ki  for e(n)
     double Bn_1;           // -kp     for e(n-1)
     double Limit;          //limit
-    double Errorn_1;       //e(n-1)  
+    double Errorn_1;       //e(n-1)  e
     double DeltaUn;        // delta_u(n);  
     double Un_output;     //output
 
@@ -132,9 +128,13 @@ public:
 
 class JointSensor
 {
+
 private:
-	std::string joint_name_;
+	
+  ros::NodeHandle nh_;
+  std::string joint_name_;
 	double joint_sensor_raw_value_;	
+  unsigned int joint_id_;
 
   //get from ros parameter server
   double joint_value_max_;
@@ -142,32 +142,33 @@ private:
   int sensor_direction_;
   double joint_value_min_;
 
-
-  const double sensor_k = 9./28.;
+  // map the sensor value from arduino to the hand request
+  static const double sensor_k = 9./28.;
   double sensor_b;
 
   bool joint_value_valid_;
   double joint_calibrated_value_degrees_;
 
+  std::vector<double> temp_joint_raw_value_;
+  double sum_temp_joint_sensor_value_;
+  static const int TEMP_JOINT_VALUE_COUNT_ = 10;
 
 public:
-	JointSensor(ros::NodeHandle &nh, unsigned int joint_id);
+	JointSensor(const ros::NodeHandle &nh, const unsigned int &joint_id);
   
+  // get joint sensor raw value from arduino
   double getJointRawValue()
 	{
 		return joint_sensor_raw_value_;
 	}
 
-	void checkJointValueRange()
+  //should make a buffer for 10 values, so it will be more stable
+	void checkJointValueRange() 
 	{
-
 		if ((joint_calibrated_value_degrees_ >= joint_value_min_) && (joint_calibrated_value_degrees_ <= joint_value_max_))
 			joint_value_valid_ = true;
 		else joint_value_valid_ = false; // should stop the hand; or go to init fucntion;
 	} 
-
-
-
 
 
 	void jointValueFilter()
@@ -178,18 +179,34 @@ public:
 		*/
 	}
 
+  bool getIfJointValueValid()
+  {
+    return joint_value_valid_;
+  }
+
   void setJointValueZero(double zero)
   {
     sensor_b = -sensor_k * zero;
   }
 
+  //get the mean value of the joint sensor raw data
   void sensorCalibratedValueUpdate(double raw)
   {
+    if (temp_joint_raw_value_.empty())
+    {
+      temp_joint_raw_value_.resize(TEMP_JOINT_VALUE_COUNT_, raw);
+      sum_temp_joint_sensor_value_ = TEMP_JOINT_VALUE_COUNT_ * raw;
+    }
 
-    joint_calibrated_value_degrees_ = (sensor_k*raw + sensor_b) * sensor_direction_; 
+    temp_joint_raw_value_.push_back(raw);
+    sum_temp_joint_sensor_value_ += raw;   
+    sum_temp_joint_sensor_value_ -= *temp_joint_raw_value_.begin();
+    temp_joint_raw_value_.erase(temp_joint_raw_value_.begin());
+
+    double mean_joint_value =  sum_temp_joint_sensor_value_ / TEMP_JOINT_VALUE_COUNT_;
+    joint_calibrated_value_degrees_ = (sensor_k*mean_joint_value + sensor_b) * sensor_direction_; 
     checkJointValueRange();
   }
-
 
   double getSensorCalibratedValueDeg()
   {
@@ -201,7 +218,6 @@ public:
     return deg_to_rad(joint_calibrated_value_degrees_);
   }
 
-
 };
 
 
@@ -211,12 +227,16 @@ class JointMotor
 private:
   
   static const double POSITION_THRESHOLD = 0.1;
+  static const short unsigned int NOMINAL_CURRENT_PALM = 300;
+  static const short unsigned int NOMINAL_CURRENT_FINGER = 250; //250
+  static const short unsigned int MAX_OUTPUT_CURRENT = 500;
+  static const short unsigned int THERMAL_TIME_CONSTANT = 95;
 
+  ros::NodeHandle nh_;
   void *epos_handle_;
   
   // get from ros parameters
   int motor_node_id_;
-	int motor_direction_;
 
   // motor current state
 	double current_joint_position_; 
@@ -227,19 +247,22 @@ private:
   double motor_move_current_;
 	double motor_holding_current_;
   double motor_moving_velocity_;
+  int motor_direction_;
 	
   //motor move target
   double target_position_;
 	
   double max_peak_current_;
 	bool motor_running_;
-
   bool is_target_reached;
 
 
+  //motor settings (maxon epos control board)
+  short unsigned int nominal_current_;
+  short unsigned int max_output_current_;
+  short unsigned int thermal_time_constant_;
+
 	void getErrors();
-
-
 
 
   // reset motor
@@ -254,20 +277,6 @@ private:
   //velocity control of the motor, move with a given velocity
   void moveWithVelocity(double velocity);
  	
-  //halt velocity movement
-  void haltVelocityMovement();
-
-  // activate motor current mode
-  void activateCurrentMode();
-
-  // set motor current, motor will move with a given current
-  void setCurrent(double current);
-
-  // get motor current
-  double getCurrent();
-
-
-
   // judge if motor has reached the position
   bool isTargetReached()
   {
@@ -281,16 +290,58 @@ private:
 
 public:
 
-  JointMotor(ros::NodeHandle &nh, void *epos_handle_, unsigned int joint_id);
+  JointMotor(const ros::NodeHandle &nh, void *epos_handle, const unsigned int &joint_id);
 	
   // enable motors 
   bool enableMotor();
-    // disable motors 
+  
+  // disable motors 
   bool disableMotor();
 
   // motor move to target position
   bool moveToTarget(double current_position, double target);
 
+  // get motor current
+  double getCurrent();
+
+  //halt velocity movement
+  void haltVelocityMovement();
+
+  // activate motor current mode
+  void activateCurrentMode();
+
+  // set motor current, motor will move with a given current
+  void setCurrent(double current);
+
+  //Get Maximal Following Error
+  unsigned int getMaxFollowingError();
+
+  //Get Maximal Following Error
+  void setMaxFollowingError();
+
+  //Read motor parameters from the maxon board
+  void getDCMotorParameter();
+
+  //Set motor parameters from the maxon board
+  void setDCMotorParameter();
+
+  // get motor Nominal Current value, default value: 189, we shall set it to 250 to enlarge force
+  short unsigned int getNominalCurrent()
+  {
+    return nominal_current_;
+  }
+
+  // get motor Max Output Current value, default value: 376, we shall set it to 500 to enlarge force
+  short unsigned int getMaxOutputCurrent()
+  {
+    return max_output_current_;
+  }
+
+  // get motor Thermal Time Constant value, default value: 95
+  short unsigned int getThermalTimeConstant()
+  {
+    return thermal_time_constant_;
+  }
 
 };
 
@@ -320,9 +371,10 @@ private:
 	ros::Publisher joint_state_pub_;  // publish to palm solver in python
   ros::ServiceServer move_finger_srv_server_;
   ros::ServiceServer move_hand_srv_server_;
-  ros::ServiceServer metahand_init_srv_server_;
+  //ros::ServiceServer metahand_init_srv_server_;
   ros::ServiceServer metahand_mode_srv_server_;
   
+  // should add a server 
   
   // ros service, topic done 
 
@@ -336,9 +388,9 @@ private:
 
   // hand hardware setting
   static const unsigned int NUM_JOINTS = 5;
-  // hand hardware setting done 
-
-
+  static const int TIMEOUT_COUNT = 80;
+  static const int TIMEOUT_COUNT_FINGER = 300;
+  
 
 public:
   ros::NodeHandle nh_;
@@ -361,13 +413,36 @@ public:
   bool handModeSrvCB(kclhand_control::HandOperationMode::Request &req, kclhand_control::HandOperationMode::Response &res);
   bool moveHandSrvCB(kclhand_control::MoveHand::Request &req, kclhand_control::MoveHand::Response &res);
 
+  bool closingHandForGrasing();
+  bool closingHandForGrasingV2();
 
+  bool resetHandToInitPos();
 
-
-
+  bool moveHandToTarget(const std::vector<double> &target);
 };
 
 
-
-
 #endif
+
+
+/*
+1. joint sensor filter: a. for value mean, b from arduino side 
+(done, but sensor has deadzone.... if go there, should call recover function)
+2. disaster recovery --> init
+
+3. grasping action, force control, velcity is changed 
+4. to track a trajectory
+5. get key handle function
+
+8. real time joint check, if exceeded, then stop
+9. add timeout function to all the service
+
+10. add a service to set parameters -> done
+11. singularity crossing
+
+*/
+
+/*
+8. default paras 
+nominal_current: 189, max_output_current_: 378, thermal_time_constant_: 95
+*/
