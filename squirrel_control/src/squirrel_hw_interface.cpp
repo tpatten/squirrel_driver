@@ -38,7 +38,7 @@ namespace squirrel_control {
       motor_interface_ = new motor_control::MotorUtilities();
       safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
       safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
-      ignore_base_sub_ = rpnh.subscribe("/arm/joint_trajectory_controller/command", 10, &SquirrelHWInterface::ignoreBaseCallback, this);
+      ignore_base_sub_ = rpnh.subscribe("/arm_controller/joint_trajectory_controller/command", 10, &SquirrelHWInterface::ignoreBaseCallback, this); //FixMe: dont use global namespaces
       base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
       base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
     }
