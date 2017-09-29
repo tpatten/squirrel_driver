@@ -65,7 +65,7 @@ class Controller:
             rate.sleep()
 
     def _open_devices(self):
-        port = rospy.get_param("/squirrel_port") if rospy.has_param("/squirrel_port") else "/dev/ttyUSB0"
+        port = rospy.get_param("/squirrel_port") if rospy.has_param("/squirrel_port") else "/dev/ttyBoard"
         self._motor = serial_api.Controller(port, 115200)
 
     def move_head(self, message):
