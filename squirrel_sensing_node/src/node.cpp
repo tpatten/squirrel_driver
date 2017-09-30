@@ -72,7 +72,8 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
         //read from sensor
 
         //proximity and tactile
-        vector<double> &vals=sensor->readData();
+        vector<double> vals;
+        bool isValid=sensor->readData(vals);
 
         vector<double> &torqPerc=((Tactile*)sensor)->readTorquePerc();   //obtain percentages
 
@@ -87,9 +88,9 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
         }
 
         vector<double> padProxs;
-        padProxs.push_back(vals[10]);
-        padProxs.push_back(vals[12]);
-        padProxs.push_back(vals[14]);
+        padProxs.push_back(vals.operator[](10));
+        padProxs.push_back(vals.operator[](12));
+        padProxs.push_back(vals.operator[](14));
 
         //torque percs
         std_msgs::Float64MultiArray msgTorq;
@@ -105,20 +106,25 @@ void SensingNode::run(){ //this function will make the node loop as long as ros:
 
 #ifdef _FT17_AVAIL
         //wrist
-        vector<double> &wriVals=wrist->readData();
+        vector<double> wriVals;
+
+        bool isGood=wrist->readData(wriVals);
 
         std_msgs::Float64MultiArray msgWri;
-        msgWri.data.resize(wriVals.size());
+        msgWri.data.resize(wriVals->size());
 
         //fill in msg
-        for(int i=0;i<wriVals.size();i++){
-            msgWri.data[i]=wriVals.at(i);
+        for(int i=0;i<wriVals->size();i++){
+            msgWri.data[i]=wriVals->at(i);
         }
 #endif
 
         //ROS_INFO("Broadcasting...");
-        tactile_pub.publish(msg);
-        torqPerc_pub.publish(msgTorq);
+        if(isValid) //publish only if we read valid data
+        {
+            tactile_pub.publish(msg);
+            torqPerc_pub.publish(msgTorq);
+        }
 #ifdef _FT17_AVAIL
         wrist_pub.publish(msgWri);
 #endif
