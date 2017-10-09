@@ -5,11 +5,11 @@
 
 The board controls the following devices:
 
-    - Head Motor (pan) (-180º ~ 180ª)
+    - Head Motor (pan) (-180º ~ 180º) - head_controller
 
-    - Neck Motor (pan) (-180º ~ 180ª)
+    - Neck Motor (pan) (-180º ~ 180º) - neck_pan_controller
 
-    - Camera Motor (tilt) (-68º ~ 30ª)
+    - Camera Motor (tilt) (-68º ~ 30º) - neck_tilt_controller
 
     - Door Motor (pan) (-30000, 30000)
 

@@ -18,6 +18,8 @@ namespace squirrel_control {
 
     private:
 
+      const double TOLERANCE = 0.002;
+
         ros::NodeHandle  private_nh;
 
         ros::Subscriber subOdometry;

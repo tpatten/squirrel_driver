@@ -99,9 +99,9 @@ namespace squirrel_control {
 
 
     void BaseController::moveBase(double desired_x, double desired_y,double desired_theta) {
+        gotoCommand=true;
         start_ptp_base_=false;
         move(desired_x, desired_y,desired_theta);
-        gotoCommand=false;
     }
 
     void BaseController::gotoBase(double desired_x, double desired_y,double desired_theta) {
@@ -149,8 +149,9 @@ namespace squirrel_control {
                 current_base_vel_ = getNullTwist();
                 auto currentPose = getCurrentState();
                 double current_theta = currentPose.at(2);
+		double orient_error = 0.0;
                 if(std::isnan(desired_theta_) == 0){
-                    double orient_error = rotationDifference(desired_theta_, current_theta);
+                    orient_error = rotationDifference(desired_theta_, current_theta);
                     current_base_vel_.angular.z = pid_theta_.computeCommand(orient_error, ros::Duration(time_step_));
                     if(fabs(current_base_vel_.angular.z) > vel_ang_max_) {
                         if(gotoCommand)
@@ -191,9 +192,11 @@ namespace squirrel_control {
                 if (!velExceeded)
                     pubMove.publish(current_base_vel_);
                 else
-                    cout << " Base velocity exceeded the limit" << endl;
+		  cout << " Base velocity exceeded the limit" << endl;
 
-                start_move_base_ = false;
+		if ((fabs(err_x_odom) < TOLERANCE) && (fabs(err_y_odom) < TOLERANCE) && (fabs(orient_error) < TOLERANCE)) {
+			start_move_base_ = false;
+		} 
             }
 
             moveBaseRate.sleep();

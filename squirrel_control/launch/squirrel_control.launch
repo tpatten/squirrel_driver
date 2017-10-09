@@ -35,7 +35,7 @@
   </include>
 
 
-  <group ns="arm">
+  <group ns="arm_controller">
     <node name="squirrel_control_node" pkg="squirrel_control" type="squirrel_hw_main" output="screen" respawn="true">
       <!--remap from="/cmd_rotatory" to="/cmd_vel"/-->
    </node>

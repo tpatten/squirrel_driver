@@ -13,6 +13,7 @@
 #include <ros/ros.h>
 #include <urdf/model.h>
 #include <geometry_msgs/Twist.h>
+#include <trajectory_msgs/JointTrajectory.h>
 #include <tf/transform_datatypes.h>
 
 // ROS Controls
@@ -102,12 +103,14 @@ namespace squirrel_control {
         /** \brief Helper for debugging a joint's command */
         std::string printCommandHelper();
 
-	    /** \brief Callbacks */
-	    virtual void safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg);
+    /** \brief Callbacks */
+    virtual void safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg);
 
-	    virtual void safetyResetCallback(const std_msgs::BoolConstPtr &msg);
+    virtual void safetyResetCallback(const std_msgs::BoolConstPtr &msg);
 
-	    virtual void odomCallback(const nav_msgs::OdometryConstPtr &msg);
+    virtual void odomCallback(const nav_msgs::OdometryConstPtr &msg);
+
+    virtual void ignoreBaseCallback(const trajectory_msgs::JointTrajectoryPtr & msg);
 
     protected:
 
@@ -171,17 +174,20 @@ namespace squirrel_control {
 	double posBuffer_[3];
 	double velBuffer_[3];
 
-    // Base interface
+	// Base interface
 	ros::Publisher base_interface_;
 	ros::Subscriber base_state_;
-    BaseController base_controller_;
-    std::mutex odom_lock_;
+	BaseController base_controller_;
+	std::mutex odom_lock_;
 
 	// Motor interface
 	motor_control::MotorUtilities* motor_interface_;
 	std::string motor_port_;
 
 	bool hold = true;
+	bool ignore_base = false;
+	ros::Subscriber ignore_base_sub_;
+	
 
     };
 
