@@ -12,9 +12,9 @@
         OUT
             /joint_states [JointState]
         IN
-            /head_controller/joint_group_position_controller/command
-            /neck_controller/joint_group_position_controller/command
-            /camera_controller/joint_group_position_controller/command
+            head_controller/command
+            neck_pan_controller/command
+            neck_tilt_controller/command
             /light/command
 """
 
@@ -44,13 +44,13 @@ class Controller:
         except SerialException:
             rospy.logwarn('Failed to open some devices')
         rospy.loginfo('Started squirrel_driver node')
-        rospy.Subscriber('/head_controller/joint_group_position_controller/command', Float64, self.move_head)
-        rospy.Subscriber('/neck_pan_controller/joint_group_position_controller/command', Float64, self.move_neck)
-        rospy.Subscriber('/neck_pan_controller/joint_group_position_controller/rel_command', Float64, self.move_neck_rel)
-        rospy.Subscriber('/neck_tilt_controller/joint_group_position_controller/command', Float64, self.move_camera)
-        rospy.Subscriber('/neck_tilt_controller/joint_group_position_controller/rel_command', Float64, self.move_camera_rel)
+        rospy.Subscriber('head_controller/command', Float64, self.move_head)
+        rospy.Subscriber('neck_pan_controller/command', Float64, self.move_neck)
+        rospy.Subscriber('neck_pan_controller/rel_command', Float64, self.move_neck_rel)
+        rospy.Subscriber('neck_tilt_controller/command', Float64, self.move_camera)
+        rospy.Subscriber('neck_tilt_controller/rel_command', Float64, self.move_camera_rel)
         rospy.Subscriber('/light/command', ColorRGBA, self.change_base_light)
-        rospy.Service('/door_controller/command', DoorController, self.move_door)
+        rospy.Service('door_controller/command', DoorController, self.move_door)
         self.position_pub = rospy.Publisher('/joint_states', JointState, queue_size=10)
 
     def run(self):
