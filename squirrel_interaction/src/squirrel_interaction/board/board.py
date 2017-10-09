@@ -12,9 +12,9 @@
         OUT
             /joint_states [JointState]
         IN
-            /head_controller/joint_group_position_controller/command
-            /neck_controller/joint_group_position_controller/command
-            /camera_controller/joint_group_position_controller/command
+            head_controller/command
+            neck_pan_controller/command
+            neck_tilt_controller/command
             /light/command
 """
 
@@ -44,11 +44,11 @@ class Controller:
             rospy.logwarn('Failed to open some devices')
         rospy.init_node('squirrel_driver', anonymous=False)
         print 'Started squirrel_driver node'
-        rospy.Subscriber('/head_controller/joint_group_position_controller/command', Float64, self.move_head)
-        rospy.Subscriber('/neck_pan_controller/joint_group_position_controller/command', Float64, self.move_neck)
-        rospy.Subscriber('/neck_tilt_controller/joint_group_position_controller/command', Float64, self.move_camera)
+        rospy.Subscriber('head_controller/command', Float64, self.move_head)
+        rospy.Subscriber('neck_pan_controller/command', Float64, self.move_neck)
+        rospy.Subscriber('neck_tilt_controller/command', Float64, self.move_camera)
         rospy.Subscriber('/light/command', ColorRGBA, self.change_base_light)
-        rospy.Service('/door_controller/command', DoorController, self.move_door)
+        rospy.Service('door_controller/command', DoorController, self.move_door)
         self.position_pub = rospy.Publisher('/joint_states', JointState, queue_size=10)
 
     def run(self):
