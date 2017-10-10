@@ -31,6 +31,7 @@ class Controller:
     """Ros node to interfaces with interaction board """
     def __init__(self):
         try:
+            rospy.init_node('squirrel_driver', anonymous=False)
             self._open_devices()
             self.head_destination = self._motor.get_position("head")
             self.neck_destination = self._motor.get_position("neck")
@@ -42,11 +43,12 @@ class Controller:
             #self.should_close_door = False
         except SerialException:
             rospy.logwarn('Failed to open some devices')
-        rospy.init_node('squirrel_driver', anonymous=False)
-        print 'Started squirrel_driver node'
+        rospy.loginfo('Started squirrel_driver node')
         rospy.Subscriber('head_controller/command', Float64, self.move_head)
         rospy.Subscriber('neck_pan_controller/command', Float64, self.move_neck)
+        rospy.Subscriber('neck_pan_controller/rel_command', Float64, self.move_neck_rel)
         rospy.Subscriber('neck_tilt_controller/command', Float64, self.move_camera)
+        rospy.Subscriber('neck_tilt_controller/rel_command', Float64, self.move_camera_rel)
         rospy.Subscriber('/light/command', ColorRGBA, self.change_base_light)
         rospy.Service('door_controller/command', DoorController, self.move_door)
         self.position_pub = rospy.Publisher('/joint_states', JointState, queue_size=10)
@@ -73,11 +75,26 @@ class Controller:
         self._motor.move_to("head", self.head_destination)
 
     def move_neck(self, message):
+        rospy.loginfo("received {} on move_neck".format(message.data))
         self.neck_destination = int(degrees(message.data))
+        self._motor.move_to("neck", self.neck_destination)
+
+    def move_neck_rel(self, message):
+        position = self._motor.get_position("neck")
+        print("current neck position: {}".format(position))
+        self.neck_destination = position + int(degrees(message.data))
+        print("next neck position: {}".format(self.neck_destination))
         self._motor.move_to("neck", self.neck_destination)
 
     def move_camera(self, message):
         self.camera_destination = int(degrees(message.data))
+        self._motor.move_to("camera", self.camera_destination)
+
+    def move_camera_rel(self, message):
+        position = self._motor.get_position("camera")
+        print("current camera position: {}".format(position))
+        self.camera_destination = position + int(degrees(message.data))
+        print("next camera position: {}".format(self.camera_destination))
         self._motor.move_to("camera", self.camera_destination)
 
     def change_base_light(self, message):
