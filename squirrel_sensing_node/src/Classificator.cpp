@@ -12,7 +12,7 @@ const double Classificator::FREE_PAR  = 2.38;    //c
 
 //if a value falls withing this threashold (+/-) it is ambiguos
 const double Classificator::AMBIGUITY_THREAS=0.2; //range: [0.0 1.0]   //TODO this might require adjustments
-const double Classificator::PROX_TRIGGER=-2;    //anything bigger than this triggers a classification
+const double Classificator::PROX_TRIGGER=-10;    //anything bigger than this triggers a classification
 
 Classificator::Classificator() : m_calibrated(false)
 {
@@ -320,7 +320,7 @@ void Classificator::testHistory()
     int tmp=cnt;
     resetState();
     cnt=tmp;
-    std::cout << "Continuing testing history" << std::endl;
+    //std::cout << "Continuing testing history" << std::endl;
 
 
     //test initialisation update (100 values)
@@ -443,7 +443,7 @@ void Classificator::testEntryPoint()
 
     Tactile tak("/dev/ttyACM0");
 
-    //TODO this should have been reset befor,e but there is a problem on test 36 of history
+    //TODO this should have been reset befor,e but there is a problem on test 36 of history - !
     m_calibrated=false;
 
     //setup hard fing 1

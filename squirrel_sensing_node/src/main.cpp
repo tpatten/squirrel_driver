@@ -7,7 +7,7 @@ using namespace std;
 
 int main(int argc,char** argv){
 
-#define AUTOTEST
+//#define AUTOTEST
 #ifdef AUTOTEST
 #include "../include/squirrel_sensing_node/Classificator.h"
 //hijack execution for testing purposes
