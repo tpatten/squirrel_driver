@@ -93,21 +93,27 @@ class Controller(object):
     def stop_motor(self, motor):
         """ Stops motor [param 0] """
         try:
+	    self._mutex.acquire()
             self.serial.reset_input_buffer()
 	    self.serial.write([0x31, _MOTORS.index(motor), 0, 0])
             return self._check_response(5, 0x31)
         except ValueError:
             return 'Available motors: head, neck, camera, door;'
+	finally:
+	    self._mutex.release()
 
     def start_motor(self, motor):
         """ Allows motor [param 0] to move again. By default, motors can move """
         try:
             index = _MOTORS.index(motor)
+	    self._mutex.acquire()
             self.serial.reset_input_buffer()
 	    self.serial.write([0x31, index, 0, _MOTOR_SPEEDS[index]])
             return self._check_response(5, 0x31)
         except ValueError:
             return 'Available motors: head, neck, camera, door;'
+	finally:
+	    self._mutex.release()
 
     def get_position(self, motor):
         """ Get motor [param 0] position in degrees """
