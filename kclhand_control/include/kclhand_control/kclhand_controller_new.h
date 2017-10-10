@@ -6,11 +6,11 @@
  * 
  * Provide following functions for the kclhand control
  * 
- * 1. Joint postition control
- * 2. Hand trajectory control 
- * 3. ... 
- * 4. 
- * 5.
+ * 1. Joint postition control for finger
+ * 2. hand configuration control 
+ * 3. grasping
+ * 
+ * September 2017
 */
 
 
@@ -125,6 +125,12 @@ public:
  
 };
 
+/*
+ * The JointSensor Class 
+ *
+ *
+ *
+ */
 
 class JointSensor
 {
@@ -189,7 +195,7 @@ public:
     sensor_b = -sensor_k * zero;
   }
 
-  //get the mean value of the joint sensor raw data
+  //get the mean value from the joint sensor raw data
   void sensorCalibratedValueUpdate(double raw)
   {
     if (temp_joint_raw_value_.empty())
@@ -220,7 +226,12 @@ public:
 
 };
 
-
+/*
+ * The JointMotor class for the epos2 controller (from maxon)
+ * 
+ *
+ *
+ */
 
 class JointMotor
 {
@@ -414,11 +425,14 @@ public:
   bool moveHandSrvCB(kclhand_control::MoveHand::Request &req, kclhand_control::MoveHand::Response &res);
 
   bool closingHandForGrasing();
-  bool closingHandForGrasingV2();
-
+  
   bool resetHandToInitPos();
 
   bool moveHandToTarget(const std::vector<double> &target);
+
+  bool lowerToUpperWorkspace();
+  bool upperToLowerWorkspace();
+  
 };
 
 

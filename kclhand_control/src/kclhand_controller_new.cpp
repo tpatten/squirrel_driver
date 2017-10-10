@@ -6,7 +6,7 @@
 #include <sensor_msgs/JointState.h>
 #include <kclhand_control/Definitions.h>
 #include <kclhand_control/ActuateHandAction.h>
-#include <kclhand_control/kclhand_controller_js.h>
+#include <kclhand_control/kclhand_controller_new.h>
 
 
 
@@ -82,7 +82,7 @@ bool KCLHandController::moveFingerSrvCB(kclhand_control::MoveFinger::Request &re
   if(!hand_is_initialized_)
     res.target_reached = false; 
   //if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
-  ros::Rate r(30);
+  ros::Rate r(20);
   if(joints_motor_[node_id].enableMotor())
   {
     while(!if_at_target)
@@ -232,6 +232,78 @@ bool KCLHandController::moveHandToTarget(const std::vector<double> &target)
   return true;
 }
 
+bool KCLHandController::upperToLowerWorkspace()
+{
+  std::vector<double> target_positions(NUM_JOINTS);
+
+  target_positions[0] = 22.0;
+  target_positions[1] = 8.0;
+  target_positions[2] = -50.0;
+  target_positions[3] = -20.0;
+  target_positions[4] = -50.0;
+
+  bool succeeded = moveHandToTarget(target_positions) ? true : false;
+
+  if(succeeded)
+  {
+    target_positions[0] = 18.0;
+    target_positions[1] = -66.0;
+    target_positions[2] = -50.;
+    target_positions[3] = -20.;
+    target_positions[4] = -50.;
+    succeeded = moveHandToTarget(target_positions) ? true : false; 
+  }
+
+  if(succeeded)
+  {
+    target_positions[0] = -60.0;
+    target_positions[1] = -60.0;
+    target_positions[2] = -30.0;
+    target_positions[3] = -45.0;
+    target_positions[4] = -30.0;
+    succeeded = moveHandToTarget(target_positions) ? true : false; 
+  }
+
+  return succeeded;
+}
+
+
+bool KCLHandController::lowerToUpperWorkspace()
+{
+  std::vector<double> target_positions(NUM_JOINTS);
+
+  target_positions[0] = -60.0;
+  target_positions[1] = -60.0;
+  target_positions[2] = -50.0;
+  target_positions[3] = -20.0;
+  target_positions[4] = -50.0;
+
+  bool succeeded = moveHandToTarget(target_positions) ? true : false;
+
+  if(succeeded)
+  {
+    target_positions[0] = -30.0;
+    target_positions[1] = 16.0;
+    target_positions[2] = -50.;
+    target_positions[3] = -20.;
+    target_positions[4] = -50.;
+    succeeded = moveHandToTarget(target_positions) ? true : false; 
+  }
+
+  if(succeeded)
+  {
+    target_positions[0] = 40.0;
+    target_positions[1] = 40.0;
+    target_positions[2] = -50.0;
+    target_positions[3] = -20.0;
+    target_positions[4] = -50.0;
+    succeeded = moveHandToTarget(target_positions) ? true : false; 
+  }
+
+  return succeeded;
+}
+
+
 
 bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Request &req, kclhand_control::HandOperationMode::Response &res)
 {
@@ -247,8 +319,7 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
     for (unsigned int i = 0; i< NUM_JOINTS; i++)
     {
        ROS_INFO("Disable motor ID: %d", i);
-       bool test1 = joints_motor_[i].disableMotor();
-      
+       bool test1 = joints_motor_[i].disableMotor();     
     }
     res.result = 1;
   }
@@ -260,23 +331,30 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
       bool test2 = joints_motor_[i].enableMotor();
       ROS_INFO("Enable Motor ID: %d", i);
     }  
-    res.result = 2;
+    res.result = 1;
   }
-
 
   if(mode == 2)
   {
     // grasping 
-    bool test3 = closingHandForGrasing();
+    bool hand_grasping = closingHandForGrasing();
+    res.result = hand_grasping;
   }
-
 
   if(mode == 3)
   {
-    // grasping 
-    bool test4 = closingHandForGrasingV2();
+    bool if_suc = upperToLowerWorkspace();
+    res.result = if_suc;
   }
 
+  if(mode == 4)
+  {
+    bool if_suc = lowerToUpperWorkspace();
+    res.result = if_suc;
+  }
+  
+
+/*
   if(mode == 6)
   {
     for (unsigned int i = 0; i< NUM_JOINTS; i++)
@@ -305,6 +383,11 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
         //oints_motor_[i].nominal_current_, joints_motor_[i].max_output_current_, joints_motor_[i].thermal_time_constant_);   
     }
   }
+
+*/
+
+
+  
 
    //bool success = enableMotor();
 
@@ -446,42 +529,32 @@ bool KCLHandController::openDevice()
 
 bool KCLHandController::closingHandForGrasing()
 {
-  unsigned int node_id = 2;
-  double grasping_current_set = 150;
-  bool if_object_grasped = false;
-  bool target = 0.;
-
-  ROS_INFO("Move Finger Server. Motor ID: %d, Target: %f", node_id, grasping_current_set);
-  if(!hand_is_initialized_)
-    return false; 
-  bool if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
-  
-  if(joints_motor_[node_id].enableMotor())
+  std::vector<double> hand_grasping_target(NUM_JOINTS);
+    
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() < -30.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() < -30.0))
   {
-    while(!if_at_target)
-    { 
-      bool enable_motor = joints_motor_[node_id].enableMotor();
-      ROS_INFO("current joint position: %f, motor current: %f", joints_sensor_[node_id].getSensorCalibratedValueDeg(), joints_motor_[node_id].getCurrent());     
-      if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
-      
-      if(fabs(joints_motor_[node_id].getCurrent())>grasping_current_set)
-      {
-        //motor_velocity_ = 0;
-        joints_motor_[node_id].haltVelocityMovement();
-        break;
-      }
-    }
-
+    hand_grasping_target[0] = -45.0;
+    hand_grasping_target[1] = -45.0;
+    hand_grasping_target[2] =  50.0;
+    hand_grasping_target[3] =  0.0;
+    hand_grasping_target[4] =  50.0;
   }
-  return true;
-}
+  else if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    
+    hand_grasping_target[0] = 40.0;
+    hand_grasping_target[1] = 40.0;
+    hand_grasping_target[2] =  0.0;
+    hand_grasping_target[3] =  30.0;
+    hand_grasping_target[4] =  0.0;
+  }
+  else 
+  {
+    return false;
+  }
 
-bool KCLHandController::closingHandForGrasingV2()
-{
 
-  double hand_grasping_target[5] = {30.0,30.0,-10.0,30.0,-10.0};
   int motor_num = NUM_JOINTS;  
-
   unsigned int node_id = 0;
   double grasping_current_set = 200; //for vienna hand, the valie is 150. move it to yaml file
   bool if_object_grasped = false;
