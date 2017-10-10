@@ -16,6 +16,7 @@
             neck_pan_controller/command
             neck_tilt_controller/command
             /light/command
+	    /mouth/command
 """
 
 import rospy
@@ -37,6 +38,7 @@ class Controller:
             self.neck_destination = self._motor.get_position("neck")
             self.camera_destination = self._motor.get_position("camera")
             self.base_lights = [0, 0, 0] * 84 # turns off all base leds
+	    self.mouth_lights = [0, 0, 0] * 4 # turns off all mouth leds
             self.door_open = False
             self.door_closed = False
             #self.should_open_door = False
@@ -50,6 +52,7 @@ class Controller:
         rospy.Subscriber('neck_tilt_controller/command', Float64, self.move_camera)
         rospy.Subscriber('neck_tilt_controller/rel_command', Float64, self.move_camera_rel)
         rospy.Subscriber('/light/command', ColorRGBA, self.change_base_light)
+	rospy.Subscriber('/mouth/command', ColorRGBA, self.change_mouth_light)
         rospy.Service('door_controller/command', DoorController, self.move_door)
         self.position_pub = rospy.Publisher('/joint_states', JointState, queue_size=10)
 
@@ -101,6 +104,11 @@ class Controller:
         color = [int(message.r), int(message.g), int(message.b)]
         self.base_lights = color * 42   # number of base leds
         self._motor.set_base_led_colors(self.base_lights)
+
+    def change_mouth_light(self, message):
+        color = [int(message.r), int(message.g), int(message.b)]
+        self.mouth_lights = color * 4   # number of base leds
+        self._motor.set_mouth_led_colors(self.mouth_lights)
 
     def move_door(self, req):
         if req.message == 'open':
