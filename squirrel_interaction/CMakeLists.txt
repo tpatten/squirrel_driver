@@ -30,7 +30,7 @@ catkin_package(
 )
 
 catkin_install_python(PROGRAMS 
-    src/squirrel_interaction/board/board.py src/squirrel_interaction/teleop.py src/squirrel_interaction/screen/raspberry_screen_server.py src/squirrel_interaction/speakers/play_sound.py
+    src/squirrel_interaction/board/board.py src/squirrel_interaction/teleop.py src/squirrel_interaction/screen/raspberry_screen_server.py src/squirrel_interaction/speakers/play_sound.py src/squirrel_interaction/mouth_speak.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
