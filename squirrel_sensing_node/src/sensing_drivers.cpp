@@ -21,7 +21,7 @@
 using namespace std;
 
 const char Driver::CMD_GETDATA[]="g"; //arduino command to get data
-const int Driver::INVALID_DATA=-100;
+const int INVALID_DATA=-100;
 const int Driver::MAX_RETRIES=5;   //we try 5 times to read
 const double Driver::MAX_VOLTS=5.0;
 
@@ -36,8 +36,8 @@ bool Driver::setup(){    //assuming setup is equal for 2 sensros on 3
      /* Get currently set options for the tty */
      tcgetattr(m_fileDesc, &toptions);
      /* 9600 baud */
-      cfsetispeed(&toptions, B38400);   //38400 is max baudrate for termios
-      cfsetospeed(&toptions, B38400);
+      cfsetispeed(&toptions, B9600);   //enter here B38400 for max baudrate for this system, arduino must match this speed, B9600 was the previous, slowest, value which was proven to work in the larger system
+      cfsetospeed(&toptions, B9600);   //enter here B38400 for max baudrate for this system, arduino must match this speed (both lines must have the same speed set here)
       /* 8 bits, no parity, no stop bits */
        toptions.c_cflag &= ~PARENB;
        toptions.c_cflag &= ~CSTOPB;
@@ -88,7 +88,7 @@ RES_COMMS Driver::arduRead(vector<double>& data)
     FD_SET(m_fileDesc, &read_fds);  //monitor stream for reading
     // Set timeout to 1.0 seconds
     struct timeval timeout;
-    timeout.tv_sec = 1;     //wait for 3 seconds
+    timeout.tv_sec = 1;     //wait for 1.5 seconds
     timeout.tv_usec = 500000;
 
     tcflush(m_fileDesc, TCIFLUSH);
@@ -117,7 +117,7 @@ RES_COMMS Driver::arduRead(vector<double>& data)
 
     if(rdbytes<=0)  //either we couldn't read or there was an error
     {
-        cout << "Driver::arduRead> ERROR! Couldn't read anything from arduino or error while reading "  << rdbytes << endl;
+        cout << "Driver::arduRead> ERROR! Couldn't read anything from arduino or error while reading: "  << (rdbytes==-2? "no data" : "read error") << endl;
         for(uint i=0;i<NUM_VALS;++i)
         {
             data.push_back(INVALID_DATA);
@@ -218,7 +218,7 @@ const int Driver::NUM_PROX=6;
 const int Driver::NUM_VALS=Driver::NUM_TACT+Driver::NUM_PROX;  //should be 15
 
 const int Tactile::NUM_HISTORY_VALS=10;
-const int Tactile::NUM_BIAS_VALS=100;        //TODO change
+const int NUM_INTIALISATION_VALS=50;
 const double Tactile::STATIONARY_TACTILE_THREASHOLD=0.0075;    //volts
 const double Tactile::STATIONARY_PROXIMITY_THREASHOLD=0.02;    //volts
 
@@ -257,6 +257,8 @@ const double Tactile::MAX_PROX=2.5;
 
 //number of values used to calculate average flattening value
 const int Tactile::NUM_FLATTENING_TORQUES=10;
+
+std::vector<double> Tactile::m_maximumForce;
 
 
 
@@ -319,7 +321,16 @@ Tactile::Tactile(const std::string& portname){
                 istringstream iss(line);
                 double val;                         //parsing maximums
                 iss >> val;
-                maximumTorque.push_back(val);
+                static int torqueCnt=0;
+                if(torqueCnt<6) //cross fingers...
+                {
+                    maximumTorque.push_back(val);
+                    torqueCnt++;
+                }
+                else
+                {
+                    m_maximumForce.push_back(val);
+                }
             }
         }
 
@@ -401,11 +412,11 @@ double Tactile::bias(const int idx,const double val)
         return 1.0;
     }
     //else calculate mean of past values
-    if(mean[idx].size()<NUM_BIAS_VALS){
+    if(mean[idx].size()<NUM_INTIALISATION_VALS){
         mean[idx].push_back(val);
     }
 
-    if(mean[idx].size()==NUM_BIAS_VALS)
+    if(mean[idx].size()==NUM_INTIALISATION_VALS)
     {
         m_isBiased=true;
 
@@ -592,7 +603,6 @@ bool Tactile::readData(std::vector<double>& res)    //we pass a NULL pointer, bu
     }
 
 
-    //cout << "Proximity vals: ";
     for(int i=NUM_TACT;i<NUM_VALS;i++){//last 6 values are proximity
 
         if(!isStationaryProx(res.at(i),i-NUM_TACT)){      //if values changed
@@ -601,9 +611,8 @@ bool Tactile::readData(std::vector<double>& res)    //we pass a NULL pointer, bu
             res.at(i)=-100; //This is when there is no signal detected
         }
 
-       // cout << res->at(i) << " ";
     }
-    //cout << endl << endl;
+
 
     for(int i=NUM_TACT;i<NUM_VALS;i++)
     {
@@ -614,7 +623,6 @@ bool Tactile::readData(std::vector<double>& res)    //we pass a NULL pointer, bu
     }
 
     ///-----------------------------------------------
-   // cin.ignore();
 
     return readRes;
 }
@@ -689,6 +697,28 @@ void Tactile::calculateTorquePerc(vector<double>& num)
 
 }
 
+//receives three values of force, returns the same values normalised
+std::vector<double> Tactile::normaliseForce(const std::vector<double>& force)
+{
+    if(m_maximumForce.size()==0)   //if we never read, throw an error
+    {
+        throw runtime_error("Maximum force not initialised from file yet");
+    }
+    if(m_maximumForce.size()!=FINGERS_NUM || force.size()!=SensorNameNum) //if we screwed up the reading
+    {
+        throw runtime_error("Numbers of values to normalise do not match number of maximum forces");
+    }
+
+    std::vector<double> norms;
+    SensorName sensArr[]={ForceFing1,ForceFing2,ForceFing3};
+    for(int i=0;i<m_maximumForce.size();++i)
+    {
+        norms.push_back( ((double)force.at(sensArr[i]))/m_maximumForce.at(i));
+    }
+
+    return norms;
+}
+
 vector<double>& Tactile::readTorquePerc()
 {
     return torque_perc;
@@ -717,7 +747,7 @@ bool Wrist::readData(std::vector<double>& res){
 	if(ft17==NULL){
 
         res=vector<double>(WristDataNum,0);
-        return false; //WARNING reference to local variable returned
+        return false;
 
 	}
 
