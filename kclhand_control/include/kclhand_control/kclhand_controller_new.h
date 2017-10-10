@@ -237,7 +237,7 @@ class JointMotor
 {
 private:
   
-  static const double POSITION_THRESHOLD = 0.1;
+  static const double POSITION_THRESHOLD = 0.07;
   static const short unsigned int NOMINAL_CURRENT_PALM = 300;
   static const short unsigned int NOMINAL_CURRENT_FINGER = 250; //250
   static const short unsigned int MAX_OUTPUT_CURRENT = 500;
@@ -401,8 +401,15 @@ private:
   static const unsigned int NUM_JOINTS = 5;
   static const int TIMEOUT_COUNT = 80;
   static const int TIMEOUT_COUNT_FINGER = 300;
-  
 
+
+  std::vector<double> lower_to_upper_workspace_seq_;
+  std::vector<double> upper_to_lower_workspace_seq_;
+  std::vector<double> lower_workspace_open_conf_;
+  std::vector<double> lower_workspace_close_conf_;
+  std::vector<double> upper_workspace_open_conf_;
+  std::vector<double> upper_workspace_close_conf_;
+  
 public:
   ros::NodeHandle nh_;
 	KCLHandController(std::string name);

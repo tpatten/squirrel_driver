@@ -2,7 +2,9 @@
 
 ## Create the udev rules to run the hand controllers without root permission
 Go to the /udev folder, Either run the script create_udev_rules.sh or use the following commands:
+	
 	sudo cp metahand_usb.rules /etc/udev/rules.d/
+	
 	sudo /etc/init.d/udev restart
 
 ## Control the Metahand
