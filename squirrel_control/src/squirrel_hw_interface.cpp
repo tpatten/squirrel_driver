@@ -366,15 +366,15 @@ namespace squirrel_control {
 						} else if (joint_names_[i] == "base_jointz") {
 							joint_position_[i] = posBuffer_[2];
 						} else if (joint_names_[i] == "arm_joint1") {
-							joint_position_[i] = positions[i];
+							joint_position_[i] = positions[0];
 						} else if (joint_names_[i] == "arm_joint2") {
-							joint_position_[i] = positions[i];
+							joint_position_[i] = positions[1];
 						} else if (joint_names_[i] == "arm_joint3") {
-							joint_position_[i] = positions[i];
+							joint_position_[i] = positions[2];
 						} else if (joint_names_[i] == "arm_joint4") {
-							joint_position_[i] = positions[i];
+							joint_position_[i] = positions[3];
 						} else if (joint_names_[i] == "arm_joint5") {
-							joint_position_[i] = positions[i];
+							joint_position_[i] = positions[4];
 						}
 					}
 				}
@@ -429,6 +429,7 @@ namespace squirrel_control {
 				//joint_position_command_[1] = base_state[1];
 				//joint_position_command_[2] = base_state[2];
 				for(int i=0; i < 3; i++) {
+					std::cout << "Setting Base to default" << std::endl;
 					base_cmds[i] = base_state[i];
 				}
 
@@ -447,7 +448,6 @@ namespace squirrel_control {
 
 				hold = false;
 			}
-			//TODO: check base limits in URDF
 			enforceLimits(elapsed_time);    
 			std::vector<double> cmds(5);
 			//std::vector<double> base_cmds(3);
@@ -504,9 +504,11 @@ namespace squirrel_control {
 			}
 
 			try {
+//				std::cout << "Arm: " << cmds[0] << " " << cmds[1] << " " << cmds[2] << " " << cmds[3] << " " << cmds[4] << std::endl;
 				motor_interface_->write(cmds);
 				if(!ignore_base) {
 					// std::cout << "NOT IGNORING BASE" << std::endl;
+//					std::cout << "Base: " << base_cmds.at(0) << " " <<  base_cmds.at(1) << " " <<  base_cmds.at(2) << std::endl;
 					if (current_mode_ == control_modes::POSITION_MODE) {
 						base_controller_.moveBase(base_cmds.at(0), base_cmds.at(1), base_cmds.at(2));
 					} else {
@@ -570,15 +572,16 @@ namespace squirrel_control {
 		// REAL DIRTY HACK FOR NOT USING ROS_CONTROL FOR THE BASE (in position mode) :(
 		// usleep(1000000);	
 		if (control_modes::POSITION_MODE){
-			for(int i=0; i<joint_names_.size(); ++i){
-				if(joint_names_[i] == "base_jointx") {
+			for(int i=0; i < msg->joint_names.size(); ++i){
+				if(msg->joint_names[i] == "base_jointx") {
 					base_cmds[0] = msg->points.at(0).positions[i];
-				} else if (joint_names_[i] == "base_jointy") {
+					//std::cout << " Base Joint X at pos " << i << " val : " << msg->points.at(0).positions[i] <<  std::endl;
+				} else if (msg->joint_names[i] == "base_jointy") {
 					base_cmds[1] = msg->points.at(0).positions[i];
-				} else if (joint_names_[i] == "base_jointz") {
+				} else if (msg->joint_names[i] == "base_jointz") {
 					base_cmds[2] = msg->points.at(0).positions[i];
 				}				
-			} 
+			}
 		}
 
 		ignore_base = false;

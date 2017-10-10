@@ -267,12 +267,20 @@ namespace motor_control {
 	std::vector<double> positions = {};
 	UINT32_T value;
 	for (auto const motor : motors_) {
-	  comm = packet_handler_->Read4ByteTxRx(port_handler_, motor.id,
+	  comm = -1;
+          int counter =0;
+	  while(comm != 0) {
+            counter++;
+	    comm = packet_handler_->Read4ByteTxRx(port_handler_, motor.id,
 					 motor.tool->ctrl_table_["present_position"]->address,
 					 &value, &error);
-	  if(comm != 0) {
-	    std::cout << "Error reading position for motor " << static_cast<int>(motor.id) << " (" << motor.tool->model_name_ << ")" << std::endl;
-	  }
+	    if(comm != 0) {
+	      std::cout << "Error reading position for motor " << static_cast<int>(motor.id) << " (" << motor.tool->model_name_ << ")" << std::endl;
+	    }
+            if(counter > 10) {
+	      throw_control_error(true, "Really cant read from motor");	
+	    }
+          }
 	  double rad_per_tick = motor.tool->max_radian_ / motor.tool->value_of_max_radian_position_;
 	  int real_value = static_cast<int>(value);
 	  positions.push_back(double(real_value*rad_per_tick));
