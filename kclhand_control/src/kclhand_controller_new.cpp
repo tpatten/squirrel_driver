@@ -183,7 +183,7 @@ bool KCLHandController::moveHandSrvCB(kclhand_control::MoveHand::Request &req, k
   {
     res.target_result.resize(motor_num);
     res.target_result[i] = joints_sensor_[i].getSensorCalibratedValueDeg();
-    bool disable_motor = joints_motor_[i].disableMotor();
+    bool enable_motor = joints_motor_[i].enableMotor();
   }
 
   return true;
