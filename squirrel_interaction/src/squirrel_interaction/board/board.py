@@ -53,7 +53,7 @@ class Controller:
         rospy.Subscriber('neck_tilt_controller/command', Float64, self.move_camera)
         rospy.Subscriber('neck_tilt_controller/rel_command', Float64, self.move_camera_rel)
         rospy.Subscriber('/light/command', ColorRGBA, self.change_base_light)
-	rospy.Subscriber('/light_complex/command', BaseLights, self.change_base_lights_complex) 
+	rospy.Subscriber('/light_complex/command', BaseLights, self.change_base_light_complex) 
 	rospy.Subscriber('/mouth/command', ColorRGBA, self.change_mouth_light)
         rospy.Service('door_controller/command', DoorController, self.move_door)
         self.position_pub = rospy.Publisher('/joint_states', JointState, queue_size=10)
