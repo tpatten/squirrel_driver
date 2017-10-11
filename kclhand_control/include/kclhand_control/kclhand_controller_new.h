@@ -354,6 +354,7 @@ public:
     return thermal_time_constant_;
   }
 
+  bool getMotorEnableState();
 };
 
 
@@ -409,6 +410,8 @@ private:
   std::vector<double> lower_workspace_close_conf_;
   std::vector<double> upper_workspace_open_conf_;
   std::vector<double> upper_workspace_close_conf_;
+
+  int hand_grasping_current_defalut_;
   
 public:
   ros::NodeHandle nh_;
@@ -440,6 +443,7 @@ public:
   bool lowerToUpperWorkspace();
   bool upperToLowerWorkspace();
   
+  bool openHand();
 };
 
 
