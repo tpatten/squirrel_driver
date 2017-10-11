@@ -158,6 +158,30 @@ const std::vector<Decision>& Classificator::decide(std::vector<double>& forcePro
         }
 
     }
+    
+    //TODO this has to be properly integrated across the code: overall fingers decision
+    int cntHards=0; //positive: number of hard decisions, negative number of soft decisions
+    int nullsNum=0; //number of undecided
+    for(int i=0;i<FINGERS_NUM && m_calibrated;++i)
+    {
+        if(m_classifications[i]==CLASS_HARD)
+        {
+            ++cntHards;
+        }
+        else if(m_classifications[i]==CLASS_SOFT)
+        {
+            --cntHards;
+        }
+    }
+    if(cntHards>0 && nullsNum<FINGERS_NUM) //if most of fingers are hard but something has been detected
+    {
+        m_classifications.push_back(CLASS_HARD);
+    }
+    else if(nullsNum<FINGERS_NUM) //else, assuming something has been detected, it is soft
+    {
+        m_classifications.push_back(CLASS_SOFT);
+    }
+    //----------------------------------------------
 
     return m_classifications;
 }
