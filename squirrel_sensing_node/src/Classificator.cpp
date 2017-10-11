@@ -11,7 +11,7 @@ const double Classificator::TORQUE_PAR=-2.9108;  //b T +
 const double Classificator::FREE_PAR  = 2.38;    //c
 
 //if a value falls withing this threashold (+/-) it is ambiguos
-const double Classificator::AMBIGUITY_THREAS=0.6; //range: [0.0 1.0]   //TODO this might require adjustments
+const double Classificator::AMBIGUITY_THREAS=0.2; //range: [0.0 1.0]   //TODO this might require adjustments
 const double Classificator::PROX_TRIGGER=0.1;    //anything bigger than this triggers a classification
 
 Classificator::Classificator() : m_calibrated(false)
