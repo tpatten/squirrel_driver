@@ -307,11 +307,13 @@ bool KCLHandController::openHand()
 
   bool succeeded = moveHandToTarget(hand_open_target) ? true : false;
   ROS_INFO("If the hand is opened: %d", succeeded);
+  /*
   for (unsigned int i = 0; i< NUM_JOINTS; i++)
   {
        ROS_INFO("Disable motor ID: %d", i);
        bool disable_motor = joints_motor_[i].disableMotor();     
   }
+  */
   return succeeded;
 
 }
