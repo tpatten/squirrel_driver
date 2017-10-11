@@ -33,7 +33,7 @@ _NUMBER_OF_MOUTH_LEDS = 4
 
 class Controller(object):
     """ Main interface for Serial communication with Squirrel Interaction board """
-    def __init__(self, port="/dev/ttyUSB0", baudrate=115200):
+    def __init__(self, port="/dev/interactionboard", baudrate=115200):
         self._mutex = Lock()
         self.serial = Serial(port, baudrate)
         self.start_base_led_colors(_NUMBER_OF_BASE_LEDS)

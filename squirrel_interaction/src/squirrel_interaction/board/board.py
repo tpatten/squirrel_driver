@@ -25,6 +25,7 @@ from serial import SerialException
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64, ColorRGBA, String, Header
 from squirrel_interaction.srv import DoorController
+from squirrel_interaction.msg import BaseLights
 from math import degrees, radians
 
 
@@ -37,7 +38,7 @@ class Controller:
             self.head_destination = self._motor.get_position("head")
             self.neck_destination = self._motor.get_position("neck")
             self.camera_destination = self._motor.get_position("camera")
-            self.base_lights = [0, 0, 0] * 84 # turns off all base leds
+            self.base_lights = [0, 0, 0] * 42 # turns off all base leds
 	    self.mouth_lights = [0, 0, 0] * 4 # turns off all mouth leds
             self.door_open = False
             self.door_closed = False
@@ -52,6 +53,7 @@ class Controller:
         rospy.Subscriber('neck_tilt_controller/command', Float64, self.move_camera)
         rospy.Subscriber('neck_tilt_controller/rel_command', Float64, self.move_camera_rel)
         rospy.Subscriber('/light/command', ColorRGBA, self.change_base_light)
+	rospy.Subscriber('/light_complex/command', BaseLights, self.change_base_lights_complex) 
 	rospy.Subscriber('/mouth/command', ColorRGBA, self.change_mouth_light)
         rospy.Service('door_controller/command', DoorController, self.move_door)
         self.position_pub = rospy.Publisher('/joint_states', JointState, queue_size=10)
@@ -104,6 +106,13 @@ class Controller:
         color = [int(message.r), int(message.g), int(message.b)]
         self.base_lights = color * 42   # number of base leds
         self._motor.set_base_led_colors(self.base_lights)
+
+    def change_base_light_complex(self, message):
+        if len(message.colors) is not 126:
+	    rospy.log_warn('for individual LED colors, specify an RGB value for each of the 42 LEDS')
+	    return
+	self.base_lights = message.colors
+	self._motor.set_base_led_colors(self.base_lights)
 
     def change_mouth_light(self, message):
         color = [int(message.r), int(message.g), int(message.b)]
