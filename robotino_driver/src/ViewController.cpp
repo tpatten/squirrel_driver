@@ -37,10 +37,13 @@ ViewController::ViewController(std::string name)
   tilt_speed_client_ = nh_.serviceClient<dynamixel_controllers::SetSpeed>("/tilt_controller/set_speed", true);
   rel_tilt_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/tilt_controller/set_relative_position", true);
   rel_pan_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/pan_controller/set_relative_position", true);
-  pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/command", 0, false);
-  tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/command", 0, false);
+
+  pan_pub_ = nh_.advertise<std_msgs::Float64>("/neck_pan_controller/joint_group_position_controller/command", 0, false);
+  tilt_pub_ = nh_.advertise<std_msgs::Float64>("/neck_tilt_controller/joint_group_position_controller/command", 0, false);
+
   rel_pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/relative_command", 0, false);
   rel_tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/relative_command", 0, false);
+ 
   look_image_srv_ = nh_.advertiseService("/squirrel_view_controller/look_at_image_position", &ViewController::lookAtImagePosition, this);
   look_srv_ = nh_.advertiseService("/squirrel_view_controller/look_at_position", &ViewController::lookAtPosition, this);
   fixate_pantilt_srv_ =  nh_.advertiseService("/squirrel_view_controller/fixate_pantilt", &ViewController::fixatePanTilt, this);
@@ -64,10 +67,10 @@ std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose
   try
   {
     ros::Time now = ros::Time(0);
-    listener_.waitForTransform("/pan_link", point.header.frame_id, now, ros::Duration(3.0));
-    listener_.waitForTransform("/tilt_link", point.header.frame_id, now, ros::Duration(3.0));
-    listener_.transformPoint("/pan_link", now, point, point.header.frame_id, pan);
-    listener_.transformPoint("/tilt_link", now, point, point.header.frame_id, tilt);
+    listener_.waitForTransform("/neck_pan_link", point.header.frame_id, now, ros::Duration(3.0));
+    listener_.waitForTransform("/neck_tilt_link", point.header.frame_id, now, ros::Duration(3.0));
+    listener_.transformPoint("/neck_pan_link", now, point, point.header.frame_id, pan);
+    listener_.transformPoint("/neck_tilt_link", now, point, point.header.frame_id, tilt);
   }
   catch (tf::TransformException ex)
   {
@@ -219,27 +222,6 @@ void ViewController::tiltStateCallback(const dynamixel_msgs::JointState::ConstPt
 
 void ViewController::init()
 {
-  bool have_all = true;
-  if (!ros::topic::waitForMessage<dynamixel_msgs::JointState>(pan_status_topic_, ros::Duration(30.0)))
-  {
-    ROS_WARN("pan controller not running, shutting down the node");
-    have_all = false;
-  }
-  if (!ros::topic::waitForMessage<dynamixel_msgs::JointState>(tilt_status_topic_, ros::Duration(30.0)))
-  {
-    ROS_WARN("tilt controller not running, shutting down the node");
-    have_all = false;
-  }
-  if (have_all)
-  {
-    boost::mutex::scoped_lock lock(joint_mutex_);
-    ROS_INFO("moving to default pan/tilt position: %f / %f [rad])", default_pan_, default_tilt_);
-    movePanTilt(default_pan_, default_tilt_);
-  }
-  else
-  {
-    ros::shutdown();
-  }
 }
 
 bool ViewController::resetPosition(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
@@ -341,7 +323,8 @@ bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPositio
   v = pose2PanTilt(req.target);
   // commented out when using services
   //moveRelativePanTilt(v[0], v[1]);
-  dynamixel_controllers::SetRelativePosition srv;
+  sendDataToMotorController(v[0], v[1]);
+  /*dynamixel_controllers::SetRelativePosition srv;
   srv.request.position = v[0];
   bool pan_success = callServoService(&rel_pan_client_, srv);
 
@@ -349,6 +332,32 @@ bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPositio
   srv.request.position = v[1];
   bool tilt_success = callServoService(&rel_tilt_client_, srv);
   return pan_success && tilt_success;
+*/
+}
+
+void ViewController::sendDataToMotorController(float pan, float tilt)
+{
+  std_msgs::Float64 panMsg, tiltMsg;
+  panMsg.data = pan;
+  tiltMsg.data = tilt;
+  if (std::isfinite(panMsg.data) && std::isfinite(tiltMsg.data))
+  {
+    if (fabs(panMsg.data) > 0.001)
+      rel_pan_pub_.publish(panMsg);
+    else
+      ROS_DEBUG("Relative pan angle: %f (rad)", panMsg.data);
+    
+    if (fabs(tiltMsg.data) > 0.001)
+      rel_tilt_pub_.publish(tiltMsg);
+    else
+      ROS_DEBUG("Relative tilt angle: %f (rad)", tiltMsg.data);
+  }
+  else
+  {
+    ROS_DEBUG("Infinity check failed");
+  }
+  return;
+  
 }
 
 int main(int argc, char **argv)

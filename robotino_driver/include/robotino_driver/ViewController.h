@@ -76,6 +76,7 @@ protected:
   void panStateCallback(const dynamixel_msgs::JointState::ConstPtr &panStateMsg);
   void tiltStateCallback(const dynamixel_msgs::JointState::ConstPtr &tiltStateMsg);
   void publishPoseMarker(geometry_msgs::PoseStamped pose);
+  void sendDataToMotorController(float pan, float tilt);
   std::vector<double> pose2PanTilt(geometry_msgs::PoseStamped pose);
 
 public:
