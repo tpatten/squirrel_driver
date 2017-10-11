@@ -124,9 +124,9 @@ add_executable(kclhand_controller src/kclhand_controller_impedance.cpp)
 target_link_libraries(kclhand_controller ${catkin_LIBRARIES} ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}/libEposCmd.so)
 add_dependencies(kclhand_controller kclhand_control_generate_messages_cpp EposCmd)
 
-add_executable(kclhand_controller_js src/kclhand_controller_js.cpp)
-target_link_libraries(kclhand_controller_js ${catkin_LIBRARIES} ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}/libEposCmd.so)
-add_dependencies(kclhand_controller_js kclhand_control_generate_messages_cpp EposCmd)
+add_executable(kclhand_controller_new src/kclhand_controller_new.cpp)
+target_link_libraries(kclhand_controller_new ${catkin_LIBRARIES} ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}/libEposCmd.so)
+add_dependencies(kclhand_controller_new kclhand_control_generate_messages_cpp EposCmd)
 
 
 

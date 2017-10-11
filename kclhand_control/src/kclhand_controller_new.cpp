@@ -6,7 +6,7 @@
 #include <sensor_msgs/JointState.h>
 #include <kclhand_control/Definitions.h>
 #include <kclhand_control/ActuateHandAction.h>
-#include <kclhand_control/kclhand_controller_js.h>
+#include <kclhand_control/kclhand_controller_new.h>
 
 
 
@@ -53,6 +53,44 @@ KCLHandController::	KCLHandController(std::string name)
   M_handle_ = 0;
   M_node_id_ = 1;
   M_error_code = 0;
+
+  stringstream param_name;
+  
+  param_name.clear();
+  param_name << "lower_workspace_open_conf";
+  if(!nh_.getParam(param_name.str(), lower_workspace_open_conf_))
+    throw runtime_error("missing hand lower workspace open configuration");
+
+  param_name.str("");
+  param_name << "lower_workspace_close_conf";
+  if(!nh_.getParam(param_name.str(), lower_workspace_close_conf_))
+    throw runtime_error("missing hand lower workspace close configuration");
+  
+  param_name.str("");
+  param_name << "upper_workspace_open_conf";
+  if(!nh_.getParam(param_name.str(), upper_workspace_open_conf_))
+    throw runtime_error("missing hand upper workspace open configuration");
+  
+  param_name.str("");
+  param_name << "upper_workspace_close_conf";
+  if(!nh_.getParam(param_name.str(), upper_workspace_close_conf_))
+    throw runtime_error("missing hand upper workspace close configuration");
+
+  param_name.str("");
+  param_name << "lower_to_upper_workspace_seq";
+  if(!nh_.getParam(param_name.str(), lower_to_upper_workspace_seq_))
+    throw runtime_error("missing hand switching configuration from lower to upper workspace");
+
+  param_name.str("");
+  param_name << "upper_to_lower_workspace_seq";
+  if(!nh_.getParam(param_name.str(), upper_to_lower_workspace_seq_))
+    throw runtime_error("missing hand switching configuration from upper to lower workspace");
+  
+  param_name.str("");
+  param_name << "hand_grasping_current";
+  if(!nh_.getParam(param_name.str(), hand_grasping_current_defalut_))
+    throw runtime_error("missing hand default current while executing a grasp");
+
 }
 
 KCLHandController:: ~KCLHandController()
@@ -80,15 +118,19 @@ bool KCLHandController::moveFingerSrvCB(kclhand_control::MoveFinger::Request &re
 
   ROS_INFO("Move Finger Server. Motor ID: %d, Target: %.1f", node_id, target);
   if(!hand_is_initialized_)
-    res.target_reached = false; 
+  {
+    res.target_reached = false;
+    ROS_INFO("The hand is not initialized");
+    return false;
+  }   
   //if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
-  ros::Rate r(30);
+  ros::Rate r(20);
   if(joints_motor_[node_id].enableMotor())
   {
     while(!if_at_target)
     { 
       bool enable_motor = joints_motor_[node_id].enableMotor();
-      ROS_INFO("current joint position: %.1f, motor current: %.1f", joints_sensor_[node_id].getSensorCalibratedValueDeg(), joints_motor_[node_id].getCurrent());     
+      ROS_INFO("Move finger. current joint position: %.1f, motor current: %.1f", joints_sensor_[node_id].getSensorCalibratedValueDeg(), joints_motor_[node_id].getCurrent());     
       if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
       r.sleep();
       timeout--;
@@ -107,11 +149,12 @@ bool KCLHandController::moveFingerSrvCB(kclhand_control::MoveFinger::Request &re
   {
     ROS_INFO("Motor ID: %d, can not be enabled", node_id);
     res.target_reached = false; 
+    return false;
   }
-  res.target_reached = true; 
+  res.target_reached = if_at_target; 
   res.target_result = joints_sensor_[node_id].getSensorCalibratedValueDeg();
   bool disable_motor = joints_motor_[node_id].disableMotor();
-  return true;
+  return if_at_target;
 }
 
 
@@ -233,6 +276,122 @@ bool KCLHandController::moveHandToTarget(const std::vector<double> &target)
 }
 
 
+bool KCLHandController::openHand()
+{
+
+  std::vector<double> hand_open_target;
+  bool palm_sigularity_flag = false;
+
+  // if the hand is in lower workspace
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() < -20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() < -20.0))
+  {
+    hand_open_target = lower_workspace_open_conf_;
+  }
+  // if the hand is in upper workspace
+  else if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    hand_open_target = upper_workspace_open_conf_;
+  }
+  
+  else 
+  {
+    for (unsigned node_id = 0; node_id< NUM_JOINTS; node_id++)
+    {
+      hand_open_target.push_back(joints_sensor_[node_id].getSensorCalibratedValueDeg());
+    }
+    hand_open_target[2] = upper_workspace_open_conf_[2];
+    hand_open_target[3] = upper_workspace_open_conf_[3];
+    hand_open_target[4] = upper_workspace_open_conf_[4];
+  }
+
+
+  bool succeeded = moveHandToTarget(hand_open_target) ? true : false;
+  ROS_INFO("If the hand is opened: %d", succeeded);
+  /*
+  for (unsigned int i = 0; i< NUM_JOINTS; i++)
+  {
+       ROS_INFO("Disable motor ID: %d", i);
+       bool disable_motor = joints_motor_[i].disableMotor();     
+  }
+  */
+  return succeeded;
+
+}
+
+
+
+bool KCLHandController::upperToLowerWorkspace()
+{
+  
+  int steps = upper_to_lower_workspace_seq_.size() / NUM_JOINTS;
+  //ROS_INFO("the step is: %d", steps);
+  int step_count = 0;
+  std::vector<double> target_positions(NUM_JOINTS);
+  for (int i = 0; i < steps; i++)
+  {
+    for(int j = 0 ; j < NUM_JOINTS; j++)
+    {
+      target_positions[j] = upper_to_lower_workspace_seq_[i*NUM_JOINTS+j];
+    }
+
+    bool succeeded = moveHandToTarget(target_positions) ? true : false;
+    if (!succeeded)
+    {
+      ROS_INFO("The hand can not move from upper workspace to lower workspace");
+      break;
+    }
+    step_count++;
+  }
+
+  if (steps == step_count)
+  {
+    ROS_INFO("move from upper workspace to lower workspace done!");
+    return true;
+  }
+  else
+  {
+    ROS_INFO("moves from upper workspace to lower workspace faild!");
+    return false;
+  }
+}
+
+
+bool KCLHandController::lowerToUpperWorkspace()
+{
+  int steps = lower_to_upper_workspace_seq_.size() / NUM_JOINTS;
+  int step_count = 0;
+  std::vector<double> target_positions(NUM_JOINTS);
+  for (int i = 0; i < steps; i++)
+  {
+    for(int j = 0 ; j < NUM_JOINTS; j++)
+    {
+      target_positions[j] = lower_to_upper_workspace_seq_[i*NUM_JOINTS+j];
+      //ROS_INFO("ID: %d, target: %3f", j, target_positions[j]);
+    }
+
+    bool succeeded = moveHandToTarget(target_positions) ? true : false;
+    if (!succeeded)
+    {
+      ROS_INFO("The hand can not move from upper workspace to lower workspace");
+      break;
+    }
+    step_count++;
+  }
+
+  if (steps == step_count)
+  {
+    ROS_INFO("move from lower workspace to upper workspace done!");
+    return true;
+  }
+  else
+  {
+    ROS_INFO("moves from lower workspace to upper workspace faild!");
+    return false;
+  }
+}
+
+
+
 bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Request &req, kclhand_control::HandOperationMode::Response &res)
 {
    unsigned int mode = req.operation_mode;
@@ -247,8 +406,7 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
     for (unsigned int i = 0; i< NUM_JOINTS; i++)
     {
        ROS_INFO("Disable motor ID: %d", i);
-       bool test1 = joints_motor_[i].disableMotor();
-      
+       bool test1 = joints_motor_[i].disableMotor();     
     }
     res.result = 1;
   }
@@ -260,23 +418,49 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
       bool test2 = joints_motor_[i].enableMotor();
       ROS_INFO("Enable Motor ID: %d", i);
     }  
-    res.result = 2;
+    res.result = 1;
   }
-
 
   if(mode == 2)
   {
     // grasping 
-    bool test3 = closingHandForGrasing();
+    bool hand_grasping = closingHandForGrasing();
+    res.result = hand_grasping;
   }
 
 
   if(mode == 3)
   {
-    // grasping 
-    bool test4 = closingHandForGrasingV2();
+    ROS_INFO("Open hand running");
+    res.result = openHand();
   }
 
+  if(mode == 4)
+  {
+    bool if_suc = upperToLowerWorkspace();
+    res.result = if_suc;
+  }
+
+  if(mode == 5)
+  {
+    bool if_suc = lowerToUpperWorkspace();
+    res.result = if_suc;
+  }
+
+  if(mode == 6)
+  {
+    for (unsigned int i = 0; i< NUM_JOINTS; i++)
+    {
+      ROS_INFO("Enable Motor ID: %d, is motor enabled: %d", i, joints_motor_[i].getMotorEnableState());
+    }  
+    res.result = 1;
+  }
+
+
+  
+
+/*
+  // set motor following errors 
   if(mode == 6)
   {
     for (unsigned int i = 0; i< NUM_JOINTS; i++)
@@ -284,7 +468,8 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
        joints_motor_[i].setMaxFollowingError();   
     }
   }
-
+  
+  // read motor default parameters
   if(mode == 7)
   {
     for (unsigned int i = 0; i< NUM_JOINTS; i++)
@@ -295,7 +480,8 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
         joints_motor_[i].getMaxFollowingError());   
     }
   }
-
+  
+  // set motor parameters to apply a larger force 
   if(mode == 8)
   {
     for (unsigned int i = 0; i< NUM_JOINTS; i++)
@@ -306,9 +492,14 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
     }
   }
 
+*/
+
+
+  
+
    //bool success = enableMotor();
 
-   return 3;
+   return true;
 }
 
 // initilize the hand, open the epos2 controller 
@@ -355,7 +546,11 @@ bool KCLHandController::init()
 
   if(openDevice())
     ROS_INFO("Deviced opened");
-  
+  else
+  {
+    ROS_INFO("Deviced not opened");
+    return false;
+  }
     
   joints_sensor_ = new JointSensor[NUM_JOINTS] { JointSensor(nh_,0),
                                                  JointSensor(nh_,1),
@@ -446,44 +641,29 @@ bool KCLHandController::openDevice()
 
 bool KCLHandController::closingHandForGrasing()
 {
-  unsigned int node_id = 2;
-  double grasping_current_set = 150;
-  bool if_object_grasped = false;
-  bool target = 0.;
-
-  ROS_INFO("Move Finger Server. Motor ID: %d, Target: %f", node_id, grasping_current_set);
-  if(!hand_is_initialized_)
-    return false; 
-  bool if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+  std::vector<double> hand_grasping_target(NUM_JOINTS);
   
-  if(joints_motor_[node_id].enableMotor())
+  // if the hand is in lower workspace
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() < -30.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() < -30.0))
   {
-    while(!if_at_target)
-    { 
-      bool enable_motor = joints_motor_[node_id].enableMotor();
-      ROS_INFO("current joint position: %f, motor current: %f", joints_sensor_[node_id].getSensorCalibratedValueDeg(), joints_motor_[node_id].getCurrent());     
-      if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
-      
-      if(fabs(joints_motor_[node_id].getCurrent())>grasping_current_set)
-      {
-        //motor_velocity_ = 0;
-        joints_motor_[node_id].haltVelocityMovement();
-        break;
-      }
-    }
-
+    hand_grasping_target = lower_workspace_close_conf_;
   }
-  return true;
-}
 
-bool KCLHandController::closingHandForGrasingV2()
-{
+  // if the hand is in upper workspace
+  else if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    hand_grasping_target = upper_workspace_close_conf_;
+  }
+  else 
+  {
+    ROS_INFO("The palm is near singular configuration, not suitable for grasping");
+    return false;
+  }
 
-  double hand_grasping_target[5] = {30.0,30.0,-10.0,30.0,-10.0};
+
   int motor_num = NUM_JOINTS;  
-
   unsigned int node_id = 0;
-  double grasping_current_set = 200; //for vienna hand, the valie is 150. move it to yaml file
+  double grasping_current_set = hand_grasping_current_defalut_; //for vienna hand, the valie is 150. move it to yaml file
   bool if_object_grasped = false;
   int at_target_num = 0;
   int current_exceed_num = 0;
@@ -538,7 +718,6 @@ bool KCLHandController::closingHandForGrasingV2()
     ROS_INFO("at target value is %d, time out is %d",at_target_num, timeout);
   }
 
-
   return true;
 }
 
@@ -561,6 +740,11 @@ JointMotor::JointMotor(const ros::NodeHandle &nh, void *epos_handle, const unsig
   if(!nh_.getParam(param_name.str(), motor_direction_))
     {}//throw runtime_error("missing motor node ID for motor ID: %d", motor_id);
 
+  param_name.str("");
+  param_name << "joint_" << joint_id << "/moving_velocity";
+  if(!nh_.getParam(param_name.str(), motor_moving_velocity_))
+    {}//throw runtime_error("missing motor node ID for motor ID: %d", motor_id);
+
   motor_velocity_ = 0;
   motor_move_current_ = 0;
   motor_holding_current_ = 0;
@@ -569,9 +753,24 @@ JointMotor::JointMotor(const ros::NodeHandle &nh, void *epos_handle, const unsig
   max_peak_current_ = 0;
   motor_running_ = false;
 
-  motor_moving_velocity_ = 300;
+  //motor_moving_velocity_ = 300;
 
 }
+
+bool JointMotor::getMotorEnableState()
+{
+  int is_motor_enabled = false ;
+  unsigned int error_code = 0; 
+  if(VCS_GetEnableState(epos_handle_, motor_node_id_, &is_motor_enabled, &error_code) == 0)
+  {
+    ROS_INFO("Faild to get motor ID: %d enable state", motor_node_id_);
+    return false;
+  }
+
+  return is_motor_enabled;
+
+}
+
 
 
 
@@ -822,8 +1021,7 @@ bool JointMotor::moveToTarget(double current_position, double target)
       direction = -1;
     activateVelocityMode();
     motor_velocity_ = motor_moving_velocity_ * direction;
-    moveWithVelocity(motor_velocity_);
-    
+    moveWithVelocity(motor_velocity_);   
   }
   else
   {

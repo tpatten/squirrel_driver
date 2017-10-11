@@ -6,11 +6,11 @@
  * 
  * Provide following functions for the kclhand control
  * 
- * 1. Joint postition control
- * 2. Hand trajectory control 
- * 3. ... 
- * 4. 
- * 5.
+ * 1. Joint postition control for finger
+ * 2. hand configuration control 
+ * 3. grasping
+ * 
+ * September 2017
 */
 
 
@@ -125,6 +125,12 @@ public:
  
 };
 
+/*
+ * The JointSensor Class 
+ *
+ *
+ *
+ */
 
 class JointSensor
 {
@@ -189,7 +195,7 @@ public:
     sensor_b = -sensor_k * zero;
   }
 
-  //get the mean value of the joint sensor raw data
+  //get the mean value from the joint sensor raw data
   void sensorCalibratedValueUpdate(double raw)
   {
     if (temp_joint_raw_value_.empty())
@@ -220,13 +226,18 @@ public:
 
 };
 
-
+/*
+ * The JointMotor class for the epos2 controller (from maxon)
+ * 
+ *
+ *
+ */
 
 class JointMotor
 {
 private:
   
-  static const double POSITION_THRESHOLD = 0.1;
+  static const double POSITION_THRESHOLD = 0.07;
   static const short unsigned int NOMINAL_CURRENT_PALM = 300;
   static const short unsigned int NOMINAL_CURRENT_FINGER = 250; //250
   static const short unsigned int MAX_OUTPUT_CURRENT = 500;
@@ -343,6 +354,7 @@ public:
     return thermal_time_constant_;
   }
 
+  bool getMotorEnableState();
 };
 
 
@@ -390,8 +402,17 @@ private:
   static const unsigned int NUM_JOINTS = 5;
   static const int TIMEOUT_COUNT = 80;
   static const int TIMEOUT_COUNT_FINGER = 300;
-  
 
+
+  std::vector<double> lower_to_upper_workspace_seq_;
+  std::vector<double> upper_to_lower_workspace_seq_;
+  std::vector<double> lower_workspace_open_conf_;
+  std::vector<double> lower_workspace_close_conf_;
+  std::vector<double> upper_workspace_open_conf_;
+  std::vector<double> upper_workspace_close_conf_;
+
+  int hand_grasping_current_defalut_;
+  
 public:
   ros::NodeHandle nh_;
 	KCLHandController(std::string name);
@@ -414,11 +435,15 @@ public:
   bool moveHandSrvCB(kclhand_control::MoveHand::Request &req, kclhand_control::MoveHand::Response &res);
 
   bool closingHandForGrasing();
-  bool closingHandForGrasingV2();
-
+  
   bool resetHandToInitPos();
 
   bool moveHandToTarget(const std::vector<double> &target);
+
+  bool lowerToUpperWorkspace();
+  bool upperToLowerWorkspace();
+  
+  bool openHand();
 };
 
 
