@@ -16,7 +16,7 @@ const double Classificator::PROX_TRIGGER=0.1;    //anything bigger than this tri
 
 Classificator::Classificator() : m_calibrated(false)
 {
-    for(int i=0;i<FINGERS_NUM;++i)
+    for(int i=0;i<FINGERS_NUM+1;++i)
     {
         m_classifications.push_back(CLASS_UNDECIDED);
     }
