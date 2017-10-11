@@ -18,12 +18,15 @@ Here are the several functions
 mode_id = 0, disable all motors
 mode_id = 1, enable all motors
 mode_id = 2, close the hand for a grasping action
-mode_id = 3, switch hand configuration from the upper workspace to lower workspace
-mode_id = 4, switch hand configuration from the lower workspace to upper workspace
+mode_id = 3, open hand
+mode_id = 4, switch hand configuration from the upper workspace to lower workspace
+mode_id = 5, switch hand configuration from the lower workspace to upper workspace
+mode_id = 6, print hand motor enable status
+
 
 ### 2. Finger position control
 	
-	rosservice call /move_finger
+	rosservice call /move_finger 
 
 ### 3. Hand position control
 	
