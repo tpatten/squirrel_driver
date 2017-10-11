@@ -3,7 +3,10 @@
 """
 
 This ROS Node provides an interface for the Monitor attached to the Raspberry Pi.
-All .png files under $(find squirrel_interaction)/resources/media/images are available.
+
+The ros param face_color defines subfolder to look into.
+
+All .png files under $(find squirrel_interaction)/resources/media/images/$(face_color) are available.
 
 """
 
@@ -60,6 +63,7 @@ def main():
         cv2.waitKey(20)
         r.sleep()
     rospy.spin()
+
 
 if __name__ == "__main__":
     main()
