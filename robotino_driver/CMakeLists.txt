@@ -66,17 +66,17 @@ add_executable(
 target_link_libraries(robotino_pan_controller ${catkin_LIBRARIES})
 add_dependencies(robotino_pan_controller robotino_msgs_gencpp)
 
-add_executable(
-  squirrel_view_controller
-  #src/view_controller_node.cpp
-  src/ViewController.cpp
-)
-add_dependencies(squirrel_view_controller squirrel_view_controller_msgs_gencpp)
+#add_executable(
+#  squirrel_view_controller
+#  #src/view_controller_node.cpp
+#  src/ViewController.cpp
+#)
+#add_dependencies(squirrel_view_controller squirrel_view_controller_msgs_gencpp)
 
-target_link_libraries(
-  squirrel_view_controller
-  ${catkin_LIBRARIES}
-)
+#target_link_libraries(
+#  squirrel_view_controller
+#  ${catkin_LIBRARIES}
+#)
 
 add_executable(
   robotino_odometry_node

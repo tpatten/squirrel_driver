@@ -60,6 +60,7 @@ public:
   void PosCommandSub_cb(const trajectory_msgs::JointTrajectory msg);
   std::vector<double> current_pose;
   std::vector<double> command;
+  std::vector<std::string> joint_names;
   std::shared_ptr<squirrel_control::BaseController> base_controller_ = std::make_shared<squirrel_control::BaseController>(nh_, 20);
 };
 
@@ -68,8 +69,24 @@ void ArmController::PosCommandSub_cb(const trajectory_msgs::JointTrajectory msg)
   double cx = current_pose.at(0);
   double cy = current_pose.at(1);
   double ctheta = current_pose.at(2);
+  double command_basex = 0;
+  double command_basey = 0;
+  double command_basez = 0;
+  joint_names = msg.joint_names;
   command = msg.points[0].positions;
-  base_controller_->moveBase( cx+command.at(0), cy+command.at(1), ctheta+command.at(2));
+  for (int i=0; i<joint_names.size(); ++i){
+    if (joint_names.at(i) == "base_jointx"){
+      command_basex = command.at(i);
+    }
+    if (joint_names.at(i) == "base_jointy"){
+      command_basey = command.at(i);
+    }
+    if (joint_names.at(i) == "base_jointz"){
+      command_basez = command.at(i);
+    }
+  }
+    
+  base_controller_->moveBase( cx+command_basex, cy+command_basey, ctheta+command_basez);
 }
 
 int main(int argc, char** argv){

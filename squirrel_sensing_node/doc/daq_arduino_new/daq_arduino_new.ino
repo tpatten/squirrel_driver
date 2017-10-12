@@ -19,7 +19,7 @@ void setup(){
   //can be given to the function below (and matched in ros) but to calibrate it
   //you would need to use something like telnet, teraterm or hyperterminal as the
   //arduino serial monitor struggles to cope with that speed
-  Serial.begin(19200); //initializes the serial port with the pc
+  Serial.begin(9600); //initializes the serial port with the pc
   
   while(!Serial);  //get stuck until you are connected to PC
   
