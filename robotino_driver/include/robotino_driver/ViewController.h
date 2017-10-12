@@ -7,7 +7,7 @@
  * priority of requests, where to move the camera.
  *
  * @author Markus 'Bajo' Bajones bajones@acin.tuwien.ac.at
- * @date Feb 2017
+ * @date Oct 2017
  * @author Michael Zillich zillich@acin.tuwien.ac.at
  * @date Sept 2015
  */
@@ -20,8 +20,6 @@
 #include <squirrel_view_controller_msgs/FixateOnPoseAction.h>
 #include "std_msgs/Float64.h"
 #include <std_srvs/Empty.h>
-#include <dynamixel_controllers/SetSpeed.h>
-#include <dynamixel_msgs/JointState.h>
 #include <geometry_msgs/PointStamped.h>
 #include <tf/transform_listener.h>
 #include <squirrel_view_controller_msgs/LookAtImagePosition.h>
@@ -60,6 +58,7 @@ protected:
   ros::ServiceClient tilt_speed_client_;
   ros::ServiceClient rel_pan_client_;
   ros::ServiceClient rel_tilt_client_;
+  ros::ServiceClient update_joint_states;
 
   float default_pan_, default_tilt_;
   float pan_, tilt_;
@@ -73,16 +72,14 @@ protected:
   bool fixatePanTilt(squirrel_view_controller_msgs::FixatePanTilt::Request &req, squirrel_view_controller_msgs::FixatePanTilt::Response &res);
   bool clearFixation(squirrel_view_controller_msgs::ClearFixation::Request &req, squirrel_view_controller_msgs::ClearFixation::Response &res);
   bool resetPosition(std_srvs::Empty::Request &, std_srvs::Empty::Response &);
-  void panStateCallback(const dynamixel_msgs::JointState::ConstPtr &panStateMsg);
-  void tiltStateCallback(const dynamixel_msgs::JointState::ConstPtr &tiltStateMsg);
   void publishPoseMarker(geometry_msgs::PoseStamped pose);
   void sendDataToMotorController(float pan, float tilt);
   std::vector<double> pose2PanTilt(geometry_msgs::PoseStamped pose);
+  bool updateStates(ros::ServiceClient *client);
 
 public:
   void executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal);
   void init();
-  bool callServoService(ros::ServiceClient *client, dynamixel_controllers::SetRelativePosition srv);
 
   ViewController(std::string name);
   ~ViewController();
