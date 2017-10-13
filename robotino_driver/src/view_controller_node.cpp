@@ -1,9 +1,9 @@
 // view_controller_node.cpp --- 
 // 
 // Filename: view_controller_node.cpp
-// Description: Reset the view controller to starting angle
-// Author: Federico Boniardi
-// Maintainer: boniardi@cs.uni-freiburg.de
+// Description:
+// Author:
+// Maintainer:
 // Created: Tue Mar  3 14:33:01 2015 (+0100)
 // Version: 0.1.0
 // Last-Updated: Wed Mar 4 09:33:03 2015 (+0100)

@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="device" default="/dev/ttyUSB0" />
+  <arg name="device" default="/dev/ttyAirskin" />
 
   <!-- Actual AirSkin node (checks set of pads and publishes arm_bumper)  -->
   <node pkg="airskin" type="airskin" name="airskin" output="screen">

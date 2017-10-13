@@ -12,11 +12,11 @@ const double Classificator::FREE_PAR  = 2.38;    //c
 
 //if a value falls withing this threashold (+/-) it is ambiguos
 const double Classificator::AMBIGUITY_THREAS=0.2; //range: [0.0 1.0]   //TODO this might require adjustments
-const double Classificator::PROX_TRIGGER=-10;    //anything bigger than this triggers a classification
+const double Classificator::PROX_TRIGGER=0.1;    //anything bigger than this triggers a classification
 
 Classificator::Classificator() : m_calibrated(false)
 {
-    for(int i=0;i<FINGERS_NUM;++i)
+    for(int i=0;i<FINGERS_NUM+1;++i)
     {
         m_classifications.push_back(CLASS_UNDECIDED);
     }
@@ -158,6 +158,34 @@ const std::vector<Decision>& Classificator::decide(std::vector<double>& forcePro
         }
 
     }
+    
+    //TODO this has to be properly integrated across the code: overall fingers decision
+    int cntHards=0; //positive: number of hard decisions, negative number of soft decisions
+	int cntSofts=0;
+    for(int i=0;i<FINGERS_NUM && m_calibrated;++i)
+    {
+        if(m_classifications[i]==CLASS_HARD)
+        {
+            ++cntHards;
+        }
+        else if(m_classifications[i]==CLASS_SOFT)
+        {
+            ++cntSofts;
+        }
+    }
+    if(cntHards>cntSofts && (cntHards!=0 || cntSofts!=0)) //if most of fingers are hard but something has been detected
+    {
+        m_classifications.at(3)=(CLASS_HARD);
+    }
+    else if(cntHards<=cntSofts && (cntHards!=0 || cntSofts!=0)) //else, assuming something has been detected, it is soft
+    {
+        m_classifications.at(3)=(CLASS_SOFT);
+    }
+	else	//if equal number of hards and softs or nothing touched, then undecided
+	{
+		m_classifications.at(3)=(CLASS_UNDECIDED);
+	}
+    //----------------------------------------------
 
     return m_classifications;
 }
