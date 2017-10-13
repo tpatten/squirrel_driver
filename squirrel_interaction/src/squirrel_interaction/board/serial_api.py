@@ -56,8 +56,7 @@ class Controller(object):
 
     def move_to(self, motor, degrees):
         """ Moves motor [param 0] to position [param 1] degrees """
-        if not _valid_destination(motor, degrees):
-            return 'Invalid destination %d for %s' % (degrees, motor)
+        degrees = _valid_destination(motor, degrees)
         self._mutex.acquire()
         try:
             message = bytearray(2)
@@ -218,10 +217,10 @@ def _limit_color(color_value):
 
 def _valid_destination(motor, degrees):
     if motor in ['head', 'neck']:
-        return -180 <= degrees <= 180
+        return max(-180, min(180, degrees))
     if motor == 'camera':
-        return -68 <= degrees <= 30
+        return max(-68, min(30, degrees))
     if motor == 'door':
-        return -30000 <= degrees <= 30000
+        return max(-30000, min(30000, degrees))
     return False
 
