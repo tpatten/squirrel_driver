@@ -400,8 +400,15 @@ private:
 
   // hand hardware setting
   static const unsigned int NUM_JOINTS = 5;
-  static const int TIMEOUT_COUNT = 80;
-  static const int TIMEOUT_COUNT_FINGER = 300;
+  static const int TIMEOUT_COUNT_GRASPING = 30;
+  static const int TIMEOUT_COUNT_MOVE_HAND = 80;
+  
+  static const int TIMEOUT_COUNT_FINGER = 100;
+  
+  static const int MOVE_FINGER_LOOP_FREQ = 20;
+  static const int MOVE_HAND_LOOP_FREQ = 30;
+  
+  
 
 
   std::vector<double> lower_to_upper_workspace_seq_;
@@ -444,6 +451,10 @@ public:
   bool upperToLowerWorkspace();
   
   bool openHand();
+
+  bool foldHand();
+
+  bool moveFinger(const unsigned &joint_idx, double const &target_position);
 };
 
 

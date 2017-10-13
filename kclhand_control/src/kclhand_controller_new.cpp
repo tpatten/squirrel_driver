@@ -8,11 +8,7 @@
 #include <kclhand_control/ActuateHandAction.h>
 #include <kclhand_control/kclhand_controller_new.h>
 
-
-
 using namespace std;
-
-
 
 JointSensor::JointSensor(const ros::NodeHandle &nh, const unsigned int &joint_id)
 :nh_(nh),joint_id_(joint_id)
@@ -124,7 +120,7 @@ bool KCLHandController::moveFingerSrvCB(kclhand_control::MoveFinger::Request &re
     return false;
   }   
   //if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
-  ros::Rate r(20);
+  ros::Rate r(MOVE_FINGER_LOOP_FREQ);
   if(joints_motor_[node_id].enableMotor())
   {
     while(!if_at_target)
@@ -153,6 +149,49 @@ bool KCLHandController::moveFingerSrvCB(kclhand_control::MoveFinger::Request &re
   }
   res.target_reached = if_at_target; 
   res.target_result = joints_sensor_[node_id].getSensorCalibratedValueDeg();
+  bool disable_motor = joints_motor_[node_id].disableMotor();
+  return if_at_target;
+}
+
+bool KCLHandController::moveFinger(const unsigned &joint_idx, double const &target_position)
+{
+  unsigned int node_id = joint_idx;
+  double target = target_position;
+  bool if_at_target =false;
+  int timeout = TIMEOUT_COUNT_FINGER;
+
+  ROS_INFO("Move Finger Server. Motor ID: %d, Target: %.1f", node_id, target);
+  if(!hand_is_initialized_)
+  {
+    ROS_INFO("The hand is not initialized");
+    return false;
+  }   
+  //if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+  ros::Rate r(MOVE_FINGER_LOOP_FREQ);
+  if(joints_motor_[node_id].enableMotor())
+  {
+    while(!if_at_target)
+    { 
+      bool enable_motor = joints_motor_[node_id].enableMotor();
+      ROS_INFO("Move finger. current joint position: %.1f, motor current: %.1f", joints_sensor_[node_id].getSensorCalibratedValueDeg(), joints_motor_[node_id].getCurrent());     
+      if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+      r.sleep();
+      timeout--;
+
+      if (timeout <=0)
+      {
+        bool disable_motor = joints_motor_[node_id].disableMotor();      
+        ROS_INFO("Time out, can not reach the target");
+        return false;
+      }
+    }
+  }
+  else
+  {
+    ROS_INFO("Motor ID: %d, can not be enabled", node_id);
+    return false;
+  }
+
   bool disable_motor = joints_motor_[node_id].disableMotor();
   return if_at_target;
 }
@@ -225,7 +264,7 @@ bool KCLHandController::moveHandSrvCB(kclhand_control::MoveHand::Request &req, k
 
 bool KCLHandController::moveHandToTarget(const std::vector<double> &target)
 {
-  int timeout = TIMEOUT_COUNT;
+  int timeout = TIMEOUT_COUNT_MOVE_HAND;
   int motor_num = NUM_JOINTS;
   if((int)target.size() != motor_num)
   {
@@ -242,7 +281,7 @@ bool KCLHandController::moveHandToTarget(const std::vector<double> &target)
   if(!hand_is_initialized_)
     return false; 
 
-  ros::Rate r(30);
+  ros::Rate r(MOVE_HAND_LOOP_FREQ);
   int at_target_num = 0;
   bool if_at_target =false;
 
@@ -318,11 +357,60 @@ bool KCLHandController::openHand()
 
 }
 
+bool KCLHandController::foldHand()
+{ 
+
+  std::vector<double> fold_hand_target;
+  fold_hand_target = lower_workspace_open_conf_;
+  bool fold_hand_suc = false;
+  // if the hand is in upper workspace
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    //go to lower workspace first
+    ROS_INFO("The hand is in upper workspace, so move it to lower workspace first");
+    //switch workspaces
+    bool if_suc = upperToLowerWorkspace();
+    if(!if_suc)
+    {
+      ROS_INFO("Hand moves to lower workspace failed!");
+      return false;
+    } 
+  }
+
+  bool succeeded = moveHandToTarget(fold_hand_target) ? true : false;
+  if(!succeeded)
+  {
+    ROS_INFO("The hand is in lower workspace, but cannot fold");
+    return false;
+  }
+  
+  fold_hand_suc = moveFinger (3, 70.0);
+  if(fold_hand_suc)
+  {
+    fold_hand_suc = moveFinger(2, 60.0);
+  }
+  if(fold_hand_suc)
+  {
+    fold_hand_suc = moveFinger(4, 50.0);
+  }
+
+  if(!fold_hand_suc)
+    return false;
+  else 
+    return fold_hand_suc;
+}
 
 
 bool KCLHandController::upperToLowerWorkspace()
 {
   
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() < -20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() < -20.0))
+  {
+    ROS_INFO("The hand is in lower workspace now");
+    return false;
+  }
+
+
   int steps = upper_to_lower_workspace_seq_.size() / NUM_JOINTS;
   //ROS_INFO("the step is: %d", steps);
   int step_count = 0;
@@ -358,6 +446,13 @@ bool KCLHandController::upperToLowerWorkspace()
 
 bool KCLHandController::lowerToUpperWorkspace()
 {
+
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    ROS_INFO("The hand is in upper workspace now");
+    return false;
+  }
+  
   int steps = lower_to_upper_workspace_seq_.size() / NUM_JOINTS;
   int step_count = 0;
   std::vector<double> target_positions(NUM_JOINTS);
@@ -456,6 +551,12 @@ bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Reques
     res.result = 1;
   }
 
+ if(mode ==9) 
+ {
+    ROS_INFO("start folding the hand");
+    bool foldhand_result = foldHand();
+    res.result = foldhand_result;
+ }
 
   
 
@@ -669,13 +770,13 @@ bool KCLHandController::closingHandForGrasing()
   int current_exceed_num = 0;
   bool target = 0.;
   bool if_at_target;
-  int timeout = TIMEOUT_COUNT;
+  int timeout = TIMEOUT_COUNT_GRASPING;
 
-  ros::Rate r(30);
+  ros::Rate r(MOVE_HAND_LOOP_FREQ);
   if(!hand_is_initialized_)
     return false; 
  
-  while(at_target_num < 5)
+  while(at_target_num < NUM_JOINTS)
   { 
     at_target_num = 0;
     for(node_id = 0; node_id<motor_num; node_id++) 
