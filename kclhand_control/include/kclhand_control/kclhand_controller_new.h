@@ -400,10 +400,9 @@ private:
 
   // hand hardware setting
   static const unsigned int NUM_JOINTS = 5;
-  static const int TIMEOUT_COUNT_GRASPING = 30;
+  static const int TIMEOUT_COUNT_GRASPING = 50;
   static const int TIMEOUT_COUNT_MOVE_HAND = 80;
-  
-  static const int TIMEOUT_COUNT_FINGER = 100;
+  static const int TIMEOUT_COUNT_FINGER = 200;
   
   static const int MOVE_FINGER_LOOP_FREQ = 20;
   static const int MOVE_HAND_LOOP_FREQ = 30;
