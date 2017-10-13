@@ -1,650 +1,1213 @@
-/**
- * Controls the KCL Metahand
- * 
- * Provides action interfaces for opening, closing etc.
- * Follows the ROS tutorial on action servers and the Maxon tutorial on the
- * EPOS library.
- *
- * @author Michael Zillich <michael.zillich@tuwien.ac.at>
- * @date September 2016
- */
-
-//#include <string>
-//#include <string.h>
 #include <sstream>
 #include <ros/ros.h>
+#include <std_msgs/Bool.h> 
 #include <std_msgs/Int16MultiArray.h>
+#include <std_msgs/Float64MultiArray.h>
 #include <sensor_msgs/JointState.h>
 #include <kclhand_control/Definitions.h>
 #include <kclhand_control/ActuateHandAction.h>
-#include <kclhand_control/kclhand_controller.h>
+#include <kclhand_control/kclhand_controller_new.h>
 
 using namespace std;
 
-template<class T>
-static T clamp(T val, T min, T max)
+JointSensor::JointSensor(const ros::NodeHandle &nh, const unsigned int &joint_id)
+:nh_(nh),joint_id_(joint_id)
 {
-  if(val < min)
-    val = min;
-  else if(val > max)
-    val = max;
-  return val;
+  stringstream param_name;
+  
+  param_name.clear();
+  param_name << "joint_" << joint_id_ << "/sensor_calibration";
+  if(!nh_.getParam(param_name.str(), joint_sensor_zero_value_))
+    throw runtime_error("missing sensor_calibration");
+  setJointValueZero(joint_sensor_zero_value_);
+
+
+  param_name.str("");
+  param_name << "joint_" << joint_id_ << "/sensor_direction";
+  if(!nh_.getParam(param_name.str(), sensor_direction_))
+    throw runtime_error("missing sensor_direction");
+
+  param_name.str("");
+  param_name << "joint_" << joint_id_ << "/sensor_range_min";
+  if(!nh_.getParam(param_name.str(), joint_value_min_))
+    throw runtime_error("missing sensor_range_min");
+
+  param_name.str("");
+  param_name << "joint_" << joint_id_ << "/sensor_range_max";
+  if(!nh_.getParam(param_name.str(), joint_value_max_))
+    throw runtime_error("missing sensor_range_max");
+
+  joint_value_valid_ = true;
+
+  //ROS_INFO("cali %d", sensor_direction_);
 }
 
-JointController::JointController(ros::NodeHandle &nh, void *epos_handle, int num)
-: epos_handle_(epos_handle)
+
+
+KCLHandController::	KCLHandController(std::string name)
 {
+  M_handle_ = 0;
+  M_node_id_ = 1;
+  M_error_code = 0;
+
+  stringstream param_name;
+  
+  param_name.clear();
+  param_name << "lower_workspace_open_conf";
+  if(!nh_.getParam(param_name.str(), lower_workspace_open_conf_))
+    throw runtime_error("missing hand lower workspace open configuration");
+
+  param_name.str("");
+  param_name << "lower_workspace_close_conf";
+  if(!nh_.getParam(param_name.str(), lower_workspace_close_conf_))
+    throw runtime_error("missing hand lower workspace close configuration");
+  
+  param_name.str("");
+  param_name << "upper_workspace_open_conf";
+  if(!nh_.getParam(param_name.str(), upper_workspace_open_conf_))
+    throw runtime_error("missing hand upper workspace open configuration");
+  
+  param_name.str("");
+  param_name << "upper_workspace_close_conf";
+  if(!nh_.getParam(param_name.str(), upper_workspace_close_conf_))
+    throw runtime_error("missing hand upper workspace close configuration");
+
+  param_name.str("");
+  param_name << "lower_to_upper_workspace_seq";
+  if(!nh_.getParam(param_name.str(), lower_to_upper_workspace_seq_))
+    throw runtime_error("missing hand switching configuration from lower to upper workspace");
+
+  param_name.str("");
+  param_name << "upper_to_lower_workspace_seq";
+  if(!nh_.getParam(param_name.str(), upper_to_lower_workspace_seq_))
+    throw runtime_error("missing hand switching configuration from upper to lower workspace");
+  
+  param_name.str("");
+  param_name << "hand_grasping_current";
+  if(!nh_.getParam(param_name.str(), hand_grasping_current_defalut_))
+    throw runtime_error("missing hand default current while executing a grasp");
+
+}
+
+KCLHandController:: ~KCLHandController()
+{
+ bool close_result;
+ for(unsigned i = 0; i<NUM_JOINTS ; i++)
+ {
+   close_result = joints_motor_[i].disableMotor();
+ }
+ cout << "close device: "<< closeDevice() << endl;
+
+ delete [] joints_sensor_;
+ delete [] joints_motor_;
+ joints_sensor_ = NULL;
+ joints_motor_ = NULL;
+}
+
+// consider the motor velocity, current, and if the configuration is valid
+bool KCLHandController::moveFingerSrvCB(kclhand_control::MoveFinger::Request &req, kclhand_control::MoveFinger::Response &res)
+{
+  unsigned int node_id = req.joint_idx;
+  double target = req.target;
+  bool if_at_target =false;
+  int timeout = TIMEOUT_COUNT_FINGER;
+
+  ROS_INFO("Move Finger Server. Motor ID: %d, Target: %.1f", node_id, target);
+  if(!hand_is_initialized_)
+  {
+    res.target_reached = false;
+    ROS_INFO("The hand is not initialized");
+    return false;
+  }   
+  //if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+  ros::Rate r(MOVE_FINGER_LOOP_FREQ);
+  if(joints_motor_[node_id].enableMotor())
+  {
+    while(!if_at_target)
+    { 
+      bool enable_motor = joints_motor_[node_id].enableMotor();
+      ROS_INFO("Move finger. current joint position: %.1f, motor current: %.1f", joints_sensor_[node_id].getSensorCalibratedValueDeg(), joints_motor_[node_id].getCurrent());     
+      if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+      r.sleep();
+      timeout--;
+
+      if (timeout <=0)
+      {
+        bool disable_motor = joints_motor_[node_id].disableMotor();      
+        ROS_INFO("Time out, can not reach the target");
+        res.target_reached = false; 
+        res.target_result = joints_sensor_[node_id].getSensorCalibratedValueDeg();
+        return false;
+      }
+    }
+  }
+  else
+  {
+    ROS_INFO("Motor ID: %d, can not be enabled", node_id);
+    res.target_reached = false; 
+    return false;
+  }
+  res.target_reached = if_at_target; 
+  res.target_result = joints_sensor_[node_id].getSensorCalibratedValueDeg();
+  bool disable_motor = joints_motor_[node_id].disableMotor();
+  return if_at_target;
+}
+
+bool KCLHandController::moveFinger(const unsigned &joint_idx, double const &target_position)
+{
+  unsigned int node_id = joint_idx;
+  double target = target_position;
+  bool if_at_target =false;
+  int timeout = TIMEOUT_COUNT_FINGER;
+
+  ROS_INFO("Move Finger Server. Motor ID: %d, Target: %.1f", node_id, target);
+  if(!hand_is_initialized_)
+  {
+    ROS_INFO("The hand is not initialized");
+    return false;
+  }   
+  //if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+  ros::Rate r(MOVE_FINGER_LOOP_FREQ);
+  if(joints_motor_[node_id].enableMotor())
+  {
+    while(!if_at_target)
+    { 
+      bool enable_motor = joints_motor_[node_id].enableMotor();
+      ROS_INFO("Move finger. current joint position: %.1f, motor current: %.1f", joints_sensor_[node_id].getSensorCalibratedValueDeg(), joints_motor_[node_id].getCurrent());     
+      if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+      r.sleep();
+      timeout--;
+
+      if (timeout <=0)
+      {
+        bool disable_motor = joints_motor_[node_id].disableMotor();      
+        ROS_INFO("Time out, can not reach the target");
+        return false;
+      }
+    }
+  }
+  else
+  {
+    ROS_INFO("Motor ID: %d, can not be enabled", node_id);
+    return false;
+  }
+
+  bool disable_motor = joints_motor_[node_id].disableMotor();
+  return if_at_target;
+}
+
+
+bool KCLHandController::moveHandSrvCB(kclhand_control::MoveHand::Request &req, kclhand_control::MoveHand::Response &res)
+{
+
+  std::vector<double> hand_target;
+  int motor_num = NUM_JOINTS;
+
+  if((int)req.target.size() != motor_num)
+  {
+    ROS_INFO("KCLHandController: wrong number of joint target values received. Please check and try again");
+    return false;
+  }
+    
+  for(int i = 0; i<motor_num; i++)
+  {
+    hand_target.push_back(req.target[i]);
+    ROS_INFO("Motor ID: %d, target joint position: %.1f",i, hand_target[i]);
+    ROS_INFO("Motor ID: %d, current joint position: %.1f",i, joints_sensor_[i].getSensorCalibratedValueDeg());
+  }
+
+  res.target_reached = moveHandToTarget(hand_target) ? true : false;
+  
+  for(int i = 0; i<motor_num; i++)
+  {
+    res.target_result.resize(motor_num);
+    res.target_result[i] = joints_sensor_[i].getSensorCalibratedValueDeg();
+    bool enable_motor = joints_motor_[i].enableMotor();
+  }
+
+  return true;
+  
+  /*
+  bool if_at_target =false;
+  int at_target_num = 0;
+  
+  if(!hand_is_initialized_)
+    res.target_reached = false; 
+  //ros::Rate r(30);
+  // /if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+  // defibe timeout 
+  while(at_target_num < motor_num)
+  { 
+    at_target_num = 0;
+    for(int node_id = 0; node_id<motor_num; node_id++) 
+    { 
+      double target = hand_target[node_id];
+      bool enable_motor = joints_motor_[node_id].enableMotor();
+      ROS_INFO("Motor ID: %d, current joint position: %.1f",node_id, joints_sensor_[node_id].getSensorCalibratedValueDeg());     
+      if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));
+      if(if_at_target)
+        at_target_num++;
+    }
+    //r.sleep();
+  }
+  */
+
+
+
+  //return target position, disable motors when target is reached to save power and erase noise
+
+  
+
+
+}
+
+
+bool KCLHandController::moveHandToTarget(const std::vector<double> &target)
+{
+  int timeout = TIMEOUT_COUNT_MOVE_HAND;
+  int motor_num = NUM_JOINTS;
+  if((int)target.size() != motor_num)
+  {
+    ROS_INFO("KCLHandController: wrong number of joint target values received. Please check and try again");
+    return false;
+  }
+
+  for(int i = 0; i<motor_num; i++)
+  {
+    ROS_INFO("Motor ID: %d, target joint position: %.1f",i, target[i]);
+    ROS_INFO("Motor ID: %d, current joint position: %.1f",i, joints_sensor_[i].getSensorCalibratedValueDeg());
+  }
+
+  if(!hand_is_initialized_)
+    return false; 
+
+  ros::Rate r(MOVE_HAND_LOOP_FREQ);
+  int at_target_num = 0;
+  bool if_at_target =false;
+
+  while(at_target_num < motor_num)
+  { 
+    at_target_num = 0;
+    for(int node_id = 0; node_id<motor_num; node_id++) 
+    { 
+      double target_pos = target[node_id];
+      bool enable_motor = joints_motor_[node_id].enableMotor();
+      ROS_INFO("Motor ID: %d, current joint position: %.1f. current: %.1f",node_id, joints_sensor_[node_id].getSensorCalibratedValueDeg(),joints_motor_[node_id].getCurrent());     
+      if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target_pos));
+      if(if_at_target)
+        at_target_num++;
+    }
+    r.sleep();
+    timeout--;
+
+    if (timeout <=0)
+    {
+      for(int node_id = 0; node_id<motor_num; node_id++) 
+      {
+        bool disable_motor = joints_motor_[node_id].disableMotor();
+      }      
+      at_target_num = 6;
+      ROS_INFO("Time out, can not reach the target");
+      return false;
+    }
+  }
+  return true;
+}
+
+
+bool KCLHandController::openHand()
+{
+
+  std::vector<double> hand_open_target;
+  bool palm_sigularity_flag = false;
+
+  // if the hand is in lower workspace
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() < -20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() < -20.0))
+  {
+    hand_open_target = lower_workspace_open_conf_;
+  }
+  // if the hand is in upper workspace
+  else if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    hand_open_target = upper_workspace_open_conf_;
+  }
+  
+  else 
+  {
+    for (unsigned node_id = 0; node_id< NUM_JOINTS; node_id++)
+    {
+      hand_open_target.push_back(joints_sensor_[node_id].getSensorCalibratedValueDeg());
+    }
+    hand_open_target[2] = upper_workspace_open_conf_[2];
+    hand_open_target[3] = upper_workspace_open_conf_[3];
+    hand_open_target[4] = upper_workspace_open_conf_[4];
+  }
+
+
+  bool succeeded = moveHandToTarget(hand_open_target) ? true : false;
+  ROS_INFO("If the hand is opened: %d", succeeded);
+  /*
+  for (unsigned int i = 0; i< NUM_JOINTS; i++)
+  {
+       ROS_INFO("Disable motor ID: %d", i);
+       bool disable_motor = joints_motor_[i].disableMotor();     
+  }
+  */
+  return succeeded;
+
+}
+
+bool KCLHandController::foldHand()
+{ 
+
+  std::vector<double> fold_hand_target;
+  fold_hand_target = lower_workspace_open_conf_;
+  bool fold_hand_suc = false;
+  // if the hand is in upper workspace
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    //go to lower workspace first
+    ROS_INFO("The hand is in upper workspace, so move it to lower workspace first");
+    //switch workspaces
+    bool if_suc = upperToLowerWorkspace();
+    if(!if_suc)
+    {
+      ROS_INFO("Hand moves to lower workspace failed!");
+      return false;
+    } 
+  }
+
+  bool succeeded = moveHandToTarget(fold_hand_target) ? true : false;
+  if(!succeeded)
+  {
+    ROS_INFO("The hand is in lower workspace, but cannot fold");
+    return false;
+  }
+  
+  fold_hand_suc = moveFinger (3, 80.0);
+  if(fold_hand_suc)
+  {
+    fold_hand_suc = moveFinger(2, 35.0);
+  }
+  if(fold_hand_suc)
+  {
+    fold_hand_suc = moveFinger(4, 28.0);
+  }
+
+  for (unsigned int i = 0; i< NUM_JOINTS; i++)
+  {
+    ROS_INFO("Disable motor ID: %d", i);
+    bool test1 = joints_motor_[i].disableMotor();     
+  }
+
+  if(!fold_hand_suc)
+    return false;
+  else 
+    return fold_hand_suc;
+}
+
+
+bool KCLHandController::upperToLowerWorkspace()
+{
+  
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() < -20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() < -20.0))
+  {
+    ROS_INFO("The hand is in lower workspace now");
+    return false;
+  }
+
+
+  int steps = upper_to_lower_workspace_seq_.size() / NUM_JOINTS;
+  //ROS_INFO("the step is: %d", steps);
+  int step_count = 0;
+  std::vector<double> target_positions(NUM_JOINTS);
+  for (int i = 0; i < steps; i++)
+  {
+    for(int j = 0 ; j < NUM_JOINTS; j++)
+    {
+      target_positions[j] = upper_to_lower_workspace_seq_[i*NUM_JOINTS+j];
+    }
+
+    bool succeeded = moveHandToTarget(target_positions) ? true : false;
+    if (!succeeded)
+    {
+      ROS_INFO("The hand can not move from upper workspace to lower workspace");
+      break;
+    }
+    step_count++;
+  }
+
+  if (steps == step_count)
+  {
+    ROS_INFO("move from upper workspace to lower workspace done!");
+    return true;
+  }
+  else
+  {
+    ROS_INFO("moves from upper workspace to lower workspace faild!");
+    return false;
+  }
+}
+
+
+bool KCLHandController::lowerToUpperWorkspace()
+{
+
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    ROS_INFO("The hand is in upper workspace now");
+    return false;
+  }
+  
+  int steps = lower_to_upper_workspace_seq_.size() / NUM_JOINTS;
+  int step_count = 0;
+  std::vector<double> target_positions(NUM_JOINTS);
+  for (int i = 0; i < steps; i++)
+  {
+    for(int j = 0 ; j < NUM_JOINTS; j++)
+    {
+      target_positions[j] = lower_to_upper_workspace_seq_[i*NUM_JOINTS+j];
+      //ROS_INFO("ID: %d, target: %3f", j, target_positions[j]);
+    }
+
+    bool succeeded = moveHandToTarget(target_positions) ? true : false;
+    if (!succeeded)
+    {
+      ROS_INFO("The hand can not move from upper workspace to lower workspace");
+      break;
+    }
+    step_count++;
+  }
+
+  if (steps == step_count)
+  {
+    ROS_INFO("move from lower workspace to upper workspace done!");
+    return true;
+  }
+  else
+  {
+    ROS_INFO("moves from lower workspace to upper workspace faild!");
+    return false;
+  }
+}
+
+
+
+bool KCLHandController::handModeSrvCB(kclhand_control::HandOperationMode::Request &req, kclhand_control::HandOperationMode::Response &res)
+{
+   unsigned int mode = req.operation_mode;
+
+   //ROS_INFO("Move Finger Server. Motor ID: %d, Target: %f", node_id, target);
+  if(!hand_is_initialized_)
+    res.result = 0;
+
+  if(mode == 0) //disable all motors
+  {
+    ROS_INFO("Mode = 0");
+    for (unsigned int i = 0; i< NUM_JOINTS; i++)
+    {
+       ROS_INFO("Disable motor ID: %d", i);
+       bool test1 = joints_motor_[i].disableMotor();     
+    }
+    res.result = 1;
+  }
+
+  if(mode == 1) //enable all motors
+  {
+    for (unsigned int i = 0; i< NUM_JOINTS; i++)
+    {
+      bool test2 = joints_motor_[i].enableMotor();
+      ROS_INFO("Enable Motor ID: %d", i);
+    }  
+    res.result = 1;
+  }
+
+  if(mode == 2)
+  {
+    // grasping 
+    bool hand_grasping = closingHandForGrasing();
+    res.result = hand_grasping;
+  }
+
+
+  if(mode == 3)
+  {
+    ROS_INFO("Open hand running");
+    res.result = openHand();
+  }
+
+  if(mode == 4)
+  {
+    bool if_suc = upperToLowerWorkspace();
+    res.result = if_suc;
+  }
+
+  if(mode == 5)
+  {
+    bool if_suc = lowerToUpperWorkspace();
+    res.result = if_suc;
+  }
+
+  if(mode == 6)
+  {
+    for (unsigned int i = 0; i< NUM_JOINTS; i++)
+    {
+      ROS_INFO("Enable Motor ID: %d, is motor enabled: %d", i, joints_motor_[i].getMotorEnableState());
+    }  
+    res.result = 1;
+  }
+
+ if(mode ==9) 
+ {
+    ROS_INFO("start folding the hand");
+    bool foldhand_result = foldHand();
+    res.result = foldhand_result;
+ }
+
+  
+
+/*
+  // set motor following errors 
+  if(mode == 6)
+  {
+    for (unsigned int i = 0; i< NUM_JOINTS; i++)
+    {
+       joints_motor_[i].setMaxFollowingError();   
+    }
+  }
+  
+  // read motor default parameters
+  if(mode == 7)
+  {
+    for (unsigned int i = 0; i< NUM_JOINTS; i++)
+    {
+       joints_motor_[i].getDCMotorParameter(); 
+       ROS_INFO("motor ID: %d, nominal_current: %d, max_output_current_: %d, thermal_time_constant_: %d, max_following_error: %d", i, 
+        joints_motor_[i].getNominalCurrent(), joints_motor_[i].getMaxOutputCurrent(), joints_motor_[i].getThermalTimeConstant(), 
+        joints_motor_[i].getMaxFollowingError());   
+    }
+  }
+  
+  // set motor parameters to apply a larger force 
+  if(mode == 8)
+  {
+    for (unsigned int i = 0; i< NUM_JOINTS; i++)
+    {
+       joints_motor_[i].setDCMotorParameter(); 
+       //ROS_INFO("motor ID: %d, nominal_current: %d, max_output_current_: %d, thermal_time_constant_: %d", i, 
+        //oints_motor_[i].nominal_current_, joints_motor_[i].max_output_current_, joints_motor_[i].thermal_time_constant_);   
+    }
+  }
+
+*/
+
+
+  
+
+   //bool success = enableMotor();
+
+   return true;
+}
+
+// initilize the hand, open the epos2 controller 
+bool KCLHandController::init()
+{
+	hand_is_initialized_ = false;
+  has_new_goal_ = false;
+	
+  // ros setting, 
+  joint_raw_value_sub_ = nh_.subscribe("joint_value_arduino", 1, &KCLHandController::jointSensorValueCB, this);
+	joint_state_pub_ = nh_.advertise<sensor_msgs::JointState>("active_joint_states", 1);
+	move_finger_srv_server_ = nh_.advertiseService("move_finger", &KCLHandController::moveFingerSrvCB, this);
+  move_hand_srv_server_ = nh_.advertiseService("move_hand", &KCLHandController::moveHandSrvCB, this);
+  metahand_mode_srv_server_ = nh_.advertiseService("hand_operation_mode", &KCLHandController::handModeSrvCB, this);
+ 
+
+  // epos motor setting 
   stringstream param_name;
 
   param_name.clear();
-  param_name << "joint_" << num << "/node_id";
-  if(!nh.getParam(param_name.str(), node_id_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/node_id");
+  param_name << "hand_controller_device_name";
+  if(!nh_.getParam(param_name.str(), M_DEVICENAME_NAME_))
+    throw runtime_error("missing ROS parameter for hand_controller_device_name");
 
   param_name.str("");
-  param_name << "joint_" << num << "/name";
-  if(!nh.getParam(param_name.str(), name_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/name");
+  param_name << "hand_controller_protocol_stack_name";
+  if(!nh_.getParam(param_name.str(), M_PROTOCAL_NAME_))
+    throw runtime_error("missing ROS parameter for hand_controller_protocol_stack_name");
 
   param_name.str("");
-  param_name << "joint_" << num << "/sensor_direction";
-  if(!nh.getParam(param_name.str(), sensor_direction_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/sensor_direction");
+  param_name << "hand_controller_interface_name";
+  if(!nh_.getParam(param_name.str(), M_INTERFACE_))
+    throw runtime_error("missing ROS parameter for hand_controller_interface_name");
 
   param_name.str("");
-  param_name << "joint_" << num << "/motor_direction";
-  if(!nh.getParam(param_name.str(), motor_direction_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/motor_direction");
-
-  double zero = 0.;
-  param_name.str("");
-  param_name << "joint_" << num << "/sensor_calibration";
-  if(!nh.getParam(param_name.str(), zero))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/sensor_calibration");
-  calibration_.setZero(zero);
+  param_name << "hand_controller_port_name";
+  if(!nh_.getParam(param_name.str(), M_PORTNAME_))
+    throw runtime_error("missing ROS parameter for hand_controller_port_name");
 
   param_name.str("");
-  param_name << "joint_" << num << "/max_velocity";
-  if(!nh.getParam(param_name.str(), max_velocity_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/max_velocity");
+  param_name << "hand_controller_baudrate";
+  if(!nh_.getParam(param_name.str(), M_BAUDRATE_))
+    throw runtime_error("missing ROS parameter for hand_controller_baudrate");
 
-  param_name.str("");
-  param_name << "joint_" << num << "/max_current";
-  if(!nh.getParam(param_name.str(), max_sustained_current_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/max_current");
-
-  param_name.str("");
-  param_name << "joint_" << num << "/max_peak_current";
-  if(!nh.getParam(param_name.str(), max_peak_current_))
-    throw runtime_error("JointController: missing ROS parameter for joint_X/max_eeak_current");
-
-  position_ = 0.;
-  current_ = 0.;
-  target_ = 0.;
-  velocity_ = 0.;
-  motor_running_ = false;
-  target_reached_ = false;
-
-  startMotor();
-}
-
-JointController::~JointController()
-{
-  stopMotor();
-  reset();
-}
-
-void JointController::getErrors()
-{
-  // number of actual errors
-  unsigned char nbOfDeviceError = 0;
-  // error code from function
-  unsigned int error_code;
-  //error code from device
-  unsigned int deviceErrorCode = 0;
-
-  // get number of device errors
-  if(VCS_GetNbOfDeviceError(epos_handle_, node_id_, &nbOfDeviceError, &error_code))
-  {
-    //  read device error code
-    for(unsigned char errorNumber = 1; errorNumber <= nbOfDeviceError; errorNumber++)
-    {
-      if(VCS_GetDeviceErrorCode(epos_handle_, node_id_, errorNumber, &deviceErrorCode, &error_code))
-      {
-        ROS_INFO("Maxon Motor EPOS: joint %30s (node id %d) error # %d",
-                  name_.c_str(), (int)node_id_, (int)deviceErrorCode); 
-      }
-      else
-        ROS_INFO("Maxon Motor EPOS: failed to get failures, really sucks");
-    }
-  }
-  else
-    ROS_INFO("Maxon Motor EPOS: failed to get failures, really sucks");
-}
-
-void JointController::startMotor()
-{
-  getErrors();
-
-  int is_fault = 0;
-  int is_enabled = 0;
-  unsigned int error_code;
-
-  if(VCS_GetFaultState(epos_handle_, node_id_, &is_fault, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to get node fault state");
-  if(is_fault)
-  {
-    std::stringstream msg;
-    msg << "clear fault, node = '" << node_id_ << "'";
-    ROS_INFO("%s", msg.str().c_str());
-
-    if(VCS_ClearFault(epos_handle_, node_id_, &error_code) == 0)
-      throw runtime_error("Maxon Motor EPOS: failed to clear node fault state");
-  }
-
-  if(VCS_GetEnableState(epos_handle_, node_id_, &is_enabled, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to get node enable state");
-  if(!is_enabled)
-  {
-    if(VCS_SetEnableState(epos_handle_, node_id_, &error_code) == 0)
-      throw runtime_error("Maxon Motor EPOS: failed to enable node");
-  }
-}
-
-void JointController::stopMotor()
-{
-  unsigned int error_code;
-  if(VCS_SetDisableState(epos_handle_, node_id_, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to disable node");
-}
-
-void JointController::reset()
-{
-  unsigned int error_code;
-  if(VCS_ResetDevice(epos_handle_, node_id_, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to reset node");
-}
-
-void JointController::activateVelocityMode()
-{
-  unsigned int error_code = 0;
-  // apparently I have to call this every time to clear errors
-  startMotor();
-  // TODO: why profile mode? -> check
-  if(VCS_ActivateProfileVelocityMode(epos_handle_, node_id_, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to set profile velocity mode");
-}
-
-void JointController::moveWithVelocity(double velocity)
-{
-  unsigned int error_code = 0;
-  if(VCS_MoveWithVelocity(epos_handle_, node_id_, (long)velocity*motor_direction_, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to move with velocity");
-}
-
-void JointController::haltVelocityMovement()
-{
-  unsigned int error_code = 0;
-  if(VCS_HaltVelocityMovement(epos_handle_, node_id_, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to halt velocity movement");
-}
-
-void JointController::activateCurrentMode()
-{
-  unsigned int error_code = 0;
-  if(VCS_ActivateCurrentMode(epos_handle_, node_id_, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to activate current mode");
-}
-
-void JointController::setCurrent(double current)
-{
-  unsigned int error_code = 0;
-  if(VCS_SetCurrentMust(epos_handle_, node_id_, (short)current*motor_direction_, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to set current");
-}
-
-double JointController::getCurrent()
-{
-  unsigned int error_code = 0;
-  short current = 0.;
-  if(VCS_GetCurrentIsAveraged(epos_handle_, node_id_, &current, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to get current");
-  return (double)current;
-}
-
-bool JointController::startMoveToTarget(double target_position)
-{
-  static bool first_call = true;  // HACK: only move the palm ONCE with the first move
-
-  target_ = target_position;
-  if(!isAtPosition(target_, 0))
-  {
-    activateVelocityMode();
-    // set motion direction depending on where target is relative to current position
-    int direction = 0;
-    if(position_ <  target_)
-      direction = 1;
-    else if(position_ > target_)
-      direction = -1;
-    // else: leave 0
-    velocity_ = direction*max_velocity_;
-    moveWithVelocity(velocity_);
-    motor_running_ = true;
-    target_reached_ = false;
-
-    ROS_INFO("START      %30s: pos: %5.3lf  target: %5.3lf  vel: %5.0lf",
-             name_.c_str(), position_, target_, velocity_);
-  }
+  if(openDevice())
+    ROS_INFO("Deviced opened");
   else
   {
-    velocity_ = 0;
-    motor_running_ = false;
-    target_reached_ = true;
+    ROS_INFO("Deviced not opened");
+    return false;
   }
-  return motor_running_;
-}
-
-bool JointController::keepMovingToTarget()
-{
-  if(motor_running_)
-  {
-    // if target reached, current limit exceeded or timeout occured then stop this finger
-    target_reached_ = isAtPosition(target_, velocity_ > 0 ? 1 : -1);
-    bool peak_current_exceeded = fabs(current_) >= max_peak_current_;
-    bool avg_current_exceeded = avg_current_.get() >= max_sustained_current_;
-
-    if(peak_current_exceeded || avg_current_exceeded || target_reached_)
-    {
-      if(target_reached_)
-        ROS_INFO("REACH POS  %30s: target: %5.3lf, pos: %5.3lf",
-                  name_.c_str(), target_, position_);
-      if(peak_current_exceeded)
-        ROS_INFO("REACH PEAK %30s: current: %5.0lf mA, pos: %5.3lf",
-                  name_.c_str(), current_, position_);
-      if(avg_current_exceeded)
-        ROS_INFO("REACH CUR  %30s: current: %5.0lf mA, pos: %5.3lf",
-                  name_.c_str(), avg_current_.get(), position_);
-      motor_running_ = false;
-    }
-  }
-  return motor_running_;
-}
-
-void JointController::stopMoveToTarget()
-{
-  velocity_ = 0;
-  haltVelocityMovement();
-  ROS_INFO("STOP       %30s: pos: %5.3lf", name_.c_str(), position_);
-}
-
-KCLHandController::KCLHandController(std::string name)
-: as_(nh_, name, boost::bind(&KCLHandController::actuateHandCB, this, _1), false)
-{
-  key_handle_ = 0;
+    
+  joints_sensor_ = new JointSensor[NUM_JOINTS] { JointSensor(nh_,0),
+                                                 JointSensor(nh_,1),
+                                                 JointSensor(nh_,2),
+                                                 JointSensor(nh_,3),
+                                                 JointSensor(nh_,4)};
   
-  // NOTE: Maybe we should get these from parameters. But these seem pretty
-  // fixed. So for the time being this seems OK.
-  device_name_ = "EPOS2";
-  protocol_stack_name_ = "MAXON SERIAL V2";
-  interface_name_ = "USB";
-  port_name_ = "USB0";
-  baudrate_ = 1000000;
 
-  openDevice();
+  joints_motor_ = new JointMotor[NUM_JOINTS]{ JointMotor(nh_,M_handle_,0), 
+                                              JointMotor(nh_,M_handle_,1),
+                                              JointMotor(nh_,M_handle_,2),
+                                              JointMotor(nh_,M_handle_,3),
+                                              JointMotor(nh_,M_handle_,4)};
+  
 
-  for(size_t i = 0; i < NUM_JOINTS; i++)
-    joints_.push_back(JointController(nh_, key_handle_, i));
+  //set motor default parameters
 
-  // TODO: wait for finger sensor topic and openFingers();
-
-  joint_value_sub_= new ros::Subscriber(nh_.subscribe("joint_value_arduino", 1, &KCLHandController::jointValueCB, this));
-  joint_state_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::JointState>("active_joint_states", 1));
-
-  as_.start();
-}
-
-KCLHandController::~KCLHandController()
-{
-  delete joint_value_sub_;
-  delete joint_state_pub_;
-  delete move_finger_srv_;
-  closeDevice();
-}
-
-/**
- * TODO: fill in the action feedback with sensible information
- * TODO: handle action preempt
- */
-void KCLHandController::actuateHandCB(const kclhand_control::ActuateHandGoalConstPtr &goal)
-{
-  ROS_INFO("Starting hand actuation action");
-
-  kclhand_control::ActuateHandFeedback feedback;
-  kclhand_control::ActuateHandResult result;
-  bool succeeded = false;
-
-  if(goal->command == kclhand_control::ActuateHandGoal::CMD_OPEN)
-  {
-    succeeded = openFingers(goal->force_limit);
-  }
-  else if(goal->command == kclhand_control::ActuateHandGoal::CMD_CLOSE)
-  {
-    succeeded = closeFingers(goal->force_limit);
-  }
-  else if(goal->command == kclhand_control::ActuateHandGoal::CMD_MOVE_FINGER)
-  {
-    if(goal->finger >= 0 && goal->finger < NUM_JOINTS)
+  for (unsigned int i = 0; i< NUM_JOINTS; i++)
     {
-      bool reached = false;
-      succeeded = moveFinger(goal->finger, 1., goal->position, reached);
+       joints_motor_[i].setMaxFollowingError(); 
+       joints_motor_[i].setDCMotorParameter();  
     }
-  }
-  else if(goal->command == 3)  // HACK: make a constant
-  {
-    for(size_t i = 0; i < joints_.size(); i++)
-      joints_[i].reset();
-  }
-  else
-  {
-    ROS_ERROR("received invalid hand command");
-  }
 
-  if(succeeded)
-    as_.setSucceeded(result);
-  else
-    as_.setAborted(result);
+  hand_is_initialized_ = true;
+  return true;
 }
 
-void KCLHandController::jointValueCB(const std_msgs::Int16MultiArray::ConstPtr &msg)
+// build the controller communication and open controller, 
+// return 1 means successful
+// return 0 means faild 
+bool KCLHandController::openDevice()
 {
-  static unsigned int seq = 0;
+  bool if_controller_open = false;
 
-  if((int)msg->data.size() != NUM_JOINTS)
-    throw runtime_error("KCLHandController: wrong number of joint position values received");
+  char* device_name = new char[255];
+  char* protocol_stack_name = new char[255];
+  char* interface_name = new char[255];
+  char* port_name = new char[255];
 
-  sensor_msgs::JointState state;
-  state.header.seq = seq++;
-  state.header.stamp = ros::Time::now();
-  state.header.frame_id = "hand_base_link";
-  state.position.assign(NUM_JOINTS, 0.);
-  state.velocity.assign(NUM_JOINTS, 0.);
-  state.effort.assign(NUM_JOINTS, 0.);
-  state.name.resize(NUM_JOINTS);
+  strcpy(device_name, M_DEVICENAME_NAME_.c_str());
+  strcpy(protocol_stack_name, M_PROTOCAL_NAME_.c_str());
+  strcpy(interface_name, M_INTERFACE_.c_str());
+  strcpy(port_name, M_PORTNAME_.c_str());
 
-  // Whenever we get a position update, we also want a current/effort update.
-  joint_mutex_.lock();
-  for(size_t i = 0; i < NUM_JOINTS; i++)
-  {
-    joints_[i].updateCurrent();
-    joints_[i].updatePositionFromRawSensor(msg->data[i]);
+  ROS_INFO("Open the Metahand Controller ");
 
-    state.name[i] = joints_[i].name();
-    state.position[i] = joints_[i].position();
-    state.velocity[i] = joints_[i].velocity();
-    state.effort[i] = joints_[i].current();
-  }
-  joint_mutex_.unlock();
-  // ... and publish the updates as joint state.
-  joint_state_pub_->publish(state);
-}
+  M_handle_ = VCS_OpenDevice(device_name, protocol_stack_name, interface_name, port_name, &M_error_code);
 
-void KCLHandController::openDevice()
-{
+  /* Print errors
   stringstream msg;
-  msg << "Opening Maxon Motor EPOS device: :\n";
-  msg << "device name         = '" << device_name_ << "'\n";
-  msg << "protocal stack name = '" << protocol_stack_name_ << "'\n";
-  msg << "interface name      = '" << interface_name_ << "'\n";
-  msg << "port name           = '" << port_name_ << "'\n";
-  msg << "baudrate            = " << baudrate_;
+  msg << "M_handle" << M_handle_ << "'\n";
+  msg << "error code" << M_error_code << "'\n";
   ROS_INFO("%s", msg.str().c_str());
+  */
 
-  // NOTE: these temporary strings are necessary as VCS_OpenDevice() takes char*
-  // but .c_str() returns const char*
-  char device_name[256];
-  char protocol_stack_name[256];
-  char interface_name[256];
-  char port_name[256];
-  strncpy(device_name, device_name_.c_str(), 256);
-  strncpy(protocol_stack_name, protocol_stack_name_.c_str(), 256);
-  strncpy(interface_name, interface_name_.c_str(), 256);
-  strncpy(port_name, port_name_.c_str(), 256);
-  unsigned int error_code;
-  key_handle_ = VCS_OpenDevice(device_name, protocol_stack_name, interface_name, port_name, &error_code);
-
-  bool ok = false;
-  if(key_handle_ != 0 && error_code == 0)
+  if(M_handle_!=0 && M_error_code == 0)
   {
-    unsigned int check_baudrate = 0;
+    unsigned int baudrate = 0;
     unsigned int timeout = 0;
 
-    // NOTE: no idea why they do this strange dance. There should be a better way
-    // using VCS_GetBaudrateSelection().
-    // But this seems to work fine, so leave it for now.
-    if(VCS_GetProtocolStackSettings(key_handle_, &check_baudrate, &timeout, &error_code) != 0)
+    if(VCS_GetProtocolStackSettings(M_handle_, &baudrate, &timeout, &M_error_code)!=0)
     {
-      if(VCS_SetProtocolStackSettings(key_handle_, baudrate_, timeout, &error_code) != 0)
+      if(VCS_SetProtocolStackSettings(M_handle_, M_BAUDRATE_, timeout, &M_error_code)!=0)
       {
-        if(VCS_GetProtocolStackSettings(key_handle_, &check_baudrate, &timeout, &error_code) != 0)
+        if(VCS_GetProtocolStackSettings(M_handle_, &baudrate, &timeout, &M_error_code)!=0)
         {
-          if(baudrate_ == check_baudrate)
+          if(M_BAUDRATE_==(int)baudrate)
           {
-            ok = true;
+            if_controller_open = true;
           }
         }
       }
     }
   }
-  if(!ok)
-    throw runtime_error("Maxon Motor EPOS: failed to open device");
-}
-
-void KCLHandController::closeDevice()
-{
-  unsigned int error_code;
-  ROS_INFO("Closing Maxon Motor EPOS device");
-  if(VCS_CloseDevice(key_handle_, &error_code) == 0 || error_code != 0)
-    throw runtime_error("Maxon Motor EPOS: failed to close device");
-}
-
-bool KCLHandController::openFingers(float rel_current_limit)
-{
-  std::vector<double> target_positions(NUM_JOINTS);
-  bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = deg_to_rad(30.);
-  target_positions[LEFT_PALM] = deg_to_rad(30.);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-70.);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(-70.);
-  target_positions[LEFT_FINGER] = deg_to_rad(-70.);
-  bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  // Now slightly close the fingers to pre-tension the tendons
-  if(succeeded)
+  
+  else
   {
-    target_positions[RIGHT_FINGER] = deg_to_rad(-60.);
-    target_positions[MIDDLE_FINGER] = deg_to_rad(-60.);
-    target_positions[LEFT_FINGER] = deg_to_rad(-60.);
-    succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
+    M_handle_ = 0;
   }
-  return succeeded;
+
+  delete []device_name;
+  delete []protocol_stack_name;
+  delete []interface_name;
+  delete []port_name;
+  return if_controller_open;
 }
 
-bool KCLHandController::closeFingers(float rel_current_limit)
+
+bool KCLHandController::closingHandForGrasing()
 {
-  std::vector<double> target_positions(NUM_JOINTS);
-  bool all_target_positions_reached = false;
-  target_positions[RIGHT_PALM] = deg_to_rad(30.);
-  target_positions[LEFT_PALM] = deg_to_rad(30.);
-  target_positions[RIGHT_FINGER] = deg_to_rad(-15.);
-  target_positions[MIDDLE_FINGER] = deg_to_rad(10.);
-  target_positions[LEFT_FINGER] = deg_to_rad(-15.);
-  bool succeeded = moveFingers(rel_current_limit, target_positions, all_target_positions_reached);
-  // if targets not reached, then some joints ran into their current limit, i.e. we are probably
-  // holding an object.
-  /* HACK: leave out for now:
-  if(!all_target_positions_reached)
-    keepTightGrip();*/
-  return succeeded;
-}
-
-/**
- * TODO: coordinate finger movment to arrive at same psition simultaneously
- *       (essentially: the slowest finger pauses the others)
- */
-bool KCLHandController::moveFingers(float rel_current_limit, std::vector<double> &target_positions,
-                                    bool &all_target_positions_reached)
-{
-  ROS_INFO("start moving fingers");
-
-  // how many motors are still running
-  int num_motors_running = 0;
-  // count how many joints reached the target (vs. reaching their current limits)
-  int num_targets_reached = 0;
-
-  joint_mutex_.lock();
-  for(int i = 0; i < NUM_JOINTS; i++)
-    if(joints_[i].startMoveToTarget(target_positions[i]))
-      num_motors_running++;
-  joint_mutex_.unlock();
-
-  ros::Rate rate(CONTROL_LOOP_FREQ_HZ);
-  int timeout_cnt = CONTROL_LOOP_TIMEOUT_S*CONTROL_LOOP_FREQ_HZ;
-  while(num_motors_running > 0 && timeout_cnt > 0)
+  std::vector<double> hand_grasping_target(NUM_JOINTS);
+  
+  // if the hand is in lower workspace
+  if((joints_sensor_[0].getSensorCalibratedValueDeg() < -30.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() < -30.0))
   {
-    joint_mutex_.lock();
-    for(int i = 0; i < NUM_JOINTS; i++)
-    {
-      if(joints_[i].isRunning())
+    hand_grasping_target = lower_workspace_close_conf_;
+  }
+
+  // if the hand is in upper workspace
+  else if((joints_sensor_[0].getSensorCalibratedValueDeg() > 20.0) && (joints_sensor_[1].getSensorCalibratedValueDeg() > 20.0))
+  {
+    hand_grasping_target = upper_workspace_close_conf_;
+  }
+  else 
+  {
+    ROS_INFO("The palm is near singular configuration, not suitable for grasping");
+    return false;
+  }
+
+
+  int motor_num = NUM_JOINTS;  
+  unsigned int node_id = 0;
+  double grasping_current_set = hand_grasping_current_defalut_; //for vienna hand, the valie is 150. move it to yaml file
+  bool if_object_grasped = false;
+  int at_target_num = 0;
+  int current_exceed_num = 0;
+  bool target = 0.;
+  bool if_at_target;
+  int timeout = TIMEOUT_COUNT_GRASPING;
+
+  ros::Rate r(MOVE_HAND_LOOP_FREQ);
+  if(!hand_is_initialized_)
+    return false; 
+ 
+  while(at_target_num < NUM_JOINTS)
+  { 
+    at_target_num = 0;
+    for(node_id = 0; node_id<motor_num; node_id++) 
+    { 
+      double target = hand_grasping_target[node_id];
+      bool enable_motor = joints_motor_[node_id].enableMotor();
+      ROS_INFO("joint ID: %d, current joint position: %.1f, motor current: %.1f", node_id, joints_sensor_[node_id].getSensorCalibratedValueDeg(), joints_motor_[node_id].getCurrent());     
+      if_at_target = joints_motor_[node_id].moveToTarget(joints_sensor_[node_id].getSensorCalibratedValueRad(), deg_to_rad(target));     
+      
+      if(if_at_target)
       {
-        if(!joints_[i].keepMovingToTarget())
-        {
-          joints_[i].stopMoveToTarget();
-          num_motors_running--;
-          if(joints_[i].targetReached())
-            num_targets_reached++;
-        }
+        at_target_num++;
+        continue;
       }
+      
+      if(fabs(joints_motor_[node_id].getCurrent())>grasping_current_set)
+      {
+        joints_motor_[node_id].haltVelocityMovement();
+        at_target_num++;
+      } 
     }
-    joint_mutex_.unlock();
-    timeout_cnt--;
-    rate.sleep();
-  }
-  if(timeout_cnt <= 0)
-  {
-    for(int i = 0; i < NUM_JOINTS; i++)
-      if(joints_[i].isRunning())
-        joints_[i].stopMoveToTarget();
-    ROS_INFO("timeout");
-  }
-  all_target_positions_reached = (num_targets_reached == (int)target_positions.size());
 
-  ROS_INFO("done moving fingers");
+    r.sleep();
+    timeout--;
 
-  return timeout_cnt > 0;
-}
-
-bool KCLHandController::moveFinger(int joint_idx, float rel_current_limit, double target_position,
-                                   bool &target_position_reached)
-{
-  ROS_INFO("start moving single finger");
-
-  bool running = false;
-  joint_mutex_.lock();
-  running  = joints_[joint_idx].startMoveToTarget(target_position);
-  joint_mutex_.unlock();
-
-  ros::Rate rate(CONTROL_LOOP_FREQ_HZ);
-  int timeout_cnt = CONTROL_LOOP_TIMEOUT_S*CONTROL_LOOP_FREQ_HZ;
-  while(running && timeout_cnt > 0)
-  {
-    joint_mutex_.lock();
-    if(!joints_[joint_idx].keepMovingToTarget())
+    if (timeout <=0)
     {
-      joints_[joint_idx].stopMoveToTarget();
-      running = false;
+      for(node_id = 0; node_id<motor_num; node_id++) 
+      {
+        bool enable_motor = joints_motor_[node_id].enableMotor();
+        if(!enable_motor) 
+          enable_motor = joints_motor_[node_id].enableMotor();
+        joints_motor_[node_id].haltVelocityMovement();
+      } 
+      
+      at_target_num = 6;
+      ROS_INFO("Time out");
     }
-    joint_mutex_.unlock();
-    timeout_cnt--;
-    rate.sleep();
-  }
-  if(timeout_cnt <= 0)
-  {
-    joints_[joint_idx].stopMoveToTarget();
-    ROS_INFO("timeout");
+
+    ROS_INFO("at target value is %d, time out is %d",at_target_num, timeout);
   }
 
-  ROS_INFO("done moving single finger");
-
-  return timeout_cnt > 0;
+  return true;
 }
 
-#if 0
-void KCLHandController::keepTightGrip()
-{
-  ROS_INFO("tightening grip");
 
-  for(int i = 0; i < node_ids_.size(); i++)
+
+
+// Joint motor 
+JointMotor::JointMotor(const ros::NodeHandle &nh, void *epos_handle, const unsigned int &joint_id)
+:epos_handle_(epos_handle),nh_(nh),motor_node_id_(joint_id)
+{
+  stringstream param_name;
+  
+  param_name.clear();
+  param_name << "joint_" << joint_id << "/node_id";
+  if(!nh_.getParam(param_name.str(), motor_node_id_))
+    {}//throw runtime_error("missing motor node ID for motor ID: %d", motor_id);
+
+  param_name.str("");
+  param_name << "joint_" << joint_id << "/motor_direction";
+  if(!nh_.getParam(param_name.str(), motor_direction_))
+    {}//throw runtime_error("missing motor node ID for motor ID: %d", motor_id);
+
+  param_name.str("");
+  param_name << "joint_" << joint_id << "/moving_velocity";
+  if(!nh_.getParam(param_name.str(), motor_moving_velocity_))
+    {}//throw runtime_error("missing motor node ID for motor ID: %d", motor_id);
+
+  motor_velocity_ = 0;
+  motor_move_current_ = 0;
+  motor_holding_current_ = 0;
+  target_position_ = 0;
+
+  max_peak_current_ = 0;
+  motor_running_ = false;
+
+  //motor_moving_velocity_ = 300;
+
+}
+
+bool JointMotor::getMotorEnableState()
+{
+  int is_motor_enabled = false ;
+  unsigned int error_code = 0; 
+  if(VCS_GetEnableState(epos_handle_, motor_node_id_, &is_motor_enabled, &error_code) == 0)
   {
-    // NOTE: the palm joints always stay where they are, only the fingers squeeze
-    if(i != RIGHT_PALM && i != LEFT_PALM)
+    ROS_INFO("Faild to get motor ID: %d enable state", motor_node_id_);
+    return false;
+  }
+
+  return is_motor_enabled;
+
+}
+
+
+
+
+// enable motor
+bool JointMotor::enableMotor()
+{
+  int is_motor_enabled = false ;
+  unsigned int error_code = 0; 
+  int is_motor_fault = 0; // 1: Device is in fault state  0: Device is not in fault stat
+
+  if(VCS_GetFaultState(epos_handle_, motor_node_id_, &is_motor_fault, &error_code) == 0)
+  {
+    ROS_INFO("Faild to get motor ID: %d fault state", motor_node_id_);
+    return is_motor_enabled;
+  }
+
+  if(is_motor_fault) // if motor has fault. then clear motor fault
+  {
+    stringstream msg;
+    msg << "clear fault, node = '" << motor_node_id_ << "'";
+    ROS_INFO("%s", msg.str().c_str());
+
+    if(VCS_ClearFault(epos_handle_, motor_node_id_, &error_code) == 0)
     {
-      activateCurrentMode(i);
-      setCurrent(i, MAX_SUSTAINED_CURRENT);
+      ROS_INFO("Faild to clear motor ID: %d fault", motor_node_id_);
+      return is_motor_enabled;
     }
   }
-}
-
-void KCLHandController::loosenGrip()
-{
-  ROS_INFO("loosening grip");
-
-  for(int i = 0; i < node_ids_.size(); i++)
+  
+  // if no fault, then get the motor enable state
+  if(VCS_GetEnableState(epos_handle_, motor_node_id_, &is_motor_enabled, &error_code) == 0)
   {
-    // NOTE: the palm joints always stay where they are, only the fingers squeeze
-    if(i != RIGHT_PALM && i != LEFT_PALM)
-    {
-      activateCurrentMode(i);
-      setCurrent(i, 0.);
-    }
+    ROS_INFO("Faild to get motor ID: %d enable state", motor_node_id_);
+    return false;
   }
+
+  // if motor is not enabled, then enable the motor
+  if(!is_motor_enabled)
+  {
+    if(VCS_SetEnableState(epos_handle_, motor_node_id_, &error_code) == 0)
+    {
+      ROS_INFO("Faild to set motor ID: %d enable state", motor_node_id_);
+      return false;
+    }
+    is_motor_enabled = true;
+
+  }
+  // if motor is enabled, then return ture
+  return is_motor_enabled;
 }
 
-/**
- * TODO: Don't know if this works.
- */
-void KCLHandController::holdPosition(int joint)
-{
-  joint_mutex_.lock();
 
-  int current_motor_encoder_pos = 0;
+// disable motor
+bool JointMotor::disableMotor()
+{
+  int is_motor_disabled = false ;
+  unsigned int error_code = 0; 
+  int is_motor_fault = 0; // 1: Device is in fault state  0: Device is not in fault stat
+
+  if(VCS_GetFaultState(epos_handle_, motor_node_id_, &is_motor_fault, &error_code) == 0)
+  {
+    ROS_INFO("Faild to get motor ID: %d fault state", motor_node_id_);
+    return is_motor_disabled;
+  }
+
+  if(is_motor_fault) // if motor has fault. then clear motor fault
+  {
+    stringstream msg;
+    msg << "clear fault, node = '" << motor_node_id_ << "'";
+    ROS_INFO("%s", msg.str().c_str());
+
+    if(VCS_ClearFault(epos_handle_, motor_node_id_, &error_code) == 0)
+    {
+      ROS_INFO("Faild to clear motor ID: %d fault", motor_node_id_);
+      return is_motor_disabled;
+    }
+  }
+  
+  // if no fault, then get the motor disable state
+  if(VCS_GetDisableState(epos_handle_, motor_node_id_, &is_motor_disabled, &error_code) == 0)
+  {
+    ROS_INFO("Faild to get motor ID: %d disable state", motor_node_id_);
+    return false;
+  }
+
+  // if motor is not disabled, then disable the motor
+  if(!is_motor_disabled)
+  {
+    if(VCS_SetDisableState(epos_handle_, motor_node_id_, &error_code) == 0)
+    {
+      ROS_INFO("Faild to set motor ID: %d disable state", motor_node_id_);
+      return false;
+    }
+        
+  }
+  // if motor is disabled, then return ture
+  return is_motor_disabled;
+}
+
+void JointMotor::reset()
+{
   unsigned int error_code = 0;
-
-  ROS_INFO("holding posotion for motor %d", joint);
-
-  if(VCS_ActivatePositionMode(key_handle_, node_ids_[joint], &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to set position mode");
-  if(VCS_GetPositionIs(key_handle_, node_ids_[joint], &current_motor_encoder_pos, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to get position");
-  if(VCS_SetPositionMust(key_handle_, node_ids_[joint], (long)current_motor_encoder_pos, &error_code) == 0)
-    throw runtime_error("Maxon Motor EPOS: failed to set position");
-
-  joint_mutex_.unlock();
+  if(VCS_ResetDevice(epos_handle_, motor_node_id_, &error_code) == 0)
+  {
+    ROS_INFO("Hand joint reset node ID: %d faild", motor_node_id_);
+    throw runtime_error("reset node faild"); 
+  }
 }
 
-/**
- * TODO: No idea how to do this,
- */
-void KCLHandController::releasePosition(int joint)
+
+void JointMotor::activateVelocityMode()
+{
+  unsigned int error_code = 0;
+  if(VCS_ActivateProfileVelocityMode(epos_handle_, motor_node_id_, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: activate profile velocity mode faild, motor ID: %d ", motor_node_id_);
+    throw runtime_error("MetaHand: faild to activate profile velocity mode"); 
+  }
+}
+
+unsigned int JointMotor::getMaxFollowingError()
+{
+  unsigned int error_code = 0;
+  unsigned int max_following_error = 0;
+  
+  if(VCS_GetMaxFollowingError(epos_handle_, motor_node_id_, &max_following_error, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: Get Maximal Following Error faild, motor ID: %d ", motor_node_id_);
+    throw runtime_error("MetaHand: faild to Get Maximal Following Error"); 
+  }
+
+  return max_following_error;
+}
+
+void JointMotor::setMaxFollowingError()
+{
+  unsigned int error_code = 0;
+  unsigned int max_following_error = 20000;
+  
+  if(VCS_SetMaxFollowingError(epos_handle_, motor_node_id_, max_following_error, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: Set Maximal Following Error faild, motor ID: %d ", motor_node_id_);
+    throw runtime_error("MetaHand: faild to Set Maximal Following Error"); 
+  }
+
+}
+
+void JointMotor::getDCMotorParameter()
+{
+  unsigned int error_code = 0;
+  
+  if(VCS_GetDcMotorParameter(epos_handle_, motor_node_id_, &nominal_current_, &max_output_current_, &thermal_time_constant_, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: Get Dc Motor Parameter faild, motor ID: %d ", motor_node_id_);
+    throw runtime_error("MetaHand: faild to Get Dc Motor Parameter"); 
+  }
+
+}
+
+void JointMotor::setDCMotorParameter()
+{
+  unsigned int error_code = 0;
+  short unsigned int nominal_current = (motor_node_id_ == 1 || motor_node_id_ == 3) ? NOMINAL_CURRENT_PALM : NOMINAL_CURRENT_FINGER;
+ 
+  //short unsigned int nominal_current = NOMINAL_CURRENT_PALM;
+  short unsigned int max_output_current = MAX_OUTPUT_CURRENT;
+  short unsigned int thermal_time_constant = THERMAL_TIME_CONSTANT;
+
+  if(VCS_SetDcMotorParameter(epos_handle_, motor_node_id_, nominal_current, max_output_current, thermal_time_constant, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: Set Dc Motor Parameter faild, motor ID: %d ", motor_node_id_);
+    throw runtime_error("MetaHand: faild to Set Dc Motor Parameter"); 
+  }
+
+}
+
+
+void JointMotor::moveWithVelocity(double velocity)
+{
+  unsigned int error_code = 0;
+  long velocity_with_direction =  (long)velocity*motor_direction_;
+  if(VCS_MoveWithVelocity(epos_handle_, motor_node_id_, velocity_with_direction, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: move with velocity faild, motor ID: %d, velocity: %ld", motor_node_id_, velocity_with_direction);
+    throw runtime_error("Metahand: failed to move with velocity"); 
+  }
+    
+}
+
+void JointMotor::haltVelocityMovement()
+{
+  unsigned int error_code = 0;
+  if(VCS_HaltVelocityMovement(epos_handle_, motor_node_id_, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: halt velocity movement faild, motor ID: %d", motor_node_id_);
+    throw runtime_error("Metahand: failed to halt velocity movement"); 
+  }
+}
+
+void JointMotor::activateCurrentMode()
+{
+  unsigned int error_code = 0;
+  if(VCS_ActivateCurrentMode(epos_handle_, motor_node_id_, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: activate current mode faild, motor ID: %d", motor_node_id_);
+    throw runtime_error("Metahand: failed to activate current mode"); 
+  }  
+}
+
+void JointMotor::setCurrent(double current)
+{
+  unsigned int error_code = 0;
+  int actual_current = current*motor_direction_;
+  if(VCS_SetCurrentMust(epos_handle_, motor_node_id_, (short)actual_current, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: set current mode faild, motor ID: %d, current: %d", motor_node_id_, actual_current);
+    throw runtime_error("Metahand: failed to set current"); 
+  }  
+}
+
+double JointMotor::getCurrent()
+{
+  unsigned int error_code = 0;
+  short current = 0.;
+  if(VCS_GetCurrentIsAveraged(epos_handle_, motor_node_id_, &current, &error_code) == 0)
+  {
+    ROS_INFO("Metahand: get current faild, motor ID: %d", motor_node_id_);
+    throw runtime_error("Metahand: failed to get motor current"); 
+  }  
+  return (double)current;
+}
+
+
+
+bool JointMotor::moveToTarget(double current_position, double target)
 {
 
+  target_position_ = target;
+  current_joint_position_ = current_position;
+  int direction;
+
+  bool motor_state = enableMotor();
+  if (!isTargetReached())
+  {
+    if (current_joint_position_ < target_position_)
+      direction = 1;
+    else if (current_joint_position_ > target_position_)
+      direction = -1;
+    activateVelocityMode();
+    motor_velocity_ = motor_moving_velocity_ * direction;
+    moveWithVelocity(motor_velocity_);   
+  }
+  else
+  {
+    motor_velocity_ = 0;
+    haltVelocityMovement();
+  }
+
+  return is_target_reached;
 }
-#endif
+
+
+
+bool KCLHandController::closeDevice()
+{
+  bool is_device_closed = false;
+
+  M_error_code = 0;
+
+  ROS_INFO("Close device ing");
+
+  if(VCS_CloseDevice(M_handle_, &M_error_code)!=0 && M_error_code == 0)
+  {
+    is_device_closed = true;
+  }
+
+  return is_device_closed;
+}
+
+
+//To do  if one wire borken, arduino shoud retrun a value or flag, maybe add a resistor?
+void KCLHandController::jointSensorValueCB(const std_msgs::Int16MultiArray::ConstPtr &msg)
+{
+  
+  static unsigned int seq = 0;
+
+  if((int)msg->data.size() != NUM_JOINTS)
+    throw runtime_error("KCLHandController: wrong number of joint position values received");
+
+  // Whenever we get a position update, we also want a current/effort update.
+  // joint_mutex_.lock();
+  sensor_msgs::JointState joint_state;
+  joint_state.position.resize(NUM_JOINTS);
+  
+  for(unsigned int i = 0; i < NUM_JOINTS; i++)
+  {
+    joints_sensor_[i].sensorCalibratedValueUpdate(msg->data[i]);
+    joints_sensor_[i].checkJointValueRange();
+    if (!joints_sensor_[i].getIfJointValueValid())
+    {
+      ROS_INFO("The Motor ID: %d, angle value: %3f, exceeds the limit", i, joints_sensor_[i].getSensorCalibratedValueDeg());
+      //throw runtime_error("Metahand: the joint anlge exceeds the limit "); 
+      //should here go the recover function
+    }
+    //joint_state.position[i] = joints_sensor_[i].getSensorCalibratedValueDeg();
+    joint_state.position[i] = joints_sensor_[i].getSensorCalibratedValueDeg();
+
+  }
+
+  //joint_mutex_.unlock();
+  joint_state_pub_.publish(joint_state);
+  //ROS_INFO("joint sensor done %f", joints_sensor_[1].joint_sensor_zero_value_);
+  //ROS_INFO("joint sensor direction %d", joints_sensor_[1].sensor_direction_);
+}
+
+
+
 
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "kclhand_controller");
-
+  
   KCLHandController controller("actuate_hand");
-  ros::spin();
-
+  
+  if(!controller.init())
+  	return 0;
+  ros::AsyncSpinner spinner(2); // Use 2 threads
+  spinner.start();
+  ros::waitForShutdown();
+  //ros::Rate loop_rate(50); 
+  //ros::spin();	
   return 0;
 }
