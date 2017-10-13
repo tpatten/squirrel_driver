@@ -391,7 +391,7 @@ bool KCLHandController::foldHand()
   }
   if(fold_hand_suc)
   {
-    fold_hand_suc = moveFinger(4, 20.0);
+    fold_hand_suc = moveFinger(4, 28.0);
   }
 
   if(!fold_hand_suc)
