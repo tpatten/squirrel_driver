@@ -7,7 +7,7 @@
  * priority of requests, where to move the camera.
  *
  * @author Markus 'Bajo' Bajones bajones@acin.tuwien.ac.at
- * @date Feb 2017
+ * @date Oct 2017
  * @author Michael Zillich zillich@acin.tuwien.ac.at
  * @date Sept 2015
  */
@@ -16,11 +16,11 @@
 #include <actionlib/server/simple_action_server.h>
 #include <squirrel_view_controller_msgs/FixateOnPoseAction.h>
 #include "std_msgs/Float64.h"
-#include <dynamixel_controllers/SetSpeed.h>
-#include <dynamixel_controllers/SetRelativePosition.h>
 #include <geometry_msgs/PointStamped.h>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
+#include <vector>
+#include <robotino_msgs/ReturnJointStates.h>
 
 #include "ViewController.h"
 
@@ -33,14 +33,14 @@ ViewController::ViewController(std::string name)
   : as_(nh_, name, boost::bind(&ViewController::executeCB, this, _1), false), action_name_(name)
 {
   as_.start();
-  pan_speed_client_ = nh_.serviceClient<dynamixel_controllers::SetSpeed>("/pan_controller/set_speed", true);
-  tilt_speed_client_ = nh_.serviceClient<dynamixel_controllers::SetSpeed>("/tilt_controller/set_speed", true);
-  rel_tilt_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/tilt_controller/set_relative_position", true);
-  rel_pan_client_ = nh_.serviceClient<dynamixel_controllers::SetRelativePosition>("/pan_controller/set_relative_position", true);
-  pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/command", 0, false);
-  tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/command", 0, false);
-  rel_pan_pub_ = nh_.advertise<std_msgs::Float64>("/pan_controller/relative_command", 0, false);
-  rel_tilt_pub_ = nh_.advertise<std_msgs::Float64>("/tilt_controller/relative_command", 0, false);
+
+  update_joint_states = nh_.serviceClient<robotino_msgs::ReturnJointStates>("return_joint_states", true);
+  pan_pub_ = nh_.advertise<std_msgs::Float64>("/neck_pan_controller/command", 0, false);
+  tilt_pub_ = nh_.advertise<std_msgs::Float64>("/neck_tilt_controller/command", 0, false);
+
+  rel_pan_pub_ = nh_.advertise<std_msgs::Float64>("/neck_pan_controller/rel_command", 0, false);
+  rel_tilt_pub_ = nh_.advertise<std_msgs::Float64>("/neck_tilt_controller/rel_command", 0, false);
+ 
   look_image_srv_ = nh_.advertiseService("/squirrel_view_controller/look_at_image_position", &ViewController::lookAtImagePosition, this);
   look_srv_ = nh_.advertiseService("/squirrel_view_controller/look_at_position", &ViewController::lookAtPosition, this);
   fixate_pantilt_srv_ =  nh_.advertiseService("/squirrel_view_controller/fixate_pantilt", &ViewController::fixatePanTilt, this);
@@ -64,30 +64,41 @@ std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose
   try
   {
     ros::Time now = ros::Time(0);
-    listener_.waitForTransform("/pan_link", point.header.frame_id, now, ros::Duration(3.0));
-    listener_.waitForTransform("/tilt_link", point.header.frame_id, now, ros::Duration(3.0));
-    listener_.transformPoint("/pan_link", now, point, point.header.frame_id, pan);
-    listener_.transformPoint("/tilt_link", now, point, point.header.frame_id, tilt);
+    listener_.waitForTransform("/neck_pan_link", point.header.frame_id, now, ros::Duration(3.0));
+    listener_.waitForTransform("/neck_tilt_link", point.header.frame_id, now, ros::Duration(3.0));
+    listener_.transformPoint("/neck_pan_link", now, point, point.header.frame_id, pan);
+    listener_.transformPoint("/neck_tilt_link", now, point, point.header.frame_id, tilt);
   }
   catch (tf::TransformException ex)
   {
     ROS_ERROR("%s", ex.what());
     ros::Duration(1.0).sleep();
   }
-  v.push_back(atan2(pan.point.y, pan.point.x));
-  v.push_back(-atan2(tilt.point.y, tilt.point.x));
+  float rel_pan = atan2(pan.point.y,pan.point.x);
+  v.push_back(rel_pan);
+  float rel_tilt = -atan2(tilt.point.y,tilt.point.x);
+  if (rel_tilt < -M_PI/2)
+  {
+    rel_tilt += 0.0;
+  }
+  v.push_back(rel_tilt);
 
-   return v;
+  ROS_DEBUG("Pan: x: %f, y: %f", pan.point.x, pan.point.y);
+  ROS_DEBUG("Tilt: x: %f, y: %f", tilt.point.x, tilt.point.y);
+  ROS_DEBUG("Moving camera relative to pan: %f, tilt: %f ", rel_pan, rel_tilt);
+
+  return v;
 }
 
 void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPoseGoalConstPtr &goal)
 {
   // helper variables
-  ros::Rate r(100);
+  ros::Rate r(10);
   bool success = true;
   std::vector<double> v;
+  std_msgs::Float64 msg;
 
-  ROS_INFO("Received goal: ");
+  ROS_INFO("Received goal. %s: x: %f ,y: %f", goal->pose.header.frame_id.c_str(), goal->pose.pose.position.x, goal->pose.pose.position.y);
   while (true)
   {
 
@@ -102,9 +113,31 @@ void ViewController::executeCB(const squirrel_view_controller_msgs::FixateOnPose
 
     v = pose2PanTilt(goal->pose);
     publishPoseMarker(goal->pose);
-    ROS_DEBUG("Moving camera relative to x: %f, y: %f ", v[0], v[1]);
-    moveRelativePanTilt(v[0], v[1]);
-    r.sleep();
+    //moveRelativePanTilt(v[0], v[1]);
+    //r.sleep();
+    msg.data = v[0];
+    if (std::isfinite(msg.data))
+    {
+      if (fabs(msg.data) > 0.001)
+      {
+        rel_pan_pub_.publish(msg);
+        r.sleep();
+      }
+      else
+        ROS_DEBUG("Relative pan angle: %f (rad)", msg.data);
+    }
+    v = pose2PanTilt(goal->pose);
+    msg.data = v[1];
+    if (std::isfinite(msg.data))
+    {
+      if (fabs(msg.data) > 0.001)
+      {
+        rel_tilt_pub_.publish(msg);
+        r.sleep();
+      }
+      else
+        ROS_DEBUG("Relative tilt angle: %f (rad)", msg.data);
+    }
   }
 }
 
@@ -158,12 +191,12 @@ void ViewController::moveRelativePanTilt(float pan, float tilt)
     if (fabs(panMsg.data) > 0.001)
       rel_pan_pub_.publish(panMsg);
     else
-      ROS_INFO("Relative pan angle: %f (rad)", panMsg.data);
+      ROS_DEBUG("Relative pan angle: %f (rad)", panMsg.data);
     
     if (fabs(tiltMsg.data) > 0.001)
       rel_tilt_pub_.publish(tiltMsg);
     else
-      ROS_INFO("Relative tilt angle: %f (rad)", tiltMsg.data);
+      ROS_DEBUG("Relative tilt angle: %f (rad)", tiltMsg.data);
   }
   else
   {
@@ -172,41 +205,9 @@ void ViewController::moveRelativePanTilt(float pan, float tilt)
   return;
 }
 
-void ViewController::panStateCallback(const dynamixel_msgs::JointState::ConstPtr &panStateMsg)
-{
-  boost::mutex::scoped_lock lock(joint_mutex_);
-  pan_ = panStateMsg->current_pos;
-}
-
-void ViewController::tiltStateCallback(const dynamixel_msgs::JointState::ConstPtr &tiltStateMsg)
-{
-  boost::mutex::scoped_lock lock(joint_mutex_);
-  tilt_ = tiltStateMsg->current_pos;
-}
 
 void ViewController::init()
 {
-  bool have_all = true;
-  if (!ros::topic::waitForMessage<dynamixel_msgs::JointState>(pan_status_topic_, ros::Duration(30.0)))
-  {
-    ROS_WARN("pan controller not running, shutting down the node");
-    have_all = false;
-  }
-  if (!ros::topic::waitForMessage<dynamixel_msgs::JointState>(tilt_status_topic_, ros::Duration(30.0)))
-  {
-    ROS_WARN("tilt controller not running, shutting down the node");
-    have_all = false;
-  }
-  if (have_all)
-  {
-    boost::mutex::scoped_lock lock(joint_mutex_);
-    ROS_INFO("moving to default pan/tilt position: %f / %f [rad])", default_pan_, default_tilt_);
-    movePanTilt(default_pan_, default_tilt_);
-  }
-  else
-  {
-    ros::shutdown();
-  }
 }
 
 bool ViewController::resetPosition(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
@@ -282,20 +283,27 @@ bool ViewController::lookAtImagePosition(squirrel_view_controller_msgs::LookAtIm
   }
 }
 
-bool ViewController::callServoService(ros::ServiceClient *client, dynamixel_controllers::SetRelativePosition srv)
+
+bool ViewController::updateStates(ros::ServiceClient *client)
 {
-  if (client->call(srv))
-  {
-    ROS_INFO("goal reached: %d", srv.response.goal_reached);
-    ROS_INFO("min_max_limit reached: %d", srv.response.min_max_limit_reached);
-    if (srv.response.goal_reached)
-      return true;
-  }
-  else
-  {
-    ROS_ERROR("Failed to call service set_relative_position");
-    return false;
-  }
+    robotino_msgs::ReturnJointStates srv;
+    srv.request.name.push_back("neck_pan_joint");
+    srv.request.name.push_back("neck_tilt_joint");
+    ROS_INFO("Calling service %s", "return_joint_states");
+    if (!(ros::service::waitForService(client->getService(), ros::Duration(5.0))))
+        return false;
+    if (client->call(srv))
+    {
+        for(std::vector<int>::size_type i = 0; i != srv.request.name.size(); i++) {
+            ROS_INFO("Joint %s is at %lf", srv.request.name[i].c_str(), srv.response.position[i]);
+        }
+            return true;
+    }
+    else
+    {
+        ROS_ERROR("Failed to call service %s", client->getService().c_str());
+        return false;
+    }
 }
 
 bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPosition::Request &req,
@@ -303,14 +311,33 @@ bool ViewController::lookAtPosition(squirrel_view_controller_msgs::LookAtPositio
 {
   std::vector<double> v;
   v = pose2PanTilt(req.target);
-  // commented out when using services
-  //moveRelativePanTilt(v[0], v[1]);
-  dynamixel_controllers::SetRelativePosition srv;
-  srv.request.position = v[0];
-  bool pan_success = callServoService(&rel_pan_client_, srv);
-  srv.request.position = v[1];
-  bool tilt_success = callServoService(&rel_tilt_client_, srv);
-  return pan_success && tilt_success;
+  sendDataToMotorController(v[0], v[1]);
+  return true;
+}
+
+void ViewController::sendDataToMotorController(float pan, float tilt)
+{
+  std_msgs::Float64 panMsg, tiltMsg;
+  panMsg.data = pan;
+  tiltMsg.data = tilt;
+  if (std::isfinite(panMsg.data) && std::isfinite(tiltMsg.data))
+  {
+    if (fabs(panMsg.data) > 0.001)
+      rel_pan_pub_.publish(panMsg);
+    else
+      ROS_DEBUG("Relative pan angle: %f (rad)", panMsg.data);
+    
+    if (fabs(tiltMsg.data) > 0.001)
+      rel_tilt_pub_.publish(tiltMsg);
+    else
+      ROS_DEBUG("Relative tilt angle: %f (rad)", tiltMsg.data);
+  }
+  else
+  {
+    ROS_DEBUG("Infinity check failed");
+  }
+  return;
+  
 }
 
 int main(int argc, char **argv)
