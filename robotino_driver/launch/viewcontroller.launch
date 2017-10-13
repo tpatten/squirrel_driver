@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+
+<launch>
+	<node name="squirrel_view_controller" pkg="robotino_driver" type="squirrel_view_controller" output="screen" />
+</launch>
