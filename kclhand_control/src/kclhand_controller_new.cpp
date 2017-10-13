@@ -384,14 +384,14 @@ bool KCLHandController::foldHand()
     return false;
   }
   
-  fold_hand_suc = moveFinger (3, 75.0);
+  fold_hand_suc = moveFinger (3, 80.0);
   if(fold_hand_suc)
   {
-    fold_hand_suc = moveFinger(2, 30.0);
+    fold_hand_suc = moveFinger(2, 35.0);
   }
   if(fold_hand_suc)
   {
-    fold_hand_suc = moveFinger(4, 25.0);
+    fold_hand_suc = moveFinger(4, 20.0);
   }
 
   if(!fold_hand_suc)
