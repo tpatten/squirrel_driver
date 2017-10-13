@@ -394,6 +394,12 @@ bool KCLHandController::foldHand()
     fold_hand_suc = moveFinger(4, 28.0);
   }
 
+  for (unsigned int i = 0; i< NUM_JOINTS; i++)
+  {
+    ROS_INFO("Disable motor ID: %d", i);
+    bool test1 = joints_motor_[i].disableMotor();     
+  }
+
   if(!fold_hand_suc)
     return false;
   else 
