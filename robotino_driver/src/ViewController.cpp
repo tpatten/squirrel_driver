@@ -45,7 +45,7 @@ ViewController::ViewController(std::string name)
   look_srv_ = nh_.advertiseService("/squirrel_view_controller/look_at_position", &ViewController::lookAtPosition, this);
   fixate_pantilt_srv_ =  nh_.advertiseService("/squirrel_view_controller/fixate_pantilt", &ViewController::fixatePanTilt, this);
   clear_srv_ = nh_.advertiseService("/squirrel_view_controller/clear_fixation", &ViewController::clearFixation, this);
-  reset_srv_ = nh_.advertiseService("/squirrel_view_controller/reset", &ViewController::resetPosition, this);
+  reset_srv_ = nh_.advertiseService("/squirrel_view_controller/reset_positions", &ViewController::resetPosition, this);
   vis_pub_ = nh_.advertise<visualization_msgs::Marker>( "visualization_marker", 0 );
   ROS_INFO("ViewController ready...");
 }
@@ -208,6 +208,9 @@ void ViewController::moveRelativePanTilt(float pan, float tilt)
 
 void ViewController::init()
 {
+  nh_.param("default_pan", default_pan_, 0.0);
+  nh_.param("default_tilt", default_tilt_, 0.0);
+  movePanTilt(default_pan_, default_tilt_);
 }
 
 bool ViewController::resetPosition(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
