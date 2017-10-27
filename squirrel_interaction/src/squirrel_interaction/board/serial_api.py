@@ -13,7 +13,7 @@ The board controls the following devices:
 
     - Door Motor (pan) (-30000, 30000)
 
-    - 84 base RGB Led array
+    - 42 base RGB Led array
 
     - 4 mouth RGB Led array
 
@@ -26,16 +26,17 @@ from threading import Lock
 import rospy
 
 _MOTORS = ["head", "neck", "camera", "door"]
-_MOTOR_SPEEDS = [60, 70, 70, 110]
+# _MOTOR_SPEEDS list: (min_speed current_speed max_speed)
+_MOTOR_SPEEDS = [[2, 10, 30], [2, 15, 30], [2, 10, 25], [20, 20, 20]]
 _NUMBER_OF_BASE_LEDS = 42
 _NUMBER_OF_MOUTH_LEDS = 4
 
 
 class Controller(object):
     """ Main interface for Serial communication with Squirrel Interaction board """
-    def __init__(self, port="/dev/interactionboard", baudrate=115200):
+    def __init__(self, port="/dev/ttyUSB0", baudrate=115200, timeout=1):
         self._mutex = Lock()
-        self.serial = Serial(port, baudrate)
+        self.serial = Serial(port, baudrate, timeout=timeout)
         self.start_base_led_colors(_NUMBER_OF_BASE_LEDS)
         self.start_motors()
 
@@ -82,6 +83,42 @@ class Controller(object):
             self._mutex.release()
             return response
 
+    def move_all(self, head, neck, camera):
+	head = _valid_destination("head", head)
+	neck = _valid_destination("neck", neck)
+	camera = _valid_destination("camera", camera)
+	self._mutex.acquire()
+        try:
+            message = bytearray(6)
+            # simple bitwise operations to split an integer into 2 bytes
+            message[0] = (head >> 8) & 0xff
+            message[1] = head & 0xff
+	    message[2] = (neck >> 8) & 0xff
+            message[3] = neck & 0xff
+	    message[4] = (camera >> 8) & 0xff
+            message[5] = camera & 0xff
+            self.serial.reset_input_buffer()
+            rospy.loginfo("sending movement command")
+            self.serial.write([
+                0x3B,
+                message[0],
+                message[1],
+		message[2],
+		message[3],
+		message[4],
+		message[5]
+            ])
+            response = self._check_response(4, 0x3B)
+            rospy.loginfo("movement command done")
+
+        except ValueError:
+    	    return 'Available motors: head, neck, camera, door;'
+        except SerialException:
+            rospy.loginfo('Unable to access serial port. Is it still in use?')
+        finally:
+            self._mutex.release()
+            return response
+
     def start_motors(self):
         """ Sets initial speeds for all Motors """
 	self.reset()
@@ -107,13 +144,24 @@ class Controller(object):
             index = _MOTORS.index(motor)
 	    self._mutex.acquire()
             self.serial.reset_input_buffer()
-	    self.serial.write([0x31, index, 0, _MOTOR_SPEEDS[index]])
+	    self.serial.write([0x31, index, 0, _MOTOR_SPEEDS[index][1]])
             response = self._check_response(5, 0x31)
         except ValueError:
             return 'Available motors: head, neck, camera, door;'
 	finally:
 	    self._mutex.release()
             return response
+
+    def set_motor_speed(self, motor, speed):
+	    i = _MOTORS.index(motor)
+	    if speed >= _MOTOR_SPEEDS[i][0] and speed <= _MOTOR_SPEEDS[i][2]:
+		_MOTOR_SPEEDS[i][1] = speed
+		self.start_motor(motor)
+
+    def set_all_motor_speeds(self, head_speed, neck_speed, camera_speed):
+	    self.set_motor_speed("head", head_speed)
+	    self.set_motor_speed("neck", neck_speed)
+	    self.set_motor_speed("camera", camera_speed)
 
     def get_position(self, motor):
         """ Get motor [param 0] position in degrees """
@@ -133,9 +181,30 @@ class Controller(object):
             self._mutex.release()
             return - (response[2] - response[3])
 
-    def get_positions(self):
+    def get_all_positions(self):
         """ Fetches all motor positions """
-        return [self.get_position("head"), self.get_position("neck"), self.get_position("camera")]
+	self._mutex.acquire()
+	success = True
+	try:
+            self.serial.reset_input_buffer()
+            self.serial.write([0x5C])
+            response = self.serial.read(10)
+	    if len(response) != 10 or ord(response[0]) != 0x5c:
+                success = False
+        except ValueError:
+            rospy.loginfo('Available motors: head, neck, camera;')
+	    success = False
+        except SerialException:
+            rospy.loginfo('Unable to access serial port. Is it still in use?')
+	    success = False
+        finally:
+            self._mutex.release()
+	    if not success:
+		return success
+	    return [_to_num(response[1:3]), 
+		    _to_num(response[3:5]), 
+	  	    _to_num(response[5:7]),
+		    self.get_position("door")]
 
     def set_mouth_led_colors(self, colors):
         """ Applies the specified RGBA value to all 4 mouth leds """
@@ -178,7 +247,6 @@ class Controller(object):
             rospy.loginfo('Unable to access serial port. Is it still in use?')
         finally:
             self._mutex.release()
-            return response
 
     def get_door_status(self):
         self._mutex.acquire()
@@ -223,4 +291,9 @@ def _valid_destination(motor, degrees):
     if motor == 'door':
         return max(-30000, min(30000, degrees))
     return False
+
+def _to_num(bval):
+    res = (ord(bval[0]) << 8) | (ord(bval[1]) & 0xFF)
+    if res > 32767: res = res - 65536
+    return res
 
