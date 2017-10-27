@@ -6,6 +6,8 @@
 
 #include "ros/ros.h"
 #include "sensing_drivers.h"
+#include "Classificator.h"
+#include "common_defines.h"
 
 //comment below line to disable wrist sensor (in case it is not plugged in)
 #define _FT17_AVAIL
@@ -18,6 +20,8 @@ enum Param
 };
 
 
+
+
 class SensingNode{
 
     static const double pause;   //period of operation (human-readable)
@@ -27,6 +31,8 @@ class SensingNode{
     ros::Publisher proximity_pub;  //publisher
     ros::Publisher wrist_pub;  //publisher
     ros::Publisher torqPerc_pub;
+    ros::Publisher m_classification;
+    Classificator m_stiffClassy;
     ros::Rate* loop_rate;    //execution frequency (for ros)
 
     Driver* sensor; //this variable is the concrete sensor being used
@@ -36,6 +42,7 @@ class SensingNode{
     std::vector<double> dominantTorques;
 
     void pickDominants(std::vector<double>& candidates);
+    void getTorqueModulo(std::vector<double> &torqPerc);
 
 public:
     SensingNode(const std::string& name, const std::vector<std::string>& portnames);
