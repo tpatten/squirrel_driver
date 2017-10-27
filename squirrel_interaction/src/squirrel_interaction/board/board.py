@@ -8,23 +8,33 @@
 
     At a rate of 20Hz, it publishes motor positions to relevant topics, and actuates all devices
 
+    For most motors it is possible to specify an absolute or relative angular speed, in radians
+
     Clients may also change motor velocities within certain limits. 
     Limits are as follows:
-	10 <= head_pan <= 30
-	10 <= neck_pan <= 30
-	10 <= neck_tilt <= 30
+	2 <= head_pan <= 30
+	2 <= neck_pan <= 30
+	2 <= neck_tilt <= 25
 	door = 20
-	
+
     List of topics:
         OUT
             /joint_states [JointState]
         IN
             head_controller/command
+	    head_controller/speed
             neck_pan_controller/command
+	    neck_pan_controller/speed
             neck_tilt_controller/command
+	    neck_tilt_controller/speed
 	    head_and_neck_controller/command
             /light/command
 	    /mouth/command
+
+    The door is controlled via a Service.
+
+	    door_controller/command {'open', 'close' }
+
 """
 
 import rospy
@@ -63,7 +73,7 @@ class Controller:
 	rospy.Subscriber('head_controller/speed', Int16, self.set_head_speed)
 	rospy.Subscriber('neck_pan_controller/speed', Int16, self.set_neck_pan_speed)
 	rospy.Subscriber('neck_tilt_controller/speed', Int16, self.set_neck_tilt_speed)
-	 
+
 	rospy.Subscriber('/light/command', ColorRGBA, self.change_base_light)
 	rospy.Subscriber('/mouth/command', ColorRGBA, self.change_mouth_light)
         rospy.Service('door_controller/command', DoorController, self.move_door)
@@ -92,7 +102,7 @@ class Controller:
     def _open_devices(self):
         port = rospy.get_param("/squirrel_port") if rospy.has_param("/squirrel_port") else "/dev/ttyBoard"
         self._motor = serial_api.Controller(port, 115200, timeout=0.02)
-	
+
     def set_head_speed(self, message):
 	self._motor.set_motor_speed("head", message.data)
 
@@ -135,7 +145,6 @@ class Controller:
 	self.neck_destination = int(degrees(message.data[1]))
 	self.camera_destination = int(degrees(message.data[2]))
 	self._motor.move_all(self.head_destination, self.neck_destination, self.camera_destination)
-
 
     def change_base_light(self, message):
         color = [int(message.r), int(message.g), int(message.b)]
