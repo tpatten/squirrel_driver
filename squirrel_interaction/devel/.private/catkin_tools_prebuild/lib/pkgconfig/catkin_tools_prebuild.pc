@@ -1,8 +1,0 @@
-prefix=/u/vienna/catkin_ws/src/squirrel_driver/squirrel_interaction/devel/.private/catkin_tools_prebuild
-
-Name: catkin_tools_prebuild
-Description: Description of catkin_tools_prebuild
-Version: 0.0.0
-Cflags: 
-Libs: -L/u/vienna/catkin_ws/src/squirrel_driver/squirrel_interaction/devel/.private/catkin_tools_prebuild/lib 
-Requires: 
