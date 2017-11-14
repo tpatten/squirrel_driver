@@ -10,7 +10,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   roscpp
   std_srvs
-  dynamixel_controllers
   dynamixel_msgs
   geometry_msgs
   sensor_msgs
@@ -23,7 +22,7 @@ find_package(RobotinoAPI2 REQUIRED)
 
 catkin_package(
  INCLUDE_DIRS include
- CATKIN_DEPENDS nav_msgs robotino_msgs std_srvs squirrel_view_controller_msgs dynamixel_controllers dynamixel_msgs geometry_msgs image_transport pcl_conversions pcl_ros sensor_msgs std_msgs tf
+ CATKIN_DEPENDS nav_msgs robotino_msgs std_srvs dynamixel_msgs squirrel_view_controller_msgs geometry_msgs image_transport pcl_conversions pcl_ros sensor_msgs std_msgs tf
 )
 
 include_directories(
@@ -66,17 +65,16 @@ add_executable(
 target_link_libraries(robotino_pan_controller ${catkin_LIBRARIES})
 add_dependencies(robotino_pan_controller robotino_msgs_gencpp)
 
-#add_executable(
-#  squirrel_view_controller
-#  #src/view_controller_node.cpp
-#  src/ViewController.cpp
-#)
-#add_dependencies(squirrel_view_controller squirrel_view_controller_msgs_gencpp)
-
-#target_link_libraries(
-#  squirrel_view_controller
-#  ${catkin_LIBRARIES}
-#)
+add_executable(
+  squirrel_view_controller
+  #src/view_controller_node.cpp
+  src/ViewController.cpp
+)
+add_dependencies(squirrel_view_controller squirrel_view_controller_msgs_gencpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(
+  squirrel_view_controller
+  ${catkin_LIBRARIES}
+)
 
 add_executable(
   robotino_odometry_node
