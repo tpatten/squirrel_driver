@@ -264,10 +264,9 @@ namespace squirrel_control {
 
 		for (std::size_t i = 0; i < num_joints_; ++i)
 		{	
-			ss << "j" << i << ": " << std::fixed << joint_position_command_[i] << "\n";
-			//ss << "j" << i << ": " << std::fixed << joint_position_[i] << "\t ";
-			//ss << std::fixed << joint_velocity_[i] << "\t ";
-			//ss << std::fixed << joint_effort_[i] << std::endl;
+			ss << "j" << i << ": " << std::fixed << joint_position_[i] << "\t ";
+			ss << std::fixed << joint_velocity_[i] << "\t ";
+			ss << std::fixed << joint_effort_[i] << std::endl;
 		}
 		return ss.str();
 	}
