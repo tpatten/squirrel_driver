@@ -8,6 +8,7 @@
 // C++
 #include <boost/scoped_ptr.hpp>
 #include <mutex>
+#include <math.h>
 
 // ROS
 #include <ros/ros.h>
@@ -33,6 +34,7 @@
 #include <squirrel_safety_msgs/Safety.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Bool.h>
+#include <control_msgs/JointTrajectoryControllerState.h>
 
 
 namespace squirrel_control {
@@ -110,9 +112,7 @@ namespace squirrel_control {
 
 			virtual void odomCallback(const nav_msgs::OdometryConstPtr &msg);
 
-			virtual void ignoreBaseCallback(const trajectory_msgs::JointTrajectoryPtr & msg);
-
-			virtual void allClose(const std::vector<double> &a, const std::vector<double> &b, double error=1e-6);
+			virtual bool allClose(const std::vector<double> &a, const std::vector<double> &b, double error=1e-6);
 
 		protected:
 
@@ -188,7 +188,6 @@ namespace squirrel_control {
 
 			bool hold = true;
 			bool ignore_base = false;
-			ros::Subscriber ignore_base_sub_;
 			std::vector<double> last_base_cmd_;
 
 
