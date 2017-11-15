@@ -37,7 +37,7 @@ namespace squirrel_control {
 		motor_interface_ = new motor_control::MotorUtilities();
 		safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
 		safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
-		ignore_base_sub_ = rpnh.subscribe("/arm_controller/joint_trajectory_controller/command", 10, &SquirrelHWInterface::ignoreBaseCallback, this); //FixMe: dont use global namespaces
+//		ignore_base_sub_ = rpnh.subscribe("/arm_controller/joint_trajectory_controller/command", 10, &SquirrelHWInterface::ignoreBaseCallback, this); //FixMe: dont use global namespaces
 		base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
 		base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
 	}
@@ -413,6 +413,19 @@ namespace squirrel_control {
 	}
 
 
+	bool SquirrelHWInterface::allClose(const std::vector<double> &a, const std::vector<double> &b, double error) {
+		throw_control_error(a.size()  != b.size(), "Command vectors must be of equal length!");
+
+		for (int i=0; i<a.size();++i) {
+			if ((a.at(i) - b.at(i)) > error) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+
+
 	void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
 		//This for that the robot keeps its initial pose and does not move back to 0 (deault initialization of C++ for class members)
 		if(!safety_lock_) {
@@ -431,6 +444,7 @@ namespace squirrel_control {
 				for(int i=0; i < 3; i++) {
 					std::cout << "Setting Base to default" << std::endl;
 					base_cmds[i] = base_state[i];
+					last_cmds_.push_back(base_state[i]);
 				}
 
 				for(int i=0; i<joint_names_.size(); ++i){
@@ -445,7 +459,6 @@ namespace squirrel_control {
 						joint_velocity_command_[i] = 0.0;
 					}				
 				}     
-
 				hold = false;
 			}
 			enforceLimits(elapsed_time);    
@@ -460,7 +473,13 @@ namespace squirrel_control {
 					// base_cmds[i] = joint_position_command_[i];
 					// }
 					for(int i=0; i<joint_names_.size(); ++i) {
-						if (joint_names_[i] == "arm_joint1") {
+						if(joint_names_[i] == "base_jointx") {
+							base_cmds[0] = joint_position_command_[i];
+						} else if (joint_names_[i] == "base_jointy") {
+							base_cmds[1] = joint_position_command_[i];
+						} else if (joint_names_[i] == "base_jointz") {
+							base_cmds[2] = joint_position_command_[i];
+						} else if (joint_names_[i] == "arm_joint1") {
 							cmds[0] = joint_position_command_[i];
 						} else if (joint_names_[i] == "arm_joint2") {
 							cmds[1] = joint_position_command_[i];
@@ -470,8 +489,13 @@ namespace squirrel_control {
 							cmds[3] = joint_position_command_[i];
 						} else if (joint_names_[i] == "arm_joint5") {
 							cmds[4] = joint_position_command_[i];
-						}					
+						}
 					}
+
+					ignore_base = allClose(base_cmds, last_base_cmd_);
+					last_base_cmd_.clear();
+					last_base_cmd_ = base_cmds;
+					
 					break;
 				case control_modes::VELOCITY_MODE:
 					throw_control_error(true, "VELOCITY_MODE not tested!");
@@ -504,11 +528,11 @@ namespace squirrel_control {
 			}
 
 			try {
-//				std::cout << "Arm: " << cmds[0] << " " << cmds[1] << " " << cmds[2] << " " << cmds[3] << " " << cmds[4] << std::endl;
+				//				std::cout << "Arm: " << cmds[0] << " " << cmds[1] << " " << cmds[2] << " " << cmds[3] << " " << cmds[4] << std::endl;
 				motor_interface_->write(cmds);
 				if(!ignore_base) {
 					// std::cout << "NOT IGNORING BASE" << std::endl;
-//					std::cout << "Base: " << base_cmds.at(0) << " " <<  base_cmds.at(1) << " " <<  base_cmds.at(2) << std::endl;
+					//					std::cout << "Base: " << base_cmds.at(0) << " " <<  base_cmds.at(1) << " " <<  base_cmds.at(2) << std::endl;
 					if (current_mode_ == control_modes::POSITION_MODE) {
 						base_controller_.moveBase(base_cmds.at(0), base_cmds.at(1), base_cmds.at(2));
 					} else {

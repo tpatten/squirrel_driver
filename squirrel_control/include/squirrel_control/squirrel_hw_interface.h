@@ -112,6 +112,8 @@ namespace squirrel_control {
 
 			virtual void ignoreBaseCallback(const trajectory_msgs::JointTrajectoryPtr & msg);
 
+			virtual void allClose(const std::vector<double> &a, const std::vector<double> &b, double error=1e-6);
+
 		protected:
 
 			/** \brief Get the URDF XML from the parameter server */
@@ -187,6 +189,7 @@ namespace squirrel_control {
 			bool hold = true;
 			bool ignore_base = false;
 			ros::Subscriber ignore_base_sub_;
+			std::vector<double> last_base_cmd_;
 
 
 	};
