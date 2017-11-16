@@ -242,7 +242,7 @@ class Controller:
 
     def change_base_light(self, message):
         color = [int(message.r), int(message.g), int(message.b)] * 42
-        if not self._motor.set_base_led_colors(colors):
+        if not self._motor.set_base_led_colors(color):
             self.base_lights = color
         else:
             self.base_lights = None
