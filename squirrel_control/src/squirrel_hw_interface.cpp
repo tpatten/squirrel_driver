@@ -35,8 +35,6 @@ namespace squirrel_control {
 		error += !rosparam_shortcuts::get(name_, rpnh, "ignore_base", ignore_base);
 		rosparam_shortcuts::shutdownIfError(name_, error);
 		motor_interface_ = new motor_control::MotorUtilities();
-		safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
-		safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
 		base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
 		base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
 	}
@@ -428,13 +426,14 @@ namespace squirrel_control {
 		//This is for that the robot keeps its initial pose and does not move back to 0 (default initialization of C++ for class members)
 		if (hold) {
 			auto base_state = base_controller_.getCurrentState();
+			last_base_cmd_.clear();
+
 
 			joint_position_command_ = joint_position_;
 			joint_effort_command_ = joint_effort_;
 			joint_velocity_command_ = joint_velocity_;
 
 			for(int i=0; i < 3; i++) {
-				std::cout << "Setting Base to default" << std::endl;
 				base_cmds[i] = base_state[i];
 				last_base_cmd_.push_back(base_state[i]);
 			}
@@ -514,7 +513,6 @@ namespace squirrel_control {
 		}
 
 		try {
-			if (!safety_lock_) {
 				motor_interface_->write(cmds);
 				if(!ignore_base) {
 					if (current_mode_ == control_modes::POSITION_MODE) {
@@ -526,7 +524,6 @@ namespace squirrel_control {
 					}
 					ignore_base = true;
 				}
-			}
 		} catch (std::exception &ex) {
 			throw_control_error(true, ex.what());
 		}
@@ -555,28 +552,5 @@ namespace squirrel_control {
 		odom_lock_.unlock();
 	}
 
-
-	void SquirrelHWInterface::safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg){
-		if (msg->emergency_state) {
-			hold = true;
-			safety_lock_ = true;
-			if (msg->airskin_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Airksin pressed!");
-			} else if (msg->bumper_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Bumper pressed!");
-			} else if (msg->wrist_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Wrist touched!");
-			}
-		}
-	}
-
-
-	void SquirrelHWInterface::safetyResetCallback(const std_msgs::BoolConstPtr &msg) {
-		if (msg->data && safety_lock_ == true) {
-			safety_lock_ = false;
-			ROS_INFO_STREAM_NAMED(name_, "Safety released.");
-			joint_position_command_ = joint_position_;
-		}
-	}
 }
 
