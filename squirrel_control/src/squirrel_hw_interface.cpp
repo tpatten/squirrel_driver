@@ -37,6 +37,13 @@ namespace squirrel_control {
 		motor_interface_ = new motor_control::MotorUtilities();
 		base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
 		base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
+		
+		//Do we need to block until we get at least one transform? I guess so!
+		while(true) {
+			ros::Time now = ros::Time::now();
+			transform_listener_.waitForTransform("/map", "/base_link", now, ros::Duration(3.0));
+			break;
+		}
 	}
 
 
@@ -546,9 +553,23 @@ namespace squirrel_control {
 		posBuffer_[1] = msg->pose.pose.position.y;
 		posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
 
+		ros::Time common_time;
+		std::string* error;
+		try{
+			transform_listener_.getLatestCommonTime("/base_link", "/map", common_time, error);
+			transform_listener_.lookupTransform("/map", "/base_link", common_time, latest_common_transform_);
+		} catch (tf::TransformException ex) {
+			ROS_WARN_STREAM_NAMED(name_, "Failed to retrieve most recent transfrom. Taking latest common known!");
+		}
+
+		posBuffer_[0]+=latest_common_transform_.getOrigin().x();
+		posBuffer_[1]+=latest_common_transform_.getOrigin().y();
+		posBuffer_[2]+=tf::getYaw(latest_common_transform_.getRotation());
+		
 		velBuffer_[0] = msg->twist.twist.angular.x;
 		velBuffer_[1] = msg->twist.twist.angular.y;
 		velBuffer_[2] = msg->twist.twist.angular.z;
+		
 		odom_lock_.unlock();
 	}
 

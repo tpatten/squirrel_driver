@@ -16,6 +16,7 @@
 #include <geometry_msgs/Twist.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 
 // ROS Controls
 #include <hardware_interface/robot_hw.h>
@@ -174,11 +175,13 @@ namespace squirrel_control {
 			double posBuffer_[3];
 			double velBuffer_[3];
 
-			// Base interface
+			// Base
 			ros::Publisher base_interface_;
 			ros::Subscriber base_state_;
 			BaseController base_controller_;
 			std::mutex odom_lock_;
+			tf::TransformListener transform_listener_;
+			tf::StampedTransform latest_common_transform_;
 
 			// Motor interface
 			motor_control::MotorUtilities* motor_interface_;
