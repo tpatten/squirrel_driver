@@ -16,6 +16,7 @@
 #include <geometry_msgs/Twist.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 
 // ROS Controls
 #include <hardware_interface/robot_hw.h>
@@ -35,6 +36,7 @@
 #include <std_msgs/Int16.h>
 #include <std_msgs/Bool.h>
 #include <control_msgs/JointTrajectoryControllerState.h>
+#include <controller_manager_msgs/SwitchController.h>
 
 
 namespace squirrel_control {
@@ -106,9 +108,9 @@ namespace squirrel_control {
 			std::string printCommandHelper();
 
 			/** \brief Callbacks */
-			virtual void safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg);
+			//virtual void safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg);
 
-			virtual void safetyResetCallback(const std_msgs::BoolConstPtr &msg);
+			//virtual void safetyResetCallback(const std_msgs::BoolConstPtr &msg);
 
 			virtual void odomCallback(const nav_msgs::OdometryConstPtr &msg);
 
@@ -170,17 +172,16 @@ namespace squirrel_control {
 			std::vector<double> joint_velocity_limits_;
 			std::vector<double> joint_effort_limits_;
 
-			ros::Subscriber safety_sub_;
-			ros::Subscriber safety_reset_sub_;
-			bool safety_lock_;
 			double posBuffer_[3];
 			double velBuffer_[3];
 
-			// Base interface
+			// Base
 			ros::Publisher base_interface_;
 			ros::Subscriber base_state_;
 			BaseController base_controller_;
 			std::mutex odom_lock_;
+			tf::TransformListener transform_listener_;
+			tf::StampedTransform latest_common_transform_;
 
 			// Motor interface
 			motor_control::MotorUtilities* motor_interface_;
@@ -189,8 +190,6 @@ namespace squirrel_control {
 			bool hold = true;
 			bool ignore_base = false;
 			std::vector<double> last_base_cmd_;
-
-
 	};
 
 }

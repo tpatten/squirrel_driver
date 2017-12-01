@@ -35,10 +35,15 @@ namespace squirrel_control {
 		error += !rosparam_shortcuts::get(name_, rpnh, "ignore_base", ignore_base);
 		rosparam_shortcuts::shutdownIfError(name_, error);
 		motor_interface_ = new motor_control::MotorUtilities();
-		safety_sub_ = rpnh.subscribe("/squirrel_safety", 10, &SquirrelHWInterface::safetyCallback, this);
-		safety_reset_sub_ = rpnh.subscribe("/squirrel_safety/reset", 10, &SquirrelHWInterface::safetyResetCallback, this);
 		base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
 		base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
+		
+		//Do we need to block until we get at least one transform? I guess so!
+		while(true) {
+			ros::Time now = ros::Time::now();
+			transform_listener_.waitForTransform("/map", "/base_link", now, ros::Duration(3.0));
+			break;
+		}
 	}
 
 
@@ -426,96 +431,95 @@ namespace squirrel_control {
 
 	void SquirrelHWInterface::write(ros::Duration &elapsed_time) {
 		//This is for that the robot keeps its initial pose and does not move back to 0 (default initialization of C++ for class members)
-		if(!safety_lock_) {
+		if (hold) {
+			auto base_state = base_controller_.getCurrentState();
+			last_base_cmd_.clear();
 
-			if (hold) {
-				auto base_state = base_controller_.getCurrentState();
 
-				joint_position_command_ = joint_position_;
-				joint_effort_command_ = joint_effort_;
-				joint_velocity_command_ = joint_velocity_;
+			joint_position_command_ = joint_position_;
+			joint_effort_command_ = joint_effort_;
+			joint_velocity_command_ = joint_velocity_;
 
-				for(int i=0; i < 3; i++) {
-					std::cout << "Setting Base to default" << std::endl;
-					base_cmds[i] = base_state[i];
-					last_base_cmd_.push_back(base_state[i]);
+			for(int i=0; i < 3; i++) {
+				base_cmds[i] = base_state[i];
+				last_base_cmd_.push_back(base_state[i]);
+			}
+
+			for(int i=0; i<joint_names_.size(); ++i){
+				if(joint_names_[i] == "base_jointx") {
+					joint_effort_command_[i] = 0.0;
+					joint_velocity_command_[i] = 0.0;
+				} else if (joint_names_[i] == "base_jointy") {
+					joint_effort_command_[i] = 0.0;
+					joint_velocity_command_[i] = 0.0;
+				} else if (joint_names_[i] == "base_jointz") {
+					joint_effort_command_[i] = 0.0;
+					joint_velocity_command_[i] = 0.0;
+				}				
+			}     
+			hold = false;
+		}
+		enforceLimits(elapsed_time);    
+		std::vector<double> cmds(5);
+		geometry_msgs::Twist twist;
+
+		switch(current_mode_){
+			case control_modes::POSITION_MODE:
+				for(int i=0; i<joint_names_.size(); ++i) {
+					if(joint_names_[i] == "base_jointx") {
+						base_cmds[0] = joint_position_command_[i];
+					} else if (joint_names_[i] == "base_jointy") {
+						base_cmds[1] = joint_position_command_[i];
+					} else if (joint_names_[i] == "base_jointz") {
+						base_cmds[2] = joint_position_command_[i];
+					} else if (joint_names_[i] == "arm_joint1") {
+						cmds[0] = joint_position_command_[i];
+					} else if (joint_names_[i] == "arm_joint2") {
+						cmds[1] = joint_position_command_[i];
+					} else if (joint_names_[i] == "arm_joint3") {
+						cmds[2] = joint_position_command_[i];
+					} else if (joint_names_[i] == "arm_joint4") {
+						cmds[3] = joint_position_command_[i];
+					} else if (joint_names_[i] == "arm_joint5") {
+						cmds[4] = joint_position_command_[i];
+					}
 				}
 
-				for(int i=0; i<joint_names_.size(); ++i){
-					if(joint_names_[i] == "base_jointx") {
-						joint_effort_command_[i] = 0.0;
-						joint_velocity_command_[i] = 0.0;
-					} else if (joint_names_[i] == "base_jointy") {
-						joint_effort_command_[i] = 0.0;
-						joint_velocity_command_[i] = 0.0;
-					} else if (joint_names_[i] == "base_jointz") {
-						joint_effort_command_[i] = 0.0;
-						joint_velocity_command_[i] = 0.0;
-					}				
-				}     
-				hold = false;
-			}
-			enforceLimits(elapsed_time);    
-			std::vector<double> cmds(5);
-			geometry_msgs::Twist twist;
+				ignore_base = allClose(base_cmds, last_base_cmd_);
+				last_base_cmd_.clear();
+				last_base_cmd_ = base_cmds;
+				break;
+			case control_modes::VELOCITY_MODE:
+				throw_control_error(true, "VELOCITY_MODE not tested!");
 
-			switch(current_mode_){
-				case control_modes::POSITION_MODE:
-					for(int i=0; i<joint_names_.size(); ++i) {
-						if(joint_names_[i] == "base_jointx") {
-							base_cmds[0] = joint_position_command_[i];
-						} else if (joint_names_[i] == "base_jointy") {
-							base_cmds[1] = joint_position_command_[i];
-						} else if (joint_names_[i] == "base_jointz") {
-							base_cmds[2] = joint_position_command_[i];
-						} else if (joint_names_[i] == "arm_joint1") {
-							cmds[0] = joint_position_command_[i];
-						} else if (joint_names_[i] == "arm_joint2") {
-							cmds[1] = joint_position_command_[i];
-						} else if (joint_names_[i] == "arm_joint3") {
-							cmds[2] = joint_position_command_[i];
-						} else if (joint_names_[i] == "arm_joint4") {
-							cmds[3] = joint_position_command_[i];
-						} else if (joint_names_[i] == "arm_joint5") {
-							cmds[4] = joint_position_command_[i];
-						}
-					}
+				twist.linear.x = joint_velocity_command_[0];
+				twist.linear.y = joint_velocity_command_[1];
+				twist.linear.z = 0.0;
+				twist.angular.x = 0.0;
+				twist.angular.y = 0.0;
+				twist.angular.z = joint_velocity_command_[2];
+				for(int i = 0; i < num_joints_-3; i++){
+					cmds[i] = joint_velocity_command_[i+3];
+				}
+				break;
+			case control_modes::TORQUE_MODE:
+				throw_control_error(true, "TORQUE_MODE not tested!");
 
-					ignore_base = allClose(base_cmds, last_base_cmd_);
-					last_base_cmd_.clear();
-					last_base_cmd_ = base_cmds;
-					break;
-				case control_modes::VELOCITY_MODE:
-					throw_control_error(true, "VELOCITY_MODE not tested!");
+				twist.linear.x = joint_effort_command_[0];
+				twist.linear.y = joint_effort_command_[1];
+				twist.linear.z = 0.0;
+				twist.angular.x = 0.0;
+				twist.angular.y = 0.0;
+				twist.angular.z = joint_effort_command_[2];
+				for(int i = 0; i < num_joints_-3; i++){
+					cmds[i] = joint_effort_command_[i+3];
+				}
+				break;
+			default:
+				throw_control_error(true, "Unknown mode: " << current_mode_);
+		}
 
-					twist.linear.x = joint_velocity_command_[0];
-					twist.linear.y = joint_velocity_command_[1];
-					twist.linear.z = 0.0;
-					twist.angular.x = 0.0;
-					twist.angular.y = 0.0;
-					twist.angular.z = joint_velocity_command_[2];
-					for(int i = 0; i < num_joints_-3; i++){
-						cmds[i] = joint_velocity_command_[i+3];
-					}
-					break;
-				case control_modes::TORQUE_MODE:
-					throw_control_error(true, "TORQUE_MODE not tested!");
-
-					twist.linear.x = joint_effort_command_[0];
-					twist.linear.y = joint_effort_command_[1];
-					twist.linear.z = 0.0;
-					twist.angular.x = 0.0;
-					twist.angular.y = 0.0;
-					twist.angular.z = joint_effort_command_[2];
-					for(int i = 0; i < num_joints_-3; i++){
-						cmds[i] = joint_effort_command_[i+3];
-					}
-					break;
-				default:
-					throw_control_error(true, "Unknown mode: " << current_mode_);
-			}
-
-			try {
+		try {
 				motor_interface_->write(cmds);
 				if(!ignore_base) {
 					if (current_mode_ == control_modes::POSITION_MODE) {
@@ -527,11 +531,12 @@ namespace squirrel_control {
 					}
 					ignore_base = true;
 				}
-			} catch (std::exception &ex) {
-				throw_control_error(true, ex.what());
-			}
-		}    
+		} catch (std::exception &ex) {
+			throw_control_error(true, ex.what());
+		}
 	}
+
+
 
 
 	void SquirrelHWInterface::enforceLimits(ros::Duration &period) {
@@ -548,33 +553,25 @@ namespace squirrel_control {
 		posBuffer_[1] = msg->pose.pose.position.y;
 		posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
 
+		ros::Time common_time;
+		std::string* error;
+		try{
+			transform_listener_.getLatestCommonTime("/base_link", "/map", common_time, error);
+			transform_listener_.lookupTransform("/map", "/base_link", common_time, latest_common_transform_);
+		} catch (tf::TransformException ex) {
+			ROS_WARN_STREAM_NAMED(name_, "Failed to retrieve most recent transfrom. Taking latest common known!");
+		}
+
+		posBuffer_[0]+=latest_common_transform_.getOrigin().x();
+		posBuffer_[1]+=latest_common_transform_.getOrigin().y();
+		posBuffer_[2]+=tf::getYaw(latest_common_transform_.getRotation());
+		
 		velBuffer_[0] = msg->twist.twist.angular.x;
 		velBuffer_[1] = msg->twist.twist.angular.y;
 		velBuffer_[2] = msg->twist.twist.angular.z;
+		
 		odom_lock_.unlock();
 	}
 
-
-	void SquirrelHWInterface::safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg){
-		if (msg->emergency_state) {
-			hold = true;
-			safety_lock_ = true;
-			if (msg->airskin_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Airksin pressed!");
-			} else if (msg->bumper_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Bumper pressed!");
-			} else if (msg->wrist_stop) {
-				ROS_INFO_STREAM_NAMED(name_, "Wrist touched!");
-			}
-		}
-	}
-
-
-	void SquirrelHWInterface::safetyResetCallback(const std_msgs::BoolConstPtr &msg) {
-		if (msg->data) {
-			safety_lock_ = false;
-			ROS_INFO_STREAM_NAMED(name_, "Safety released.");
-		}
-	}
 }
 
