@@ -59,7 +59,10 @@ namespace squirrel_control {
         hardware_interface_->read(elapsed_time_);
 
         // Control
-        controller_manager_->update(ros::Time::now(), elapsed_time_);
+        //controller_manager_->update(ros::Time::now(), elapsed_time_);
+        //if (hardware_interface_->getResetSignal())
+        //    ROS_INFO("Reset signal was issued ---------");
+        controller_manager_->update(ros::Time::now(), elapsed_time_, hardware_interface_->getResetSignal());
 
         // Output
         hardware_interface_->write(elapsed_time_);

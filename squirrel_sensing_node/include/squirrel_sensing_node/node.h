@@ -10,7 +10,7 @@
 #include "common_defines.h"
 
 //comment below line to disable wrist sensor (in case it is not plugged in)
-#define _FT17_AVAIL
+// #define _FT17_AVAIL
 
 enum Param
 {

@@ -35,9 +35,10 @@
 #include <squirrel_safety_msgs/Safety.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Bool.h>
+#include <std_srvs/SetBool.h>
 #include <control_msgs/JointTrajectoryControllerState.h>
 #include <controller_manager_msgs/SwitchController.h>
-
+#include <sensor_msgs/JointState.h>
 
 namespace squirrel_control {
 
@@ -115,8 +116,16 @@ namespace squirrel_control {
 			virtual void odomCallback(const nav_msgs::OdometryConstPtr &msg);
 
 			virtual bool allClose(const std::vector<double> &a, const std::vector<double> &b, double error=1e-6);
+            
+            bool resetControllers(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
+
+            bool getResetSignal();
+
+            virtual void commandCallback(const trajectory_msgs::JointTrajectoryConstPtr &msg);
 
 		protected:
+
+            bool reset_signal_;
 
 			/** \brief Get the URDF XML from the parameter server */
 			virtual void loadURDF(ros::NodeHandle& nh, std::string param_name);
@@ -190,6 +199,14 @@ namespace squirrel_control {
 			bool hold = true;
 			bool ignore_base = false;
 			std::vector<double> last_base_cmd_;
+
+            ros::ServiceServer reset_service_;
+            ros::Subscriber trajectory_command_sub_;
+            ros::Publisher state_pub_;
+            ros::Publisher control_pub_;
+            bool first_broadcast_;
+            std::vector<double> last_trajectory_goal_;
+            ros::Time last_trajectory_time_;
 	};
 
 }
