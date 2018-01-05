@@ -109,23 +109,17 @@ namespace squirrel_control {
 			std::string printCommandHelper();
 
 			/** \brief Callbacks */
-			//virtual void safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg);
-
-			//virtual void safetyResetCallback(const std_msgs::BoolConstPtr &msg);
-
 			virtual void odomCallback(const nav_msgs::OdometryConstPtr &msg);
 
 			virtual bool allClose(const std::vector<double> &a, const std::vector<double> &b, double error=1e-6);
             
-            bool resetControllers(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
+            //bool resetControllers(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
 
             bool getResetSignal();
 
             virtual void commandCallback(const trajectory_msgs::JointTrajectoryConstPtr &msg);
 
 		protected:
-
-            bool reset_signal_;
 
 			/** \brief Get the URDF XML from the parameter server */
 			virtual void loadURDF(ros::NodeHandle& nh, std::string param_name);
@@ -183,6 +177,7 @@ namespace squirrel_control {
 
 			double posBuffer_[3];
 			double velBuffer_[3];
+            std::vector<double> base_cmds_;
 
 			// Base
 			ros::Publisher base_interface_;
@@ -200,7 +195,8 @@ namespace squirrel_control {
 			bool ignore_base = false;
 			std::vector<double> last_base_cmd_;
 
-            ros::ServiceServer reset_service_;
+            // Resetting controller
+            bool reset_signal_;
             ros::Subscriber trajectory_command_sub_;
             ros::Publisher state_pub_;
             ros::Publisher control_pub_;

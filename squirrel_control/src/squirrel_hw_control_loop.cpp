@@ -8,10 +8,11 @@
 namespace squirrel_control {
 
     SquirrelHWControlLoop::SquirrelHWControlLoop(ros::NodeHandle &nh,
-                                                 boost::shared_ptr <squirrel_control::SquirrelHWInterface> hardware_interface) :
-	nh_(nh), hardware_interface_(hardware_interface)
-{
-	std::cout << "Intializing loop..." << std::endl;
+                                                 boost::shared_ptr <squirrel_control::SquirrelHWInterface> hardware_interface)
+        : nh_(nh)
+          , hardware_interface_(hardware_interface)
+    {
+        std::cout << "Intializing loop..." << std::endl;
         // Create the controller manager
         controller_manager_.reset(new controller_manager::ControllerManager(hardware_interface_.get(), nh_));
 
@@ -29,7 +30,7 @@ namespace squirrel_control {
         ros::Duration desired_update_freq = ros::Duration(1 / loop_hz_);
         non_realtime_loop_ = nh_.createTimer(desired_update_freq, &SquirrelHWControlLoop::update, this);
 
-	std::cout << "Looping..." << std::endl;
+	    std::cout << "Looping..." << std::endl;
     }
 
 
@@ -60,8 +61,6 @@ namespace squirrel_control {
 
         // Control
         //controller_manager_->update(ros::Time::now(), elapsed_time_);
-        //if (hardware_interface_->getResetSignal())
-        //    ROS_INFO("Reset signal was issued ---------");
         controller_manager_->update(ros::Time::now(), elapsed_time_, hardware_interface_->getResetSignal());
 
         // Output

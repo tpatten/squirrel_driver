@@ -8,8 +8,6 @@
 #include <algorithm>
 #include <unistd.h>
 
-std::vector<double> base_cmds(3);
-
 namespace squirrel_control {
 	SquirrelHWInterface::SquirrelHWInterface(ros::NodeHandle &nh, urdf::Model *urdf_model)
         : name_("squirrel_hw_interface")
@@ -37,7 +35,7 @@ namespace squirrel_control {
 		motor_interface_ = new motor_control::MotorUtilities();
 		base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
 		base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
-        reset_service_ = rpnh.advertiseService("/squirrel_control/reset_controllers", &SquirrelHWInterface::resetControllers, this);
+        //reset_service_ = rpnh.advertiseService("/squirrel_control/reset_controllers", &SquirrelHWInterface::resetControllers, this);
 		reset_signal_ = true;
         trajectory_command_sub_ = rpnh.subscribe("/arm_controller/joint_trajectory_controller/command", 10, &SquirrelHWInterface::commandCallback, this);
         ignore_base = true;
@@ -61,7 +59,8 @@ namespace squirrel_control {
 
 
 	void SquirrelHWInterface::init() {
-		num_joints_ = joint_names_.size();
+		base_cmds_ = std::vector<double>(3);
+        num_joints_ = joint_names_.size();
 
 		// Status
 		joint_position_.resize(num_joints_, 0.0);
@@ -369,7 +368,6 @@ namespace squirrel_control {
 		switch(current_mode_) {
 			case control_modes::POSITION_MODE:
 				{
-					//auto positions = motor_interface_->read();
 					for(int i=0; i < joint_names_.size(); ++i)
 					{
 						if(joint_names_[i] == "base_jointx") {
@@ -425,6 +423,8 @@ namespace squirrel_control {
 		odom_lock_.unlock();
         if((ignore_base && reset_signal_) || !first_broadcast_)
         {
+            if(!first_broadcast_)
+                ROS_INFO("Broadcasting states on initialization");
             sensor_msgs::JointState current_joint_state;
             current_joint_state.name.resize(8);
             current_joint_state.position.resize(8);
@@ -455,7 +455,6 @@ namespace squirrel_control {
             control_state.actual.velocities = std::vector<double>(8,0.0);
             control_state.actual.accelerations = std::vector<double>(8,0.0);
             control_state.actual.effort = std::vector<double>(8,0.0);
-            //control_state.actual.time_from_start = 0.0;
             control_state.desired = control_state.actual;
             control_state.error.positions = std::vector<double>(8,0.0);
             control_state.error.velocities = std::vector<double>(8,0.0);
@@ -493,7 +492,7 @@ namespace squirrel_control {
 			joint_velocity_command_ = joint_velocity_;
 
 			for(int i=0; i < 3; i++) {
-				base_cmds[i] = base_state[i];
+				base_cmds_[i] = base_state[i];
 				last_base_cmd_.push_back(base_state[i]);
 			}
 
@@ -517,16 +516,15 @@ namespace squirrel_control {
 		std::vector<double> cmds(5);
 		geometry_msgs::Twist twist;
         bool prev_ignore_base = ignore_base;
-        bool command_finished = false;
 		switch(current_mode_){
 			case control_modes::POSITION_MODE:
 				for(int i=0; i<joint_names_.size(); ++i) {
 					if(joint_names_[i] == "base_jointx") {
-						base_cmds[0] = joint_position_command_[i];
+						base_cmds_[0] = joint_position_command_[i];
 					} else if (joint_names_[i] == "base_jointy") {
-						base_cmds[1] = joint_position_command_[i];
+						base_cmds_[1] = joint_position_command_[i];
 					} else if (joint_names_[i] == "base_jointz") {
-						base_cmds[2] = joint_position_command_[i];
+						base_cmds_[2] = joint_position_command_[i];
 					} else if (joint_names_[i] == "arm_joint1") {
 						cmds[0] = joint_position_command_[i];
 					} else if (joint_names_[i] == "arm_joint2") {
@@ -539,10 +537,9 @@ namespace squirrel_control {
 						cmds[4] = joint_position_command_[i];
 					}
 				}
-				//ignore_base = allClose(base_cmds, last_base_cmd_);
-                //command_finished = allClose(base_cmds, last_base_cmd_, 1e-9);
+				//ignore_base = allClose(base_cmds_, last_base_cmd_);
 				last_base_cmd_.clear();
-				last_base_cmd_ = base_cmds;
+				last_base_cmd_ = base_cmds_;
 				break;
 			case control_modes::VELOCITY_MODE:
 				throw_control_error(true, "VELOCITY_MODE not tested!");
@@ -574,86 +571,36 @@ namespace squirrel_control {
 				throw_control_error(true, "Unknown mode: " << current_mode_);
 		}
 
-        //if (reset_signal_)
-        //    ignore_base = true;
-
 		try {
-				motor_interface_->write(cmds);
-                /*
-                std::cout << "[] joint_position_\n";
-                for (size_t i = 0; i < joint_position_.size(); ++i)
-                    std::cout << joint_position_[i] << " ";
-                std::cout << "\n[] joint_position_command_\n";
-                for (size_t i = 0; i < joint_position_command_.size(); ++i)
-                    std::cout << joint_position_command_[i] << " ";
-                std::cout << "\n   * * *\n";
-                ignore_base = true;
-                */
-				if(!ignore_base) {
-                    /*
-                    if (prev_ignore_base)
-                    {
-                        ROS_INFO("Enforcing joint position command to joint position");
-                        joint_position_command_ = joint_position_;
-                    }
-                    */
-                    
-                    /*
-                    ROS_INFO("* * * Not ignoring base!");
-                    reset_signal_ = false; 
-                    std::cout << "joint_position_\n";
-                    for (size_t i = 0; i < joint_position_.size(); ++i)
-                        std::cout << joint_position_[i] << " ";
-                    std::cout << "\njoint_position_command_\n";
-                    for (size_t i = 0; i < joint_position_command_.size(); ++i)
-                        std::cout << joint_position_command_[i] << " ";
-                    std::cout << "\nlast_trajectory_goal_\n";
-                    for (size_t i = 0; i < last_trajectory_goal_.size(); ++i)
-                        std::cout << last_trajectory_goal_[i] << " ";
-                    std::cout << "\n   * * *\n";
-                    */
-					if (current_mode_ == control_modes::POSITION_MODE) {
-			            base_controller_.moveBase(base_cmds.at(0), base_cmds.at(1), base_cmds.at(2));
-					} else {
-						throw_control_error(true, "Not tested!");
-
-						base_interface_.publish(twist);			
-					}
-					//ignore_base = true;
-                    
-
-                    /*
-                    // When do we exit!!!
-                    if(command_finished)
-                    {
-                        ROS_INFO("Command has finished");
-                        ignore_base = true;
-                        reset_signal_ = true;
-                    }
-                    */
-                    std::cout << "All Close = " << allClose(joint_position_, last_trajectory_goal_, 1e-2) << std::endl;
-                    std::cout << "Time = " << ((ros::Time::now()-last_trajectory_time_).toSec() > 0.2) << " (" << (ros::Time::now()-last_trajectory_time_).toSec() << ")" << std::endl;
-                    if(allClose(joint_position_, last_trajectory_goal_, 1e-2) &&
-                       (ros::Time::now()-last_trajectory_time_).toSec() > 0.2)
-                    {
-                        ROS_INFO("Command has finished");
-                        ignore_base = true;
-                        reset_signal_ = true;
-                    }
+            motor_interface_->write(cmds);
+			if(!ignore_base) {
+				if (current_mode_ == control_modes::POSITION_MODE) {
+                    base_controller_.moveBase(base_cmds_.at(0), base_cmds_.at(1), base_cmds_.at(2));
+				} else {
+					throw_control_error(true, "Not tested!");
+					base_interface_.publish(twist);			
 				}
-                if (ignore_base && !prev_ignore_base)
-                {
+                    
+                //std::cout << "All Close = " << allClose(joint_position_, last_trajectory_goal_, 1e-2) << std::endl;
+                //std::cout << "Time = " << ((ros::Time::now()-last_trajectory_time_).toSec() > 0.2) << " (" << (ros::Time::now()-last_trajectory_time_).toSec() << ")" << std::endl;
+                if(allClose(joint_position_, last_trajectory_goal_, 1e-2) &&
+                   (ros::Time::now()-last_trajectory_time_).toSec() > 0.2) {
+                    ROS_INFO("Command has finished");
+                    ignore_base = true;
                     reset_signal_ = true;
-                    ROS_INFO("- - - Starting to ignore base!");
-                    std::cout << "joint_position_\n";
-                    for (size_t i = 0; i < joint_position_.size(); ++i)
-                        std::cout << joint_position_[i] << " ";
-                    std::cout << "\njoint_position_command_\n";
-                    for (size_t i = 0; i < joint_position_command_.size(); ++i)
-                        std::cout << joint_position_command_[i] << " ";
-                    std::cout << "\n   - - -\n";
                 }
-                
+			}
+            if(ignore_base && !prev_ignore_base) {
+                reset_signal_ = true;
+                ROS_INFO("- - - Starting to ignore base!");
+                std::cout << "joint_position_\n";
+                for(size_t i = 0; i < joint_position_.size(); ++i)
+                    std::cout << joint_position_[i] << " ";
+                std::cout << "\njoint_position_command_\n";
+                for(size_t i = 0; i < joint_position_command_.size(); ++i)
+                    std::cout << joint_position_command_[i] << " ";
+                std::cout << "\n   - - -\n";
+            }        
 		} catch (std::exception &ex) {
 			throw_control_error(true, ex.what());
 		}
@@ -692,24 +639,6 @@ namespace squirrel_control {
 		
 		odom_lock_.unlock();
 	}
-
-    bool SquirrelHWInterface::resetControllers(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res) {
-        if (req.data)
-            std::cout << "Received value TRUE" << std::endl;
-        else
-            std::cout << "Received value FALSE" << std::endl;
-        reset_signal_ = req.data;
-        /*
-        if (reset_signal_)
-        {
-            ros::Duration(3.0).sleep();
-            reset_signal_ = false;
-        }
-        */
-        res.success = true;
-        std::cout << "returning" << std::endl;
-        return true;
-    }
 
     bool SquirrelHWInterface::getResetSignal() {
         return reset_signal_;
