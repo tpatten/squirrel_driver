@@ -35,7 +35,6 @@ namespace squirrel_control {
 		motor_interface_ = new motor_control::MotorUtilities();
 		base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
 		base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
-        //reset_service_ = rpnh.advertiseService("/squirrel_control/reset_controllers", &SquirrelHWInterface::resetControllers, this);
 		reset_signal_ = true;
         trajectory_command_sub_ = rpnh.subscribe("/arm_controller/joint_trajectory_controller/command", 10, &SquirrelHWInterface::commandCallback, this);
         ignore_base = true;
@@ -43,13 +42,6 @@ namespace squirrel_control {
         control_pub_ = rpnh.advertise<control_msgs::JointTrajectoryControllerState>("/arm_controller/joint_trajectory_controller/state", 1);
         first_broadcast_ = true;
         last_trajectory_goal_.resize(joint_names_.size());
-        /*
-		//Do we need to block until we get at least one transform? I guess so!
-		while(true) {
-			ros::Time now = ros::Time::now();
-			transform_listener_.waitForTransform("/map", "/base_link", now, ros::Duration(3.0));
-			break;
-		}*/
 	}
 
 
@@ -581,8 +573,6 @@ namespace squirrel_control {
 					base_interface_.publish(twist);			
 				}
                     
-                //std::cout << "All Close = " << allClose(joint_position_, last_trajectory_goal_, 1e-2) << std::endl;
-                //std::cout << "Time = " << ((ros::Time::now()-last_trajectory_time_).toSec() > 0.2) << " (" << (ros::Time::now()-last_trajectory_time_).toSec() << ")" << std::endl;
                 if(allClose(joint_position_, last_trajectory_goal_, 1e-2) &&
                    (ros::Time::now()-last_trajectory_time_).toSec() > 0.2) {
                     ROS_INFO("Command has finished");
@@ -619,24 +609,10 @@ namespace squirrel_control {
 		posBuffer_[0] = msg->pose.pose.position.x;
 		posBuffer_[1] = msg->pose.pose.position.y;
 		posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
-        /*
-		ros::Time common_time;
-		std::string* error;
-		try{
-			transform_listener_.getLatestCommonTime("/base_link", "/map", common_time, error);
-			transform_listener_.lookupTransform("/map", "/base_link", common_time, latest_common_transform_);
-		} catch (tf::TransformException ex) {
-			ROS_WARN_STREAM_NAMED(name_, "Failed to retrieve most recent transfrom. Taking latest common known!");
-		}
-        
-		posBuffer_[0]+=latest_common_transform_.getOrigin().x();
-		posBuffer_[1]+=latest_common_transform_.getOrigin().y();
-		posBuffer_[2]+=tf::getYaw(latest_common_transform_.getRotation());
-		*/
-		velBuffer_[0] = msg->twist.twist.angular.x;
-		velBuffer_[1] = msg->twist.twist.angular.y;
-		velBuffer_[2] = msg->twist.twist.angular.z;
 		
+        velBuffer_[0] = msg->twist.twist.angular.x;
+		velBuffer_[1] = msg->twist.twist.angular.y;
+        velBuffer_[2] = msg->twist.twist.angular.z;	
 		odom_lock_.unlock();
 	}
 
