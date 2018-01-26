@@ -174,6 +174,8 @@ namespace squirrel_control {
 
 			double posBuffer_[3];
 			double velBuffer_[3];
+			std::vector<double> base_cmds_;
+
 
 			// Base
 			ros::Publisher base_interface_;

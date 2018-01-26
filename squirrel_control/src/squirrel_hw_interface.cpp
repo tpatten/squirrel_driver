@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <unistd.h>
 
-std::vector<double> base_cmds(3);
 
 namespace squirrel_control {
 	SquirrelHWInterface::SquirrelHWInterface(ros::NodeHandle &nh, urdf::Model *urdf_model)
@@ -37,7 +36,7 @@ namespace squirrel_control {
 		motor_interface_ = new motor_control::MotorUtilities();
 		base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
 		base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
-		
+
 		//Do we need to block until we get at least one transform? I guess so!
 		while(true) {
 			ros::Time now = ros::Time::now();
@@ -53,6 +52,7 @@ namespace squirrel_control {
 
 
 	void SquirrelHWInterface::init() {
+		base_cmds_ = std::vector<double>(3);
 		num_joints_ = joint_names_.size();
 
 		// Status
@@ -441,7 +441,7 @@ namespace squirrel_control {
 			joint_velocity_command_ = joint_velocity_;
 
 			for(int i=0; i < 3; i++) {
-				base_cmds[i] = base_state[i];
+				base_cmds_[i] = base_state[i];
 				last_base_cmd_.push_back(base_state[i]);
 			}
 
@@ -467,11 +467,11 @@ namespace squirrel_control {
 			case control_modes::POSITION_MODE:
 				for(int i=0; i<joint_names_.size(); ++i) {
 					if(joint_names_[i] == "base_jointx") {
-						base_cmds[0] = joint_position_command_[i];
+						base_cmds_[0] = joint_position_command_[i];
 					} else if (joint_names_[i] == "base_jointy") {
-						base_cmds[1] = joint_position_command_[i];
+						base_cmds_[1] = joint_position_command_[i];
 					} else if (joint_names_[i] == "base_jointz") {
-						base_cmds[2] = joint_position_command_[i];
+						base_cmds_[2] = joint_position_command_[i];
 					} else if (joint_names_[i] == "arm_joint1") {
 						cmds[0] = joint_position_command_[i];
 					} else if (joint_names_[i] == "arm_joint2") {
@@ -485,9 +485,9 @@ namespace squirrel_control {
 					}
 				}
 
-				ignore_base = allClose(base_cmds, last_base_cmd_);
+				ignore_base = allClose(base_cmds_, last_base_cmd_);
 				last_base_cmd_.clear();
-				last_base_cmd_ = base_cmds;
+				last_base_cmd_ = base_cmds_;
 				break;
 			case control_modes::VELOCITY_MODE:
 				throw_control_error(true, "VELOCITY_MODE not tested!");
@@ -520,17 +520,17 @@ namespace squirrel_control {
 		}
 
 		try {
-				motor_interface_->write(cmds);
-				if(!ignore_base) {
-					if (current_mode_ == control_modes::POSITION_MODE) {
-						base_controller_.moveBase(base_cmds.at(0), base_cmds.at(1), base_cmds.at(2));
-					} else {
-						throw_control_error(true, "Not tested!");
+			motor_interface_->write(cmds);
+			if(!ignore_base) {
+				if (current_mode_ == control_modes::POSITION_MODE) {
+					base_controller_.moveBase(base_cmds_.at(0), base_cmds_.at(1), base_cmds_.at(2));
+				} else {
+					throw_control_error(true, "Not tested!");
 
-						base_interface_.publish(twist);			
-					}
-					ignore_base = true;
+					base_interface_.publish(twist);			
 				}
+				ignore_base = true;
+			}
 		} catch (std::exception &ex) {
 			throw_control_error(true, ex.what());
 		}
@@ -565,11 +565,11 @@ namespace squirrel_control {
 		posBuffer_[0]+=latest_common_transform_.getOrigin().x();
 		posBuffer_[1]+=latest_common_transform_.getOrigin().y();
 		posBuffer_[2]+=tf::getYaw(latest_common_transform_.getRotation());
-		
+
 		velBuffer_[0] = msg->twist.twist.angular.x;
 		velBuffer_[1] = msg->twist.twist.angular.y;
 		velBuffer_[2] = msg->twist.twist.angular.z;
-		
+
 		odom_lock_.unlock();
 	}
 
