@@ -208,6 +208,7 @@ void ViewController::moveRelativePanTilt(float pan, float tilt)
 
 void ViewController::init()
 {
+    std::cout << "VIEW CONTROLLER: CALLED INIT" << std::endl;
   nh_.param("default_pan", default_pan_, 0.0);
   nh_.param("default_tilt", default_tilt_, 0.0);
   movePanTilt(default_pan_, default_tilt_);
@@ -345,9 +346,12 @@ void ViewController::sendDataToMotorController(float pan, float tilt)
 
 int main(int argc, char **argv)
 {
+    std::cout << "ViewController started" << std::cout;
+    ROS_INFO("Viewcontroller started");
   ros::init(argc, argv, "squirrel_view_controller");
 
   ViewController fixate(ros::this_node::getName());
+  fixate.init();
   ros::spin();
 
   return 0;
