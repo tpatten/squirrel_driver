@@ -223,7 +223,7 @@ def _limit_color(color_value):
 
 def _valid_destination(motor, degrees):
     if motor in ['head', 'neck']:
-        return max(-180, min(180, degrees))
+        return max(-50, min(50, degrees))
     if motor == 'camera':
         return max(-68, min(30, degrees))
     if motor == 'door':

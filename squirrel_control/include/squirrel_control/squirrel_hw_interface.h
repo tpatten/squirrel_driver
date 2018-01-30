@@ -15,8 +15,6 @@
 #include <urdf/model.h>
 #include <geometry_msgs/Twist.h>
 #include <trajectory_msgs/JointTrajectory.h>
-#include <tf/transform_datatypes.h>
-#include <tf/transform_listener.h>
 
 // ROS Controls
 #include <hardware_interface/robot_hw.h>
@@ -34,10 +32,8 @@
 #include "control_modes.h"
 #include <squirrel_safety_msgs/Safety.h>
 #include <std_msgs/Int16.h>
-#include <std_msgs/Bool.h>
 #include <control_msgs/JointTrajectoryControllerState.h>
-#include <controller_manager_msgs/SwitchController.h>
-
+#include <sensor_msgs/JointState.h>
 
 namespace squirrel_control {
 
@@ -107,14 +103,17 @@ namespace squirrel_control {
 			/** \brief Helper for debugging a joint's command */
 			std::string printCommandHelper();
 
-			/** \brief Callbacks */
-			//virtual void safetyCallback(const squirrel_safety_msgs::SafetyConstPtr &msg);
-
-			//virtual void safetyResetCallback(const std_msgs::BoolConstPtr &msg);
-
+			/** \brief Odom callback */
 			virtual void odomCallback(const nav_msgs::OdometryConstPtr &msg);
 
+            /** \brief Check if values in two vectors are within a specific threshold */
 			virtual bool allClose(const std::vector<double> &a, const std::vector<double> &b, double error=1e-6);
+            
+            /** \brief Return the value of the reset signal */
+            bool getResetSignal();
+
+            /** \brief Joint trajectory command callbacl */
+            virtual void commandCallback(const trajectory_msgs::JointTrajectoryConstPtr &msg);
 
 		protected:
 
@@ -174,16 +173,15 @@ namespace squirrel_control {
 
 			double posBuffer_[3];
 			double velBuffer_[3];
-			std::vector<double> base_cmds_;
-
+            std::vector<double> base_cmds_;
 
 			// Base
 			ros::Publisher base_interface_;
 			ros::Subscriber base_state_;
 			BaseController base_controller_;
 			std::mutex odom_lock_;
-			tf::TransformListener transform_listener_;
-			tf::StampedTransform latest_common_transform_;
+			//tf::TransformListener transform_listener_;
+			//tf::StampedTransform latest_common_transform_;
 
 			// Motor interface
 			motor_control::MotorUtilities* motor_interface_;
@@ -192,6 +190,15 @@ namespace squirrel_control {
 			bool hold = true;
 			bool ignore_base = false;
 			std::vector<double> last_base_cmd_;
+
+            // Resetting controller
+            bool reset_signal_;
+            ros::Subscriber trajectory_command_sub_;
+            ros::Publisher state_pub_;
+            ros::Publisher control_pub_;
+            bool first_broadcast_;
+            std::vector<double> last_trajectory_goal_;
+            ros::Time last_trajectory_time_;
 	};
 
 }

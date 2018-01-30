@@ -22,6 +22,7 @@ find_package(catkin REQUIRED
         nav_msgs
         tf
         control_msgs
+        sensor_msgs
 )
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
@@ -51,6 +52,7 @@ catkin_package(
           nav_msgs
           tf
           control_msgs
+          sensor_msgs
         LIBRARIES
           squirrel_hw_control_loop
           squirrel_hw_interface

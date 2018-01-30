@@ -8,10 +8,9 @@
 #include <algorithm>
 #include <unistd.h>
 
-
 namespace squirrel_control {
 	SquirrelHWInterface::SquirrelHWInterface(ros::NodeHandle &nh, urdf::Model *urdf_model)
-		: name_("squirrel_hw_interface")
+        : name_("squirrel_hw_interface")
 		  , nh_(nh)
 		  , use_rosparam_joint_limits_(false)
 		  , use_soft_limits_if_available_(false)
@@ -36,13 +35,13 @@ namespace squirrel_control {
 		motor_interface_ = new motor_control::MotorUtilities();
 		base_interface_ = rpnh.advertise<geometry_msgs::Twist>("/cmd_rotatory", 1);
 		base_state_ = rpnh.subscribe("/odom", 10, &SquirrelHWInterface::odomCallback, this);
-
-		//Do we need to block until we get at least one transform? I guess so!
-		while(true) {
-			ros::Time now = ros::Time::now();
-			transform_listener_.waitForTransform("/map", "/base_link", now, ros::Duration(3.0));
-			break;
-		}
+		reset_signal_ = true;
+        trajectory_command_sub_ = rpnh.subscribe("/arm_controller/joint_trajectory_controller/command", 10, &SquirrelHWInterface::commandCallback, this);
+        ignore_base = true;
+        state_pub_ = rpnh.advertise<sensor_msgs::JointState>("/arm_controller/joint_states", 1);
+        control_pub_ = rpnh.advertise<control_msgs::JointTrajectoryControllerState>("/arm_controller/joint_trajectory_controller/state", 1);
+        first_broadcast_ = true;
+        last_trajectory_goal_.resize(joint_names_.size());
 	}
 
 
@@ -53,7 +52,7 @@ namespace squirrel_control {
 
 	void SquirrelHWInterface::init() {
 		base_cmds_ = std::vector<double>(3);
-		num_joints_ = joint_names_.size();
+        num_joints_ = joint_names_.size();
 
 		// Status
 		joint_position_.resize(num_joints_, 0.0);
@@ -357,10 +356,10 @@ namespace squirrel_control {
 
 	void SquirrelHWInterface::read(ros::Duration &elapsed_time) {
 		odom_lock_.lock();
+        auto positions = motor_interface_->read();
 		switch(current_mode_) {
 			case control_modes::POSITION_MODE:
 				{
-					auto positions = motor_interface_->read();
 					for(int i=0; i < joint_names_.size(); ++i)
 					{
 						if(joint_names_[i] == "base_jointx") {
@@ -414,6 +413,50 @@ namespace squirrel_control {
 				throw_control_error(true, "Unknown mode: " << current_mode_);
 		}
 		odom_lock_.unlock();
+        if((ignore_base && reset_signal_) || !first_broadcast_)
+        {
+            if(!first_broadcast_)
+                ROS_INFO("Broadcasting states on initialization");
+            sensor_msgs::JointState current_joint_state;
+            current_joint_state.name.resize(8);
+            current_joint_state.position.resize(8);
+            current_joint_state.velocity = std::vector<double>(8,0.0);
+            current_joint_state.effort = std::vector<double>(8,0.0);
+            current_joint_state.name[0] = "arm_joint1";
+            current_joint_state.position[0] = positions[0];
+            current_joint_state.name[1] = "arm_joint2";
+            current_joint_state.position[1] = positions[1];
+            current_joint_state.name[2] = "arm_joint3";
+            current_joint_state.position[2] = positions[2];
+            current_joint_state.name[3] = "arm_joint4";
+            current_joint_state.position[3] = positions[3];
+            current_joint_state.name[4] = "arm_joint5";
+            current_joint_state.position[4] = positions[4];
+            current_joint_state.name[5] = "base_jointx";
+            current_joint_state.position[5] = posBuffer_[0];
+            current_joint_state.name[6] = "base_jointy";
+            current_joint_state.position[6] = posBuffer_[1];
+            current_joint_state.name[7] = "base_jointz";
+            current_joint_state.position[7] = posBuffer_[2];
+            current_joint_state.header.stamp = ros::Time::now();
+            state_pub_.publish(current_joint_state);
+            ros::spinOnce();
+            control_msgs::JointTrajectoryControllerState control_state;
+            control_state.joint_names = current_joint_state.name;
+            control_state.actual.positions = current_joint_state.position;
+            control_state.actual.velocities = std::vector<double>(8,0.0);
+            control_state.actual.accelerations = std::vector<double>(8,0.0);
+            control_state.actual.effort = std::vector<double>(8,0.0);
+            control_state.desired = control_state.actual;
+            control_state.error.positions = std::vector<double>(8,0.0);
+            control_state.error.velocities = std::vector<double>(8,0.0);
+            control_state.error.accelerations = std::vector<double>(8,0.0);
+            control_state.error.effort = std::vector<double>(8,0.0);
+            control_state.header.stamp = ros::Time::now();
+            control_pub_.publish(control_state);
+            ros::spinOnce();
+            first_broadcast_ = true;         
+        }
 	}
 
 
@@ -458,11 +501,13 @@ namespace squirrel_control {
 				}				
 			}     
 			hold = false;
+            first_broadcast_ = false;
 		}
+
 		enforceLimits(elapsed_time);    
 		std::vector<double> cmds(5);
 		geometry_msgs::Twist twist;
-
+        bool prev_ignore_base = ignore_base;
 		switch(current_mode_){
 			case control_modes::POSITION_MODE:
 				for(int i=0; i<joint_names_.size(); ++i) {
@@ -484,8 +529,7 @@ namespace squirrel_control {
 						cmds[4] = joint_position_command_[i];
 					}
 				}
-
-				ignore_base = allClose(base_cmds_, last_base_cmd_);
+				//ignore_base = allClose(base_cmds_, last_base_cmd_);
 				last_base_cmd_.clear();
 				last_base_cmd_ = base_cmds_;
 				break;
@@ -520,24 +564,37 @@ namespace squirrel_control {
 		}
 
 		try {
-			motor_interface_->write(cmds);
+            motor_interface_->write(cmds);
 			if(!ignore_base) {
 				if (current_mode_ == control_modes::POSITION_MODE) {
-					base_controller_.moveBase(base_cmds_.at(0), base_cmds_.at(1), base_cmds_.at(2));
+                    base_controller_.moveBase(base_cmds_.at(0), base_cmds_.at(1), base_cmds_.at(2));
 				} else {
 					throw_control_error(true, "Not tested!");
-
 					base_interface_.publish(twist);			
 				}
-				ignore_base = true;
+                    
+                if(allClose(joint_position_, last_trajectory_goal_, 1e-2) &&
+                   (ros::Time::now()-last_trajectory_time_).toSec() > 0.2) {
+                    ROS_INFO("Command has finished");
+                    ignore_base = true;
+                    reset_signal_ = true;
+                }
 			}
+            if(ignore_base && !prev_ignore_base) {
+                reset_signal_ = true;
+                ROS_INFO("- - - Starting to ignore base!");
+                std::cout << "joint_position_\n";
+                for(size_t i = 0; i < joint_position_.size(); ++i)
+                    std::cout << joint_position_[i] << " ";
+                std::cout << "\njoint_position_command_\n";
+                for(size_t i = 0; i < joint_position_command_.size(); ++i)
+                    std::cout << joint_position_command_[i] << " ";
+                std::cout << "\n   - - -\n";
+            }        
 		} catch (std::exception &ex) {
 			throw_control_error(true, ex.what());
 		}
 	}
-
-
-
 
 	void SquirrelHWInterface::enforceLimits(ros::Duration &period) {
 		// Enforces position and velocity
@@ -552,26 +609,37 @@ namespace squirrel_control {
 		posBuffer_[0] = msg->pose.pose.position.x;
 		posBuffer_[1] = msg->pose.pose.position.y;
 		posBuffer_[2] = tf::getYaw(msg->pose.pose.orientation);
-
-		ros::Time common_time;
-		std::string* error;
-		try{
-			transform_listener_.getLatestCommonTime("/base_link", "/map", common_time, error);
-			transform_listener_.lookupTransform("/map", "/base_link", common_time, latest_common_transform_);
-		} catch (tf::TransformException ex) {
-			ROS_WARN_STREAM_NAMED(name_, "Failed to retrieve most recent transfrom. Taking latest common known!");
-		}
-
-		posBuffer_[0]+=latest_common_transform_.getOrigin().x();
-		posBuffer_[1]+=latest_common_transform_.getOrigin().y();
-		posBuffer_[2]+=tf::getYaw(latest_common_transform_.getRotation());
-
-		velBuffer_[0] = msg->twist.twist.angular.x;
+        velBuffer_[0] = msg->twist.twist.angular.x;
 		velBuffer_[1] = msg->twist.twist.angular.y;
-		velBuffer_[2] = msg->twist.twist.angular.z;
-
+        velBuffer_[2] = msg->twist.twist.angular.z;	
 		odom_lock_.unlock();
 	}
 
+    bool SquirrelHWInterface::getResetSignal() {
+        return reset_signal_;
+    }
+
+    void SquirrelHWInterface::commandCallback(const trajectory_msgs::JointTrajectoryConstPtr &msg)
+    {
+        ROS_INFO("Received a new command");
+        ignore_base = false;
+        reset_signal_ = false;
+        
+        // Store the last joint configuration from the command
+        last_trajectory_time_ = ros::Time::now();
+        int trajectory_length = msg->points.size();
+        last_trajectory_goal_.resize(joint_names_.size());
+        for(size_t i = 0; i < msg->points[trajectory_length-1].positions.size(); ++i)
+        {
+            if(msg->joint_names[i].compare("base_jointx") == 0) last_trajectory_goal_[0] = msg->points[trajectory_length-1].positions[i];
+            else if(msg->joint_names[i].compare("base_jointy") == 0) last_trajectory_goal_[1] = msg->points[trajectory_length-1].positions[i];
+            else if(msg->joint_names[i].compare("base_jointz") == 0) last_trajectory_goal_[2] = msg->points[trajectory_length-1].positions[i];
+            else if(msg->joint_names[i].compare("arm_joint1") == 0) last_trajectory_goal_[3] = msg->points[trajectory_length-1].positions[i];
+            else if(msg->joint_names[i].compare("arm_joint2") == 0) last_trajectory_goal_[4] = msg->points[trajectory_length-1].positions[i];
+            else if(msg->joint_names[i].compare("arm_joint3") == 0) last_trajectory_goal_[5] = msg->points[trajectory_length-1].positions[i];
+            else if(msg->joint_names[i].compare("arm_joint4") == 0) last_trajectory_goal_[6] = msg->points[trajectory_length-1].positions[i];
+            else if(msg->joint_names[i].compare("arm_joint5") == 0) last_trajectory_goal_[7] = msg->points[trajectory_length-1].positions[i]; 
+        }
+    }
 }
 
