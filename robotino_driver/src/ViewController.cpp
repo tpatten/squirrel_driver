@@ -46,8 +46,13 @@ ViewController::ViewController(std::string name)
   fixate_pantilt_srv_ =  nh_.advertiseService("/squirrel_view_controller/fixate_pantilt", &ViewController::fixatePanTilt, this);
   clear_srv_ = nh_.advertiseService("/squirrel_view_controller/clear_fixation", &ViewController::clearFixation, this);
   reset_srv_ = nh_.advertiseService("/squirrel_view_controller/reset_positions", &ViewController::resetPosition, this);
+  pan_tilt_srv_ = nh_.advertiseService("/squirrel_view_controller/move_pan_tilt", &ViewController::movePanTiltCB, this);
   vis_pub_ = nh_.advertise<visualization_msgs::Marker>( "visualization_marker", 0 );
   ROS_INFO("ViewController ready...");
+}
+
+bool ViewController::movePanTiltCB(squirrel_view_controller_msgs::LookAtPanTilt::Request &req, squirrel_view_controller_msgs::LookAtPanTilt::Response &res) {
+   movePanTilt(req.pan, req.tilt);
 }
 
 std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose)

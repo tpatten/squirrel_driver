@@ -23,6 +23,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <tf/transform_listener.h>
 #include <squirrel_view_controller_msgs/LookAtImagePosition.h>
+#include <squirrel_view_controller_msgs/LookAtPanTilt.h>
 #include <squirrel_view_controller_msgs/LookAtPosition.h>
 #include <squirrel_view_controller_msgs/FixatePosition.h>
 #include <squirrel_view_controller_msgs/FixatePanTilt.h>
@@ -45,7 +46,7 @@ protected:
 
   ros::Publisher pan_pub_, tilt_pub_, rel_pan_pub_, rel_tilt_pub_, vis_pub_;
   ros::Subscriber pan_state_sub_, tilt_state_sub_;
-  ros::ServiceServer look_image_srv_, look_srv_, fixate_srv_, fixate_pantilt_srv_, clear_srv_, reset_srv_;
+  ros::ServiceServer look_image_srv_, look_srv_, fixate_srv_, fixate_pantilt_srv_, clear_srv_, reset_srv_, pan_tilt_srv_;
   std::string pan_command_topic_, pan_status_topic_, tilt_command_topic_, tilt_status_topic_;
   boost::mutex joint_mutex_;
 
@@ -65,6 +66,7 @@ protected:
   std::string who_fixed_it;
 
   void movePanTilt(float pan, float tilt);
+  bool movePanTiltCB(squirrel_view_controller_msgs::LookAtPanTilt::Request &req, squirrel_view_controller_msgs::LookAtPanTilt::Response &res);
   void moveRelativePanTilt(float pan, float tilt);
   bool lookAtImagePosition(squirrel_view_controller_msgs::LookAtImagePosition::Request &req,
                            squirrel_view_controller_msgs::LookAtImagePosition::Response &res);
