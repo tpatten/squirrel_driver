@@ -93,6 +93,7 @@ add_library(squirrel_hw_control_loop
 target_link_libraries(squirrel_hw_control_loop
         ${catkin_LIBRARIES}
         )
+add_dependencies(squirrel_hw_control_loop squirrel_safety_msgs_gencpp)
 
 # Hardware Interface
 add_library(squirrel_hw_interface
