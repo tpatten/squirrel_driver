@@ -21,6 +21,8 @@ find_package(catkin REQUIRED
         rosparam_shortcuts
         nav_msgs
         tf
+        control_msgs
+        sensor_msgs
 )
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
@@ -49,6 +51,8 @@ catkin_package(
           rosparam_shortcuts
           nav_msgs
           tf
+          control_msgs
+          sensor_msgs
         LIBRARIES
           squirrel_hw_control_loop
           squirrel_hw_interface
@@ -89,6 +93,7 @@ add_library(squirrel_hw_control_loop
 target_link_libraries(squirrel_hw_control_loop
         ${catkin_LIBRARIES}
         )
+add_dependencies(squirrel_hw_control_loop squirrel_safety_msgs_gencpp)
 
 # Hardware Interface
 add_library(squirrel_hw_interface
