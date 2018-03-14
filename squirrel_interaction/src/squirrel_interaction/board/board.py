@@ -220,7 +220,7 @@ class Controller:
 
     def move_neck_tilt_rel(self, message):
         position = self._motor.get_position("camera")
-        reference = int(degrees(message.data))
+        reference = position + int(degrees(message.data))
         if not self._motor.move_to('camera', reference):
             self.neck_tilt_position_reference = reference
         else:

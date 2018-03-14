@@ -53,6 +53,7 @@ ViewController::ViewController(std::string name)
 
 bool ViewController::movePanTiltCB(squirrel_view_controller_msgs::LookAtPanTilt::Request &req, squirrel_view_controller_msgs::LookAtPanTilt::Response &res) {
    movePanTilt(req.pan, req.tilt);
+   return true;
 }
 
 std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose)
@@ -79,13 +80,13 @@ std::vector<double> ViewController::pose2PanTilt(geometry_msgs::PoseStamped pose
     ROS_ERROR("%s", ex.what());
     ros::Duration(1.0).sleep();
   }
-  float rel_pan = atan2(pan.point.y,pan.point.x);
-  v.push_back(rel_pan);
-  float rel_tilt = -atan2(tilt.point.y,tilt.point.x);
+  float rel_pan = -atan2(pan.point.y,pan.point.x);
+  float rel_tilt = atan2(tilt.point.y,tilt.point.x);
   if (rel_tilt < -M_PI/2)
   {
     rel_tilt += 0.0;
   }
+  v.push_back(rel_pan);
   v.push_back(rel_tilt);
 
   ROS_DEBUG("Pan: x: %f, y: %f", pan.point.x, pan.point.y);
